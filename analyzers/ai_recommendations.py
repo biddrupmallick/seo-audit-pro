@@ -1,34 +1,15 @@
 import re
-from typing import Dict, Any
+from typing import Dict, Any, List
 import ollama
 
 OLLAMA_MODEL = "llama3.2"
 
-SYSTEM_PROMPT = """You are a world-class SEO consultant with 15+ years of experience specializing in:
-- Technical SEO & Core Web Vitals
-- Local SEO for small and medium businesses
-- AEO (Answer Engine Optimization) for featured snippets and voice search
-- GEO (Generative Engine Optimization) for AI search engines like ChatGPT and Perplexity
-- Conversion Rate Optimization (CRO)
-
-Your job is to write professional, specific, and actionable audit recommendations for business owners.
-Always explain the BUSINESS IMPACT first, then give EXACT steps to fix each issue.
-Be direct, confident, and encouraging. Write in plain English — no jargon without explanation.
-Keep each recommendation concise but impactful. Never use generic advice."""
+SYSTEM_PROMPT = """You are a senior SEO consultant writing a client audit report.
+Output ONLY in the exact format requested. No extra text, no explanations outside the format.
+Be specific, direct and concise. Every recommendation must be actionable."""
 
 
-def _markdown_to_html(text: str) -> str:
-    """Convert basic markdown to HTML for clean report rendering."""
-    # Bold
-    text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
-    # Bullet points
-    text = re.sub(r'^\s*[\*\-]\s+', '• ', text, flags=re.MULTILINE)
-    # Numbered lists keep as-is
-    return text
-
-
-def _ask(prompt: str, max_tokens: int = 500) -> str:
-    """Send a prompt to Ollama and return the response text."""
+def _ask_raw(prompt: str, max_tokens: int = 300) -> str:
     try:
         response = ollama.chat(
             model=OLLAMA_MODEL,
@@ -36,11 +17,70 @@ def _ask(prompt: str, max_tokens: int = 500) -> str:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
-            options={"num_predict": max_tokens, "temperature": 0.7},
+            options={"num_predict": max_tokens, "temperature": 0.6},
         )
-        return _markdown_to_html(response["message"]["content"].strip())
+        return response["message"]["content"].strip()
     except Exception as e:
-        return f"AI recommendation unavailable: {e}"
+        return ""
+
+
+def _parse_card(text: str) -> Dict[str, Any]:
+    """Parse structured card format from AI output."""
+    card = {"headline": "", "impact": "", "steps": []}
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("HEADLINE:"):
+            card["headline"] = line.replace("HEADLINE:", "").strip()
+        elif line.startswith("IMPACT:"):
+            card["impact"] = line.replace("IMPACT:", "").strip()
+        elif line.startswith("STEP"):
+            parts = line.split("|")
+            if len(parts) >= 3:
+                card["steps"].append({
+                    "time": parts[1].strip(),
+                    "action": parts[2].strip(),
+                })
+    return card
+
+
+def _parse_verdict(text: str) -> Dict[str, str]:
+    """Parse verdict format."""
+    result = {"score_label": "", "verdict": "", "top_win": ""}
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("VERDICT:"):
+            result["verdict"] = line.replace("VERDICT:", "").strip()
+        elif line.startswith("TOP_WIN:"):
+            result["top_win"] = line.replace("TOP_WIN:", "").strip()
+    return result
+
+
+def _parse_action_plan(text: str) -> List[Dict[str, Any]]:
+    """Parse week-by-week action plan."""
+    weeks = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("WEEK"):
+            parts = line.split("|")
+            if len(parts) >= 3:
+                weeks.append({
+                    "label": parts[0].strip(),
+                    "focus": parts[1].strip(),
+                    "tasks": [t.strip() for t in parts[2:]],
+                })
+    return weeks
+
+
+def _score_to_status(score: float) -> str:
+    if score >= 70:
+        return "good"
+    elif score >= 40:
+        return "warning"
+    return "critical"
+
+
+def _status_emoji(status: str) -> str:
+    return {"critical": "🔴", "warning": "🟡", "good": "🟢"}.get(status, "🟡")
 
 
 def generate_ai_recommendations(
@@ -58,152 +98,196 @@ def generate_ai_recommendations(
     conversion: Dict[str, Any],
     content: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Generate AI-powered recommendations using local Llama model via Ollama."""
 
     overall_score = scores.get("overall_score", 0)
     grade = scores.get("grade", "F")
     cat_scores = scores.get("category_scores", {})
 
-    # Build issue summary for context
-    issues = []
-    tech_s = technical.get("summary", {})
-    if tech_s.get("broken_pages", 0):
-        issues.append(f"{tech_s['broken_pages']} broken page(s) returning 404 errors")
-    if tech_s.get("slow_pages", 0):
-        issues.append(f"{tech_s['slow_pages']} slow page(s) taking over 3 seconds to load")
+    def get_score(cat): return cat_scores.get(cat, {}).get("score", 0)
 
-    op_s = onpage.get("summary", {})
-    if op_s.get("missing_title", 0):
-        issues.append(f"{op_s['missing_title']} page(s) missing title tags")
-    if op_s.get("missing_h1", 0):
-        issues.append(f"{op_s['missing_h1']} page(s) missing H1 headings")
-    if op_s.get("missing_meta_description", 0):
-        issues.append(f"{op_s['missing_meta_description']} page(s) missing meta descriptions")
-    if op_s.get("title_too_long", 0):
-        issues.append(f"{op_s['title_too_long']} title(s) exceeding 60 characters")
-
-    local_s = local_seo.get("summary", {})
-    missing_local = local_seo.get("missing_local_signals", [])
-
-    aeo_s = aeo.get("summary", {})
-    geo_s = geo.get("summary", {})
-    conv_s = conversion.get("summary", {})
+    tech_s    = technical.get("summary", {})
+    op_s      = onpage.get("summary", {})
+    local_s   = local_seo.get("summary", {})
+    aeo_s     = aeo.get("summary", {})
+    geo_s     = geo.get("summary", {})
+    conv_s    = conversion.get("summary", {})
     content_s = content.get("summary", {})
-    img_s = images.get("summary", {})
+    missing_local = local_seo.get("missing_local_signals", [])
 
     results = {}
 
-    # 1. Executive AI Summary
-    exec_prompt = f"""Write a 3-paragraph executive summary for an SEO audit of {domain}.
+    # ── 1. Verdict card (top of AI section) ──────────────────────────────────
+    verdict_prompt = f"""Audit of {domain}: overall score {overall_score}/100 (Grade {grade}).
+Scores — Technical:{get_score('technical')} OnPage:{get_score('onpage')} LocalSEO:{get_score('local_seo')} AEO:{get_score('aeo')} GEO:{get_score('geo')} Conversion:{get_score('conversion')}
 
-Site stats:
-- Pages crawled: {total_pages}
-- Overall SEO health score: {overall_score}/100 (Grade {grade})
-- Technical SEO: {cat_scores.get('technical', {}).get('score', 0)}/100
-- On-Page SEO: {cat_scores.get('onpage', {}).get('score', 0)}/100
-- Local SEO: {cat_scores.get('local_seo', {}).get('score', 0)}/100
-- AEO Readiness: {cat_scores.get('aeo', {}).get('score', 0)}/100
-- GEO Readiness: {cat_scores.get('geo', {}).get('score', 0)}/100
-- Conversion: {cat_scores.get('conversion', {}).get('score', 0)}/100
-- Content Quality: {cat_scores.get('content', {}).get('score', 0)}/100
+Output EXACTLY this format (2 lines only):
+VERDICT: [One punchy sentence — what the score means for their business]
+TOP_WIN: [The single highest-impact action they should do this week]"""
 
-Key issues found: {', '.join(issues[:5]) if issues else 'No major issues'}
+    results["verdict"] = _parse_verdict(_ask_raw(verdict_prompt, 80))
 
-Paragraph 1: Overall assessment and what the score means for their business.
-Paragraph 2: The 2-3 biggest opportunities for improvement.
-Paragraph 3: Encouraging closing with priority action.
+    # ── 2. Recommendation cards for weak areas ────────────────────────────────
+    cards = []
 
-Be specific to this domain. Do not use bullet points — write in flowing paragraphs."""
+    # Local SEO
+    local_score = get_score("local_seo")
+    local_prompt = f"""Local SEO audit for {domain}. Score: {local_score}/100.
+Missing: {', '.join(missing_local[:3]) if missing_local else 'none'}.
+Has contact page: {local_seo.get('has_contact_page', False)}. Has Google Maps: {local_seo.get('has_google_maps', False)}. Has LocalBusiness schema: {local_seo.get('has_local_business_schema', False)}.
 
-    results["executive_summary"] = _ask(exec_prompt, max_tokens=400)
+Output EXACTLY this format:
+HEADLINE: [One punchy headline about their local SEO problem]
+IMPACT: [One sentence — what this costs them in customers/revenue]
+STEP 1 | [time e.g. 10 mins] | [exact action]
+STEP 2 | [time] | [exact action]
+STEP 3 | [time] | [exact action]"""
 
-    # 2. Local SEO recommendation (if weak)
-    local_score = cat_scores.get("local_seo", {}).get("score", 100)
-    if local_score < 70:
-        local_prompt = f"""Write a Local SEO recommendation for {domain}.
+    card_data = _parse_card(_ask_raw(local_prompt, 150))
+    if card_data["headline"]:
+        cards.append({
+            "category": "Local SEO",
+            "icon": "📍",
+            "score": local_score,
+            "status": _score_to_status(local_score),
+            "emoji": _status_emoji(_score_to_status(local_score)),
+            **card_data,
+        })
 
-Current Local SEO score: {local_score}/100
-Missing signals: {', '.join(missing_local) if missing_local else 'None'}
-Has contact page: {local_seo.get('has_contact_page', False)}
-Has Google Maps: {local_seo.get('has_google_maps', False)}
-Has LocalBusiness schema: {local_seo.get('has_local_business_schema', False)}
-Has review schema: {local_seo.get('has_review_schema', False)}
-Pages with phone number: {local_s.get('pages_with_phone', 0)}
+    # AEO
+    aeo_score = get_score("aeo")
+    if aeo_score < 75:
+        aeo_prompt = f"""AEO audit for {domain}. Score: {aeo_score}/100.
+FAQ pages: {aeo_s.get('pages_with_faq_content', 0)}/{total_pages}. Question headings: {aeo_s.get('pages_with_question_headings', 0)}. HowTo content: {aeo_s.get('pages_with_howto_content', 0)}.
 
-Write 2-3 specific, actionable recommendations. Explain why each matters for local search rankings and customer trust. Give exact implementation steps."""
+Output EXACTLY this format:
+HEADLINE: [One punchy headline about their AEO problem]
+IMPACT: [One sentence — what featured snippets/voice search traffic they're missing]
+STEP 1 | [time] | [exact action]
+STEP 2 | [time] | [exact action]
+STEP 3 | [time] | [exact action]"""
 
-        results["local_seo"] = _ask(local_prompt, max_tokens=350)
+        card_data = _parse_card(_ask_raw(aeo_prompt, 150))
+        if card_data["headline"]:
+            cards.append({
+                "category": "AEO",
+                "icon": "💡",
+                "score": aeo_score,
+                "status": _score_to_status(aeo_score),
+                "emoji": _status_emoji(_score_to_status(aeo_score)),
+                **card_data,
+            })
 
-    # 3. AEO recommendation (if weak)
-    aeo_score = cat_scores.get("aeo", {}).get("score", 100)
-    if aeo_score < 70:
-        aeo_prompt = f"""Write an AEO (Answer Engine Optimization) recommendation for {domain}.
-
-Current AEO score: {aeo_score}/100
-Pages with FAQ content: {aeo_s.get('pages_with_faq_content', 0)} of {total_pages}
-Pages with question headings: {aeo_s.get('pages_with_question_headings', 0)}
-Pages with HowTo content: {aeo_s.get('pages_with_howto_content', 0)}
-
-Explain what AEO means in simple terms, why it matters for getting found in Google featured snippets and voice search, and give 3 specific steps to improve their AEO score. Be practical."""
-
-        results["aeo"] = _ask(aeo_prompt, max_tokens=350)
-
-    # 4. GEO recommendation
-    geo_score = cat_scores.get("geo", {}).get("score", 100)
+    # GEO
+    geo_score = get_score("geo")
     if geo_score < 80:
-        geo_prompt = f"""Write a GEO (Generative Engine Optimization) recommendation for {domain}.
+        geo_prompt = f"""GEO (AI Search) audit for {domain}. Score: {geo_score}/100.
+About page: {geo.get('has_about_page', False)}. Author bylines: {geo_s.get('pages_with_author_byline', 0)} pages. Stats/data: {geo_s.get('pages_with_statistics', 0)} pages.
 
-Current GEO score: {geo_score}/100
-Has about page: {geo.get('has_about_page', False)}
-Has contact page: {geo.get('has_contact_page', False)}
-Pages with author byline: {geo_s.get('pages_with_author_byline', 0)}
-Pages with statistics/data: {geo_s.get('pages_with_statistics', 0)}
-Average GEO score per page: {geo_s.get('avg_geo_score', 0)}
+Output EXACTLY this format:
+HEADLINE: [One punchy headline about their AI search visibility problem]
+IMPACT: [One sentence — what AI citation opportunities they're missing]
+STEP 1 | [time] | [exact action]
+STEP 2 | [time] | [exact action]
+STEP 3 | [time] | [exact action]"""
 
-Explain GEO in simple terms (optimizing for ChatGPT, Perplexity, Google AI Overviews), why it's the future of SEO, and give 3 specific steps to improve their chances of being cited by AI engines."""
+        card_data = _parse_card(_ask_raw(geo_prompt, 150))
+        if card_data["headline"]:
+            cards.append({
+                "category": "GEO / AI Search",
+                "icon": "🌐",
+                "score": geo_score,
+                "status": _score_to_status(geo_score),
+                "emoji": _status_emoji(_score_to_status(geo_score)),
+                **card_data,
+            })
 
-        results["geo"] = _ask(geo_prompt, max_tokens=350)
+    # Conversion
+    conv_score = get_score("conversion")
+    if conv_score < 80:
+        conv_prompt = f"""Conversion audit for {domain}. Score: {conv_score}/100.
+Pages with CTA: {conv_s.get('pages_with_cta', 0)}/{total_pages}. Forms: {conv_s.get('pages_with_forms', 0)}. Trust signals: {conv_s.get('pages_with_trust_signals', 0)}. Social proof: {conv_s.get('pages_with_social_proof', 0)}.
 
-    # 5. Conversion recommendation (if weak)
-    conv_score = cat_scores.get("conversion", {}).get("score", 100)
-    if conv_score < 75:
-        conv_prompt = f"""Write a Conversion Optimization recommendation for {domain}.
+Output EXACTLY this format:
+HEADLINE: [One punchy headline about their conversion problem]
+IMPACT: [One sentence — what leads/sales they're losing right now]
+STEP 1 | [time] | [exact action]
+STEP 2 | [time] | [exact action]
+STEP 3 | [time] | [exact action]"""
 
-Current conversion score: {conv_score}/100
-Pages with clear CTA: {conv_s.get('pages_with_cta', 0)} of {total_pages}
-Pages with trust signals: {conv_s.get('pages_with_trust_signals', 0)}
-Pages with contact forms: {conv_s.get('pages_with_forms', 0)}
-Pages with social proof: {conv_s.get('pages_with_social_proof', 0)}
+        card_data = _parse_card(_ask_raw(conv_prompt, 150))
+        if card_data["headline"]:
+            cards.append({
+                "category": "Conversion",
+                "icon": "🎯",
+                "score": conv_score,
+                "status": _score_to_status(conv_score),
+                "emoji": _status_emoji(_score_to_status(conv_score)),
+                **card_data,
+            })
 
-Write 3 specific recommendations to improve conversion rate. Focus on practical changes that can be implemented quickly. Explain the revenue impact of each change."""
+    # Technical (only if bad)
+    tech_score = get_score("technical")
+    if tech_score < 80:
+        tech_prompt = f"""Technical SEO audit for {domain}. Score: {tech_score}/100.
+Broken pages: {tech_s.get('broken_pages', 0)}. Slow pages: {tech_s.get('slow_pages', 0)}. Server errors: {tech_s.get('server_errors', 0)}.
 
-        results["conversion"] = _ask(conv_prompt, max_tokens=350)
+Output EXACTLY this format:
+HEADLINE: [One punchy headline about their technical problem]
+IMPACT: [One sentence — how this is hurting their rankings right now]
+STEP 1 | [time] | [exact action]
+STEP 2 | [time] | [exact action]
+STEP 3 | [time] | [exact action]"""
 
-    # 6. Content recommendation (if weak)
-    content_score = cat_scores.get("content", {}).get("score", 100)
-    if content_score < 75:
-        content_prompt = f"""Write a Content Quality recommendation for {domain}.
+        card_data = _parse_card(_ask_raw(tech_prompt, 150))
+        if card_data["headline"]:
+            cards.append({
+                "category": "Technical SEO",
+                "icon": "⚙️",
+                "score": tech_score,
+                "status": _score_to_status(tech_score),
+                "emoji": _status_emoji(_score_to_status(tech_score)),
+                **card_data,
+            })
 
-Current content score: {content_score}/100
-Average word count per page: {content_s.get('avg_word_count', 0)}
-Thin content pages (under 300 words): {content_s.get('thin_content_pages', 0)}
-Pages with video: {content_s.get('pages_with_video', 0)}
-Average internal links per page: {content_s.get('avg_internal_links', 0)}
+    # On-Page (only if bad)
+    onpage_score = get_score("onpage")
+    if onpage_score < 80:
+        onpage_prompt = f"""On-Page SEO audit for {domain}. Score: {onpage_score}/100.
+Missing H1: {op_s.get('missing_h1', 0)}. Missing meta desc: {op_s.get('missing_meta_description', 0)}. Titles too long: {op_s.get('title_too_long', 0)}.
 
-Write 2-3 specific content improvement recommendations. Explain how content quality directly impacts rankings and user trust."""
+Output EXACTLY this format:
+HEADLINE: [One punchy headline about their on-page problem]
+IMPACT: [One sentence — how this affects their Google rankings]
+STEP 1 | [time] | [exact action]
+STEP 2 | [time] | [exact action]
+STEP 3 | [time] | [exact action]"""
 
-        results["content"] = _ask(content_prompt, max_tokens=300)
+        card_data = _parse_card(_ask_raw(onpage_prompt, 150))
+        if card_data["headline"]:
+            cards.append({
+                "category": "On-Page SEO",
+                "icon": "📝",
+                "score": onpage_score,
+                "status": _score_to_status(onpage_score),
+                "emoji": _status_emoji(_score_to_status(onpage_score)),
+                **card_data,
+            })
 
-    # 7. Top priority action plan
-    priority_prompt = f"""Create a prioritized 30-day action plan for {domain} based on this audit:
+    # Sort: critical first, then warning, then good
+    order = {"critical": 0, "warning": 1, "good": 2}
+    cards.sort(key=lambda c: order.get(c["status"], 3))
+    results["cards"] = cards
 
-Overall score: {overall_score}/100 (Grade {grade})
-Lowest scoring areas:
-{chr(10).join([f'- {k}: {v.get("score", 0)}/100' for k, v in sorted(cat_scores.items(), key=lambda x: x[1].get("score", 0))[:4]])}
+    # ── 3. 30-Day Action Plan ─────────────────────────────────────────────────
+    lowest = sorted(cat_scores.items(), key=lambda x: x[1].get("score", 0))[:3]
+    plan_prompt = f"""30-day action plan for {domain}. Overall score: {overall_score}/100.
+Weakest areas: {', '.join([f'{k}({v.get("score",0)}/100)' for k,v in lowest])}.
 
-Write a clear Week 1, Week 2, Week 3-4 action plan with specific tasks.
-Make it realistic for a small business owner to implement. Maximum 200 words."""
+Output EXACTLY this format (3 lines, one per week group):
+WEEK 1 | Quick wins (1-2 hrs total) | [task 1] | [task 2] | [task 3]
+WEEK 2 | Medium fixes (half day) | [task 1] | [task 2] | [task 3]
+WEEK 3-4 | Strategic improvements | [task 1] | [task 2] | [task 3]"""
 
-    results["action_plan"] = _ask(priority_prompt, max_tokens=300)
+    results["action_plan"] = _parse_action_plan(_ask_raw(plan_prompt, 200))
 
     return results

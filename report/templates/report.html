@@ -1435,46 +1435,97 @@
   </div>
   <div class="section-body">
 
-    {% if ai.executive_summary %}
-    <div class="subsection-title">Executive Summary</div>
-    <div style="background: linear-gradient(135deg, #f0f4ff, #e8f0fe); border-left: 4px solid #0f3460; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 20px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.executive_summary | replace('\n\n', '</p><p style="margin-top:10px;">') | replace('\n', ' ') | safe }}
+    <!-- Verdict Banner -->
+    {% if ai.verdict %}
+    <div style="background: linear-gradient(135deg, #1a1a2e, #0f3460); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; display: flex; gap: 20px; align-items: flex-start;">
+      <div style="background: {{ scores.grade_color }}22; border: 2px solid {{ scores.grade_color }}; border-radius: 50%; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <span style="font-size: 22px; font-weight: 800; color: {{ scores.grade_color }};">{{ scores.grade }}</span>
+      </div>
+      <div>
+        <div style="color: white; font-size: 13px; font-weight: 600; margin-bottom: 6px;">{{ ai.verdict.verdict }}</div>
+        {% if ai.verdict.top_win %}
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+          <span style="background: #22c55e22; color: #22c55e; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 1px;">Top Win This Week</span>
+          <span style="color: #94a3b8; font-size: 11px;">{{ ai.verdict.top_win }}</span>
+        </div>
+        {% endif %}
+      </div>
     </div>
     {% endif %}
 
-    {% if ai.local_seo %}
-    <div class="subsection-title">📍 Local SEO Recommendations</div>
-    <div style="background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.local_seo | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') | safe }}
+    <!-- Recommendation Cards -->
+    {% if ai.cards %}
+    <div class="subsection-title">Priority Recommendations</div>
+    {% for card in ai.cards %}
+    <div style="border: 1px solid {% if card.status == 'critical' %}#fee2e2{% elif card.status == 'warning' %}#fef3c7{% else %}#dcfce7{% endif %}; border-left: 4px solid {% if card.status == 'critical' %}#ef4444{% elif card.status == 'warning' %}#eab308{% else %}#22c55e{% endif %}; border-radius: 0 10px 10px 0; padding: 16px 18px; margin-bottom: 14px; background: {% if card.status == 'critical' %}#fff5f5{% elif card.status == 'warning' %}#fffdf0{% else %}#f0fdf4{% endif %};">
+
+      <!-- Card Header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">{{ card.emoji }}</span>
+          <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748b;">{{ card.icon }} {{ card.category }}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 18px; font-weight: 800; color: {% if card.status == 'critical' %}#ef4444{% elif card.status == 'warning' %}#eab308{% else %}#22c55e{% endif %};">{{ card.score }}/100</span>
+          <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; background: {% if card.status == 'critical' %}#fee2e2; color: #dc2626{% elif card.status == 'warning' %}#fef3c7; color: #d97706{% else %}#dcfce7; color: #16a34a{% endif %};">{{ card.status }}</span>
+        </div>
+      </div>
+
+      <!-- Headline -->
+      <div style="font-size: 13px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px;">{{ card.headline }}</div>
+
+      <!-- Impact -->
+      {% if card.impact %}
+      <div style="font-size: 11px; color: #64748b; margin-bottom: 12px; font-style: italic;">💼 {{ card.impact }}</div>
+      {% endif %}
+
+      <!-- Action Steps -->
+      {% if card.steps %}
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        {% for i, step in enumerate(card.steps) %}
+        <div style="display: flex; align-items: flex-start; gap: 10px;">
+          <span style="background: #1a1a2e; color: white; font-size: 10px; font-weight: 700; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;">{{ loop.index }}</span>
+          <div style="flex: 1;">
+            <span style="font-size: 11px; color: #334155;">{{ step.action }}</span>
+          </div>
+          <span style="background: #e2e8f0; color: #475569; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">⏱ {{ step.time }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
     </div>
+    {% endfor %}
     {% endif %}
 
-    {% if ai.aeo %}
-    <div class="subsection-title">💡 AEO Recommendations</div>
-    <div style="background: #fffbeb; border-left: 4px solid #eab308; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.aeo | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') | safe }}
-    </div>
-    {% endif %}
-
-    {% if ai.geo %}
-    <div class="subsection-title">🌐 GEO / AI Search Recommendations</div>
-    <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.geo | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') | safe }}
-    </div>
-    {% endif %}
-
-    {% if ai.conversion %}
-    <div class="subsection-title">🎯 Conversion Optimization Recommendations</div>
-    <div style="background: #fdf4ff; border-left: 4px solid #a855f7; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.conversion | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') | safe }}
-    </div>
-    {% endif %}
-
+    <!-- 30-Day Action Plan -->
     {% if ai.action_plan %}
-    <div class="subsection-title">📅 Your 30-Day Action Plan</div>
-    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 10px; padding: 20px 24px; font-size: 12px; line-height: 1.9; color: #e2e8f0;">
-      {{ ai.action_plan | replace('\n\n', '</p><p style="margin-top:10px;">') | replace('\n', '<br>') | safe }}
-    </div>
+    <div class="subsection-title">📅 30-Day Action Plan</div>
+    <table class="data-table" style="margin-top: 0;">
+      <thead>
+        <tr>
+          <th style="width: 100px;">Timeline</th>
+          <th style="width: 140px;">Focus</th>
+          <th>Tasks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in ai.action_plan %}
+        <tr>
+          <td style="font-weight: 700; color: #0f3460;">{{ week.label }}</td>
+          <td style="font-weight: 600; color: #334155;">{{ week.focus }}</td>
+          <td>
+            {% for task in week.tasks %}
+            <div style="display: flex; align-items: flex-start; gap: 6px; {% if not loop.last %}margin-bottom: 4px;{% endif %}">
+              <span style="color: #22c55e; font-weight: 700; flex-shrink: 0;">✓</span>
+              <span style="font-size: 11px;">{{ task }}</span>
+            </div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% endif %}
 
   </div>
