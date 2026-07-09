@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEO Audit Pro — Free Unlimited SEO Crawler</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <div class="logo-icon">🐸</div>
+        <div class="logo-text">SEO Audit <span>Pro</span></div>
+      </a>
+      <div class="header-badge">🔒 Runs 100% Locally</div>
+    </div>
+  </header>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main-content">
+
+    <!-- HERO -->
+    <section class="hero" id="hero-section">
+      <div class="hero-inner">
+        <div class="hero-eyebrow">
+          <span>⚡</span> No URL limits · No signups · No data shared
+        </div>
+        <h1>The <em>Free</em> SEO<br>Audit Tool</h1>
+        <p class="hero-desc">
+          Like Screaming Frog, but unlimited. Crawl your entire website,
+          analyze technical SEO, on-page factors, schema markup, AEO & GEO readiness,
+          and download a full PDF report.
+        </p>
+
+        <!-- ANALYZE FORM -->
+        <div class="analyze-form-card">
+          <label class="form-label" for="url-input">Enter your website URL</label>
+          <div class="url-input-group">
+            <input
+              type="url"
+              id="url-input"
+              class="url-input"
+              placeholder="https://example.com"
+              autocomplete="url"
+              spellcheck="false"
+            >
+            <button class="btn-analyze" id="analyze-btn" onclick="startAnalysis()">
+              <span>🔍</span> Analyze Now
+            </button>
+          </div>
+          <div class="form-hints">
+            <div class="form-hint"><div class="form-hint-dot"></div> Crawls up to 200 pages</div>
+            <div class="form-hint"><div class="form-hint-dot"></div> 10+ SEO checks</div>
+            <div class="form-hint"><div class="form-hint-dot"></div> PDF report download</div>
+            <div class="form-hint"><div class="form-hint-dot"></div> AEO + GEO analysis</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURE PILLS -->
+    <div class="feature-pills" id="feature-pills">
+      <div class="pill"><span class="pill-icon">⚙️</span> Technical SEO</div>
+      <div class="pill"><span class="pill-icon">📝</span> On-Page Analysis</div>
+      <div class="pill"><span class="pill-icon">🔗</span> Schema Markup</div>
+      <div class="pill"><span class="pill-icon">💡</span> AEO Readiness</div>
+      <div class="pill"><span class="pill-icon">🤖</span> GEO / AI Readiness</div>
+      <div class="pill"><span class="pill-icon">⚡</span> Performance</div>
+      <div class="pill"><span class="pill-icon">🖼️</span> Image Analysis</div>
+      <div class="pill"><span class="pill-icon">📄</span> PDF Report</div>
+    </div>
+
+    <!-- PROGRESS SECTION -->
+    <div class="progress-section" id="progress-section">
+      <div class="progress-card">
+        <div class="progress-header">
+          <div class="progress-spinner" id="progress-spinner"></div>
+          <div>
+            <div class="progress-title" id="progress-title">Starting Analysis…</div>
+            <div class="progress-subtitle" id="progress-subtitle">Connecting to your website</div>
+          </div>
+        </div>
+
+        <div class="progress-bar-container">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progress-bar"></div>
+          </div>
+          <div class="progress-pct" id="progress-pct">0%</div>
+        </div>
+
+        <div class="progress-message" id="progress-message">
+          Initializing crawler…
+        </div>
+
+        <div class="progress-log" id="progress-log"></div>
+      </div>
+    </div>
+
+    <!-- ERROR SECTION -->
+    <div class="error-section" id="error-section">
+      <div class="error-card">
+        <div class="error-icon">❌</div>
+        <div>
+          <div class="error-title">Analysis Failed</div>
+          <div class="error-message" id="error-message">An unexpected error occurred.</div>
+        </div>
+      </div>
+      <button class="new-analysis-btn" onclick="resetUI()" style="margin-top: 16px;">
+        ↩ Try Again
+      </button>
+    </div>
+
+    <!-- RESULTS SECTION -->
+    <div class="results-section" id="results-section">
+
+      <div class="results-header">
+        <h2>Audit Complete ✓</h2>
+        <p id="results-subtitle">Analysis finished. Here's your full SEO report.</p>
+      </div>
+
+      <!-- OVERALL SCORE CARD -->
+      <div class="overall-score-card" id="overall-score-card">
+        <div class="score-ring-wrapper">
+          <div class="score-ring" id="score-ring" style="border-color: #22c55e; color: #22c55e;">
+            <div class="score-num" id="score-num">--</div>
+            <div class="score-lbl">/ 100</div>
+          </div>
+        </div>
+        <div class="score-details">
+          <div class="score-domain" id="score-domain">example.com</div>
+          <div class="score-grade-row">
+            <div class="grade-pill" id="grade-pill" style="color: #22c55e; border-color: #22c55e;">A</div>
+            <span style="color: rgba(255,255,255,0.7); font-size: 14px;" id="grade-text">Excellent SEO Health</span>
+          </div>
+          <div class="score-summary-text" id="score-summary">
+            Your website was crawled and analyzed across 8 key SEO dimensions.
+          </div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+            <a class="download-btn" id="download-btn" href="#" download>
+              📥 Download PDF Report
+            </a>
+            <button class="new-analysis-btn" onclick="resetUI()">↩ New Analysis</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS BAR -->
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat-item">
+          <div class="stat-value" id="stat-pages">0</div>
+          <div class="stat-label">Pages Crawled</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value text-red" id="stat-broken">0</div>
+          <div class="stat-label">Broken Pages</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value text-orange" id="stat-missing-title">0</div>
+          <div class="stat-label">Missing Titles</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value text-yellow" id="stat-missing-h1">0</div>
+          <div class="stat-label">Missing H1</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value text-blue" id="stat-images">0</div>
+          <div class="stat-label">Images Without Alt</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value text-green" id="stat-schema">0%</div>
+          <div class="stat-label">Schema Coverage</div>
+        </div>
+      </div>
+
+      <!-- CATEGORY SCORE CARDS -->
+      <div class="score-cards-grid" id="score-cards-grid">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- QUICK WINS -->
+      <div class="quick-wins-section" id="quick-wins-section" style="display:none;">
+        <div class="quick-wins-title">🚀 Quick Wins — Fix These First</div>
+        <div id="quick-wins-list"></div>
+      </div>
+
+      <!-- ISSUES CARDS -->
+      <div class="issues-grid" id="issues-grid">
+        <!-- Filled by JS -->
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="app-footer">
+    <p>SEO Audit Pro · Running locally on localhost:8000 · Your data never leaves your machine</p>
+  </footer>
+
+</div>
+
+<script>
+// ====== STATE ======
+let currentJobId = null;
+let ws = null;
+let analysisData = null;
+
+// ====== HELPERS ======
+function show(id) {
+  document.getElementById(id).classList.add('active');
+}
+function hide(id) {
+  document.getElementById(id).classList.remove('active');
+}
+function setVisible(id, visible) {
+  document.getElementById(id).style.display = visible ? '' : 'none';
+}
+
+function getGradeColor(score) {
+  if (score >= 90) return '#22c55e';
+  if (score >= 80) return '#84cc16';
+  if (score >= 70) return '#eab308';
+  if (score >= 60) return '#f97316';
+  return '#ef4444';
+}
+
+function getGradeText(grade) {
+  const texts = {
+    'A': 'Excellent SEO Health',
+    'B': 'Good SEO Health',
+    'C': 'Average — Needs Improvement',
+    'D': 'Poor — Significant Issues',
+    'F': 'Critical — Urgent Attention Needed',
+  };
+  return texts[grade] || 'SEO Health Assessment Complete';
+}
+
+function formatScore(score) {
+  return Math.round(score);
+}
+
+// ====== RESET ======
+function resetUI() {
+  hide('progress-section');
+  hide('error-section');
+  hide('results-section');
+  document.getElementById('hero-section').style.display = '';
+  document.getElementById('feature-pills').style.display = '';
+  document.getElementById('url-input').value = '';
+  document.getElementById('analyze-btn').disabled = false;
+  document.getElementById('progress-bar').style.width = '0%';
+  document.getElementById('progress-pct').textContent = '0%';
+  document.getElementById('progress-log').innerHTML = '';
+  if (ws) { ws.close(); ws = null; }
+  currentJobId = null;
+}
+
+// ====== START ANALYSIS ======
+async function startAnalysis() {
+  const urlInput = document.getElementById('url-input');
+  const url = urlInput.value.trim();
+
+  if (!url) {
+    urlInput.focus();
+    urlInput.style.borderColor = '#ef4444';
+    setTimeout(() => { urlInput.style.borderColor = ''; }, 2000);
+    return;
+  }
+
+  // Validate URL format
+  try {
+    const parsed = new URL(url.startsWith('http') ? url : 'https://' + url);
+    if (!urlInput.value.startsWith('http')) {
+      urlInput.value = parsed.href;
+    }
+  } catch(e) {
+    urlInput.style.borderColor = '#ef4444';
+    setTimeout(() => { urlInput.style.borderColor = ''; }, 2000);
+    return;
+  }
+
+  // Hide hero, show progress
+  document.getElementById('hero-section').style.display = 'none';
+  document.getElementById('feature-pills').style.display = 'none';
+  hide('error-section');
+  hide('results-section');
+  show('progress-section');
+
+  document.getElementById('analyze-btn').disabled = true;
+  document.getElementById('progress-title').textContent = 'Crawling Website…';
+  document.getElementById('progress-subtitle').textContent = urlInput.value;
+
+  try {
+    // POST to start analysis
+    const resp = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: urlInput.value }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || 'Failed to start analysis');
+    }
+
+    const data = await resp.json();
+    currentJobId = data.job_id;
+
+    // Connect WebSocket for live progress
+    connectWebSocket(currentJobId);
+
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+// ====== WEBSOCKET ======
+function connectWebSocket(jobId) {
+  const wsUrl = `ws://${window.location.host}/ws/${jobId}`;
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    addProgressLog('WebSocket connected. Monitoring job ' + jobId);
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      handleProgressMessage(msg);
+    } catch(e) {
+      console.error('WS parse error:', e);
+    }
+  };
+
+  ws.onerror = (e) => {
+    showError('WebSocket connection error. Please try again.');
+  };
+
+  ws.onclose = () => {
+    addProgressLog('WebSocket disconnected.');
+  };
+}
+
+function handleProgressMessage(msg) {
+  if (msg.type === 'progress') {
+    updateProgress(msg.percent || 0, msg.message || '');
+    addProgressLog(msg.message);
+  } else if (msg.type === 'complete') {
+    updateProgress(100, 'Analysis complete!');
+    addProgressLog('Analysis complete! Loading results…');
+    setTimeout(() => showResults(msg.data), 800);
+  } else if (msg.type === 'error') {
+    showError(msg.message || 'An error occurred during analysis.');
+  }
+}
+
+function updateProgress(percent, message) {
+  document.getElementById('progress-bar').style.width = percent + '%';
+  document.getElementById('progress-pct').textContent = Math.round(percent) + '%';
+  if (message) {
+    document.getElementById('progress-message').textContent = message;
+  }
+
+  if (percent >= 100) {
+    document.getElementById('progress-spinner').style.display = 'none';
+    document.getElementById('progress-title').textContent = 'Complete!';
+  }
+}
+
+function addProgressLog(message) {
+  const log = document.getElementById('progress-log');
+  const item = document.createElement('div');
+  item.className = 'progress-log-item';
+  const time = new Date().toLocaleTimeString();
+  item.textContent = `[${time}] ${message}`;
+  log.appendChild(item);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ====== SHOW ERROR ======
+function showError(message) {
+  hide('progress-section');
+  document.getElementById('error-message').textContent = message;
+  show('error-section');
+  document.getElementById('analyze-btn').disabled = false;
+  document.getElementById('hero-section').style.display = '';
+  document.getElementById('feature-pills').style.display = '';
+}
+
+// ====== SHOW RESULTS ======
+function showResults(data) {
+  hide('progress-section');
+  analysisData = data;
+
+  const { scores, technical, onpage, schema, aeo, geo, performance, images, root_url, total_pages } = data;
+
+  // Update subtitle
+  try {
+    const domain = new URL(root_url).hostname;
+    document.getElementById('results-subtitle').textContent =
+      `Crawled ${total_pages} pages on ${domain} · Analysis complete`;
+    document.getElementById('score-domain').textContent = domain;
+  } catch(e) {
+    document.getElementById('score-domain').textContent = root_url;
+  }
+
+  // Overall score
+  const overallScore = formatScore(scores.overall_score);
+  const grade = scores.grade;
+  const gradeColor = scores.grade_color || getGradeColor(scores.overall_score);
+
+  document.getElementById('score-num').textContent = overallScore;
+  document.getElementById('score-ring').style.borderColor = gradeColor;
+  document.getElementById('score-ring').style.color = gradeColor;
+  document.getElementById('score-ring').style.boxShadow = `0 0 30px ${gradeColor}66`;
+  document.getElementById('grade-pill').textContent = grade;
+  document.getElementById('grade-pill').style.color = gradeColor;
+  document.getElementById('grade-pill').style.borderColor = gradeColor;
+  document.getElementById('grade-text').textContent = getGradeText(grade);
+  document.getElementById('score-summary').textContent =
+    `${total_pages} pages crawled across 8 SEO dimensions. Download the full PDF report for detailed findings and recommendations.`;
+
+  // Download link
+  const downloadBtn = document.getElementById('download-btn');
+  downloadBtn.href = `/report/${currentJobId}`;
+
+  // Stats bar
+  document.getElementById('stat-pages').textContent = total_pages;
+  document.getElementById('stat-broken').textContent = technical.summary?.broken_pages || 0;
+  document.getElementById('stat-missing-title').textContent = onpage.summary?.missing_title || 0;
+  document.getElementById('stat-missing-h1').textContent = onpage.summary?.missing_h1 || 0;
+  document.getElementById('stat-images').textContent = images.summary?.missing_alt || 0;
+  document.getElementById('stat-schema').textContent = (schema.summary?.schema_coverage_percent || 0) + '%';
+
+  // Category score cards
+  const catNames = {
+    technical: { label: 'Technical SEO', icon: '⚙️', weight: '25%' },
+    onpage: { label: 'On-Page SEO', icon: '📝', weight: '20%' },
+    schema: { label: 'Schema Markup', icon: '🔗', weight: '15%' },
+    aeo: { label: 'AEO Readiness', icon: '💡', weight: '15%' },
+    geo: { label: 'GEO Readiness', icon: '🤖', weight: '15%' },
+    performance: { label: 'Performance', icon: '⚡', weight: '10%' },
+  };
+
+  const scoreCardsGrid = document.getElementById('score-cards-grid');
+  scoreCardsGrid.innerHTML = '';
+  for (const [cat, catData] of Object.entries(scores.category_scores)) {
+    const info = catNames[cat] || { label: cat, icon: '📊', weight: '' };
+    const color = catData.grade_color || getGradeColor(catData.score);
+    const card = document.createElement('div');
+    card.className = 'cat-score-card fade-in';
+    card.style.borderColor = color + '33';
+    card.innerHTML = `
+      <div class="cat-score-value" style="color: ${color};">${formatScore(catData.score)}</div>
+      <div class="cat-grade" style="color: ${color};">Grade ${catData.grade}</div>
+      <div class="cat-name">${info.icon} ${info.label}</div>
+      <div class="cat-weight">Weight: ${info.weight}</div>
+    `;
+    scoreCardsGrid.appendChild(card);
+  }
+
+  // Quick wins
+  const quickWins = scores.quick_wins || [];
+  if (quickWins.length > 0) {
+    document.getElementById('quick-wins-section').style.display = '';
+    const list = document.getElementById('quick-wins-list');
+    list.innerHTML = '';
+    quickWins.forEach((win, i) => {
+      const effortClass = win.effort === 'low' ? 'badge-good' : win.effort === 'medium' ? 'badge-warning' : 'badge-critical';
+      const impactClass = win.impact === 'high' ? 'badge-critical' : win.impact === 'medium' ? 'badge-warning' : 'badge-info';
+      list.innerHTML += `
+        <div class="quick-win-item">
+          <div class="qw-num">${i + 1}</div>
+          <div class="qw-text">${win.action}</div>
+          <div class="qw-badges">
+            <span class="badge badge-info">${win.category}</span>
+            <span class="badge ${effortClass}">Effort: ${win.effort}</span>
+            <span class="badge ${impactClass}">Impact: ${win.impact}</span>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  // Issues grid
+  const issuesGrid = document.getElementById('issues-grid');
+  issuesGrid.innerHTML = '';
+
+  // Technical issues card
+  addIssueCard(issuesGrid, '⚙️ Technical SEO', getGradeColor(technical.score || 0), [
+    { label: 'Broken Pages (4xx)', value: technical.summary?.broken_pages || 0, color: 'red' },
+    { label: 'Server Errors (5xx)', value: technical.summary?.server_errors || 0, color: 'red' },
+    { label: 'Slow Pages (>3s)', value: technical.summary?.slow_pages || 0, color: 'orange' },
+    { label: 'Long Redirect Chains', value: technical.summary?.long_redirect_chains || 0, color: 'yellow' },
+    { label: 'HTTP (No SSL)', value: technical.summary?.http_only_pages || 0, color: 'orange' },
+  ], technical.score || 0);
+
+  // On-page issues card
+  addIssueCard(issuesGrid, '📝 On-Page SEO', getGradeColor(onpage.score || 0), [
+    { label: 'Missing Title Tags', value: onpage.summary?.missing_title || 0, color: 'red' },
+    { label: 'Duplicate Titles', value: onpage.summary?.duplicate_titles || 0, color: 'orange' },
+    { label: 'Titles Too Long (>60)', value: onpage.summary?.title_too_long || 0, color: 'yellow' },
+    { label: 'Missing Meta Description', value: onpage.summary?.missing_meta_description || 0, color: 'orange' },
+    { label: 'Missing H1', value: onpage.summary?.missing_h1 || 0, color: 'red' },
+    { label: 'Multiple H1s', value: onpage.summary?.multiple_h1 || 0, color: 'yellow' },
+    { label: 'Missing H2s', value: onpage.summary?.missing_h2 || 0, color: 'yellow' },
+  ], onpage.score || 0);
+
+  // Schema card
+  addIssueCard(issuesGrid, '🔗 Schema Markup', getGradeColor(schema.score || 0), [
+    { label: 'Pages With Schema', value: schema.summary?.pages_with_schema || 0, color: 'green' },
+    { label: 'Pages Without Schema', value: schema.summary?.pages_without_schema || 0, color: 'orange' },
+    { label: 'Schema Coverage', value: (schema.summary?.schema_coverage_percent || 0) + '%', color: 'blue' },
+    { label: 'Schema Types Found', value: schema.summary?.schema_types_count || 0, color: 'green' },
+    { label: 'Schema Errors', value: schema.summary?.schema_errors || 0, color: 'red' },
+  ], schema.score || 0);
+
+  // AEO card
+  addIssueCard(issuesGrid, '💡 AEO Readiness', getGradeColor(aeo.score || 0), [
+    { label: 'Avg AEO Score', value: (aeo.summary?.avg_aeo_score || 0) + '/100', color: 'blue' },
+    { label: 'Pages With FAQ', value: aeo.summary?.pages_with_faq_content || 0, color: 'green' },
+    { label: 'Question Headings', value: aeo.summary?.pages_with_question_headings || 0, color: 'green' },
+    { label: 'HowTo Content', value: aeo.summary?.pages_with_howto_content || 0, color: 'green' },
+    { label: 'High AEO Pages', value: aeo.summary?.high_aeo_readiness_pages || 0, color: 'green' },
+  ], aeo.score || 0);
+
+  // GEO card
+  addIssueCard(issuesGrid, '🤖 GEO Readiness', getGradeColor(geo.score || 0), [
+    { label: 'Avg GEO Score', value: (geo.summary?.avg_geo_score || 0) + '/100', color: 'blue' },
+    { label: 'About Page', value: geo.has_about_page ? 'Present ✓' : 'Missing ✗', color: geo.has_about_page ? 'green' : 'red' },
+    { label: 'Contact Page', value: geo.has_contact_page ? 'Present ✓' : 'Missing ✗', color: geo.has_contact_page ? 'green' : 'red' },
+    { label: 'Pages With Author', value: geo.summary?.pages_with_author_byline || 0, color: 'green' },
+    { label: 'Pages With Stats', value: geo.summary?.pages_with_statistics || 0, color: 'green' },
+  ], geo.score || 0);
+
+  // Performance card
+  addIssueCard(issuesGrid, '⚡ Performance', getGradeColor(performance.score || 0), [
+    { label: 'Avg Response Time', value: (performance.summary?.avg_response_time || 0) + 's', color: performance.summary?.avg_response_time > 3 ? 'red' : 'green' },
+    { label: 'Slow Pages (>3s)', value: performance.summary?.slow_pages || 0, color: 'orange' },
+    { label: 'Avg Page Size', value: (performance.summary?.avg_page_size_kb || 0) + ' KB', color: 'blue' },
+    { label: 'Large Pages (>1MB)', value: performance.summary?.large_pages || 0, color: 'orange' },
+    { label: 'Avg Images/Page', value: performance.summary?.avg_images_per_page || 0, color: 'blue' },
+  ], performance.score || 0);
+
+  // Images card
+  addIssueCard(issuesGrid, '🖼️ Images', getGradeColor(images.score || 0), [
+    { label: 'Total Images', value: images.summary?.total_images || 0, color: 'blue' },
+    { label: 'Missing Alt Text', value: images.summary?.missing_alt || 0, color: 'red' },
+    { label: 'Empty Alt Text', value: images.summary?.empty_alt || 0, color: 'orange' },
+    { label: 'No Dimensions', value: images.summary?.no_dimensions || 0, color: 'yellow' },
+    { label: 'External Images', value: images.summary?.external_images || 0, color: 'blue' },
+  ], images.score || 0);
+
+  show('results-section');
+}
+
+function addIssueCard(container, title, scoreColor, items, score) {
+  const card = document.createElement('div');
+  card.className = 'issue-card fade-in';
+
+  const itemsHtml = items.map(item => `
+    <li class="issue-item">
+      <div class="issue-item-dot dot-${item.color}"></div>
+      <div><strong>${item.label}:</strong> ${item.value}</div>
+    </li>
+  `).join('');
+
+  card.innerHTML = `
+    <div class="issue-card-header">
+      <div class="issue-card-title">${title}</div>
+      <div style="font-size: 24px; font-weight: 800; color: ${scoreColor};">${Math.round(score)}</div>
+    </div>
+    <ul class="issue-items">${itemsHtml}</ul>
+  `;
+
+  container.appendChild(card);
+}
+
+// ====== KEYBOARD SHORTCUT ======
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && document.activeElement.id === 'url-input') {
+    startAnalysis();
+  }
+});
+
+// ====== URL INPUT ENTER ======
+document.getElementById('url-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') startAnalysis();
+});
+</script>
+</body>
+</html>

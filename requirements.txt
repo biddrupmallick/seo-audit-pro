@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+httpx
+beautifulsoup4
+lxml
+weasyprint
+jinja2
+python-multipart
+extruct

@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEO Audit Report - {{ domain }}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --dark-1: #1a1a2e;
+    --dark-2: #16213e;
+    --dark-3: #0f3460;
+    --accent: #e94560;
+    --accent-light: #ff6b6b;
+    --white: #ffffff;
+    --gray-100: #f8fafc;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-500: #64748b;
+    --gray-700: #334155;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --red: #ef4444;
+    --blue: #3b82f6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  /* ===== COVER PAGE ===== */
+  .cover-page {
+    background: linear-gradient(135deg, var(--dark-1) 0%, var(--dark-2) 40%, var(--dark-3) 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    page-break-after: always;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover-page::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(233, 69, 96, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  .cover-logo {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 60px;
+    opacity: 0.9;
+  }
+
+  .cover-title {
+    font-size: 42px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: -1px;
+  }
+
+  .cover-subtitle {
+    font-size: 18px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 60px;
+    text-align: center;
+  }
+
+  .cover-domain {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent-light);
+    margin-bottom: 60px;
+    text-align: center;
+    word-break: break-all;
+  }
+
+  .score-circle-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 60px;
+  }
+
+  .score-circle {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    border: 8px solid {{ scores.grade_color }};
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+    box-shadow: 0 0 40px {{ scores.grade_color }}44;
+  }
+
+  .score-number {
+    font-size: 52px;
+    font-weight: 800;
+    color: {{ scores.grade_color }};
+    line-height: 1;
+  }
+
+  .score-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 5px;
+  }
+
+  .grade-badge {
+    background: {{ scores.grade_color }};
+    color: white;
+    font-size: 28px;
+    font-weight: 800;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px {{ scores.grade_color }}66;
+  }
+
+  .cover-meta {
+    display: flex;
+    gap: 40px;
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .cover-meta-item strong {
+    display: block;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  /* ===== SECTIONS ===== */
+  .section {
+    background: white;
+    margin: 20px;
+    border-radius: 12px;
+    overflow: hidden;
+    page-break-inside: avoid;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .section-break {
+    page-break-before: always;
+  }
+
+  .section-header {
+    background: linear-gradient(135deg, var(--dark-1), var(--dark-3));
+    color: white;
+    padding: 24px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .section-icon {
+    font-size: 24px;
+    opacity: 0.7;
+  }
+
+  .section-body {
+    padding: 24px 30px;
+  }
+
+  /* ===== SCORE CARDS ===== */
+  .score-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+
+  .score-card {
+    flex: 1;
+    min-width: 140px;
+    background: var(--gray-100);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    border: 2px solid transparent;
+  }
+
+  .score-card .cat-score {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .score-card .cat-grade {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .score-card .cat-name {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gray-500);
+    font-weight: 600;
+  }
+
+  .score-card .cat-weight {
+    font-size: 10px;
+    color: var(--gray-500);
+    margin-top: 4px;
+  }
+
+  /* ===== TABLES ===== */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 16px;
+  }
+
+  .data-table thead {
+    background: var(--dark-2);
+    color: white;
+  }
+
+  .data-table thead th {
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .data-table tbody tr:nth-child(odd) {
+    background: var(--gray-100);
+  }
+
+  .data-table tbody tr:nth-child(even) {
+    background: white;
+  }
+
+  .data-table tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--gray-200);
+    word-break: break-word;
+    max-width: 300px;
+  }
+
+  .data-table tbody tr:hover {
+    background: #eff6ff;
+  }
+
+  /* ===== BADGES ===== */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-critical { background: #fee2e2; color: #dc2626; }
+  .badge-warning  { background: #fef3c7; color: #d97706; }
+  .badge-good     { background: #dcfce7; color: #16a34a; }
+  .badge-info     { background: #dbeafe; color: #1d4ed8; }
+  .badge-low      { background: #f3f4f6; color: #4b5563; }
+
+  /* ===== METRICS GRID ===== */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .metric-box {
+    background: var(--gray-100);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    border-left: 4px solid var(--dark-3);
+  }
+
+  .metric-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--dark-1);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gray-500);
+    font-weight: 600;
+  }
+
+  /* ===== HEADINGS ===== */
+  .subsection-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--dark-1);
+    margin: 20px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ===== ISSUES LIST ===== */
+  .issues-list {
+    list-style: none;
+  }
+
+  .issues-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--gray-200);
+    font-size: 12px;
+  }
+
+  .issues-list li:last-child { border-bottom: none; }
+
+  .issue-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .dot-critical { background: var(--red); }
+  .dot-warning  { background: var(--orange); }
+  .dot-good     { background: var(--green); }
+
+  /* ===== QUICK WINS ===== */
+  .quick-win-card {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .quick-win-number {
+    background: var(--green);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .quick-win-content { flex: 1; }
+  .quick-win-action { font-weight: 600; color: var(--dark-1); font-size: 12px; margin-bottom: 4px; }
+
+  /* ===== SCHEMA TYPES ===== */
+  .schema-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0;
+  }
+
+  .schema-tag {
+    background: var(--dark-3);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .schema-tag-missing {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  /* ===== SIGNALS LIST ===== */
+  .signal-list {
+    list-style: none;
+    margin: 8px 0;
+  }
+
+  .signal-list li {
+    padding: 5px 0;
+    font-size: 11px;
+    color: var(--gray-700);
+    padding-left: 16px;
+    position: relative;
+  }
+
+  .signal-list li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* ===== RECOMMENDATIONS ===== */
+  .recommendation {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-left: 4px solid var(--dark-3);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+  }
+
+  .rec-priority { font-size: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
+  .rec-priority.high { color: var(--red); }
+  .rec-priority.medium { color: var(--orange); }
+  .rec-priority.low { color: var(--green); }
+  .rec-title { font-size: 12px; font-weight: 600; color: var(--dark-1); margin-bottom: 4px; }
+  .rec-desc { font-size: 11px; color: var(--gray-500); }
+
+  /* ===== FOOTER ===== */
+  .page-footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--gray-500);
+    font-size: 10px;
+    border-top: 1px solid var(--gray-200);
+    margin-top: 20px;
+  }
+
+  /* ===== URL DISPLAY ===== */
+  .url-cell {
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: monospace;
+    font-size: 10px;
+    color: var(--dark-3);
+  }
+
+  /* Print styles */
+  @media print {
+    .section { box-shadow: none; }
+    .cover-page { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== COVER PAGE ===== -->
+<div class="cover-page">
+  <div class="cover-logo">SEO Audit Pro</div>
+  <div class="cover-title">SEO Audit Report</div>
+  <div class="cover-subtitle">Comprehensive Website Analysis</div>
+  <div class="cover-domain">{{ domain }}</div>
+
+  <div class="score-circle-container">
+    <div class="score-circle">
+      <div class="score-number">{{ scores.overall_score }}</div>
+      <div class="score-label">Health Score</div>
+    </div>
+    <div class="grade-badge">{{ scores.grade }}</div>
+  </div>
+
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <strong>{{ report_date }}</strong>
+      Date Generated
+    </div>
+    <div class="cover-meta-item">
+      <strong>{{ total_pages }}</strong>
+      Pages Crawled
+    </div>
+    <div class="cover-meta-item">
+      <strong>{{ scores.grade }}</strong>
+      Overall Grade
+    </div>
+  </div>
+</div>
+
+<!-- ===== EXECUTIVE SUMMARY ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Executive Summary</div>
+    <div class="section-icon">📊</div>
+  </div>
+  <div class="section-body">
+
+    <div class="score-cards">
+      {% for cat, data in scores.category_scores.items() %}
+      <div class="score-card" style="border-color: {{ data.grade_color }}22;">
+        <div class="cat-score" style="color: {{ data.grade_color }};">{{ data.score }}</div>
+        <div class="cat-grade" style="color: {{ data.grade_color }};">Grade {{ data.grade }}</div>
+        <div class="cat-name">{{ cat|replace('_', ' ')|title }}</div>
+        <div class="cat-weight">Weight: {{ (data.weight * 100)|int }}%</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="subsection-title">Top Critical Issues</div>
+    {% if scores.critical_issues %}
+    <ul class="issues-list">
+      {% for issue in scores.critical_issues[:5] %}
+      <li>
+        <div class="issue-dot dot-{{ issue.severity }}"></div>
+        <div>
+          <span class="badge badge-{{ issue.severity }}">{{ issue.severity }}</span>
+          <strong>{{ issue.category }}:</strong> {{ issue.issue }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color: var(--green); font-weight: 600;">No critical issues found. Great work!</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== TECHNICAL SEO ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Technical SEO</div>
+    <div class="section-icon">⚙️</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box" style="border-color: var(--green);">
+        <div class="metric-value" style="color: var(--green);">{{ technical.summary.get('broken_pages', 0) }}</div>
+        <div class="metric-label">Broken Pages (4xx)</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--red);">
+        <div class="metric-value" style="color: var(--red);">{{ technical.summary.get('server_errors', 0) }}</div>
+        <div class="metric-label">Server Errors (5xx)</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--orange);">
+        <div class="metric-value" style="color: var(--orange);">{{ technical.summary.get('slow_pages', 0) }}</div>
+        <div class="metric-label">Slow Pages (&gt;3s)</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--yellow);">
+        <div class="metric-value" style="color: var(--yellow);">{{ technical.summary.get('long_redirect_chains', 0) }}</div>
+        <div class="metric-label">Long Redirect Chains</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ technical.summary.get('http_only_pages', 0) }}</div>
+        <div class="metric-label">HTTP (No SSL)</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--gray-500);">
+        <div class="metric-value">{{ technical.summary.get('connection_errors', 0) }}</div>
+        <div class="metric-label">Connection Errors</div>
+      </div>
+    </div>
+
+    {% if technical.issues_4xx %}
+    <div class="subsection-title">Broken Pages (4xx Errors)</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Status Code</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in technical.issues_4xx[:20] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td><span class="badge badge-critical">{{ item.status_code }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if technical.redirect_chains %}
+    <div class="subsection-title">Long Redirect Chains (3+ hops)</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Chain Length</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in technical.redirect_chains[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td><span class="badge badge-warning">{{ item.chain_length }} hops</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if technical.slow_pages %}
+    <div class="subsection-title">Slow Pages (&gt;3 seconds)</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Response Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in technical.slow_pages[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td><span class="badge badge-warning">{{ item.response_time }}s</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== ON-PAGE SEO ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">On-Page SEO</div>
+    <div class="section-icon">📝</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-value" style="color: {% if onpage.summary.get('missing_title', 0) > 0 %}var(--red){% else %}var(--green){% endif %};">{{ onpage.summary.get('missing_title', 0) }}</div>
+        <div class="metric-label">Missing Titles</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value" style="color: {% if onpage.summary.get('duplicate_titles', 0) > 0 %}var(--orange){% else %}var(--green){% endif %};">{{ onpage.summary.get('duplicate_titles', 0) }}</div>
+        <div class="metric-label">Duplicate Titles</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value" style="color: {% if onpage.summary.get('title_too_long', 0) > 0 %}var(--yellow){% else %}var(--green){% endif %};">{{ onpage.summary.get('title_too_long', 0) }}</div>
+        <div class="metric-label">Titles Too Long</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value" style="color: {% if onpage.summary.get('missing_meta_description', 0) > 0 %}var(--orange){% else %}var(--green){% endif %};">{{ onpage.summary.get('missing_meta_description', 0) }}</div>
+        <div class="metric-label">Missing Meta Desc</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value" style="color: {% if onpage.summary.get('missing_h1', 0) > 0 %}var(--red){% else %}var(--green){% endif %};">{{ onpage.summary.get('missing_h1', 0) }}</div>
+        <div class="metric-label">Missing H1</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value" style="color: {% if onpage.summary.get('multiple_h1', 0) > 0 %}var(--orange){% else %}var(--green){% endif %};">{{ onpage.summary.get('multiple_h1', 0) }}</div>
+        <div class="metric-label">Multiple H1s</div>
+      </div>
+    </div>
+
+    {% if onpage.missing_title %}
+    <div class="subsection-title">Pages Missing Title Tags</div>
+    <table class="data-table">
+      <thead><tr><th>URL</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for item in onpage.missing_title[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td><span class="badge badge-critical">Missing</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if onpage.title_too_long %}
+    <div class="subsection-title">Titles Too Long (&gt;60 Characters)</div>
+    <table class="data-table">
+      <thead><tr><th>URL</th><th>Title</th><th>Length</th></tr></thead>
+      <tbody>
+        {% for item in onpage.title_too_long[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ item.title }}</td>
+          <td><span class="badge badge-warning">{{ item.title_length }} chars</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if onpage.missing_meta_description %}
+    <div class="subsection-title">Pages Missing Meta Descriptions</div>
+    <table class="data-table">
+      <thead><tr><th>URL</th><th>Title</th></tr></thead>
+      <tbody>
+        {% for item in onpage.missing_meta_description[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td style="color: var(--gray-500);">{{ item.title[:60] if item.title else '(no title)' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if onpage.missing_h1 %}
+    <div class="subsection-title">Pages Missing H1 Tags</div>
+    <table class="data-table">
+      <thead><tr><th>URL</th><th>Title</th></tr></thead>
+      <tbody>
+        {% for item in onpage.missing_h1[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td style="color: var(--gray-500);">{{ item.title[:60] if item.title else '(no title)' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if onpage.duplicate_titles %}
+    <div class="subsection-title">Duplicate Page Titles</div>
+    <table class="data-table">
+      <thead><tr><th>Title</th><th>Count</th><th>Example URLs</th></tr></thead>
+      <tbody>
+        {% for item in onpage.duplicate_titles[:10] %}
+        <tr>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ item.title }}</td>
+          <td><span class="badge badge-warning">{{ item.count }} pages</span></td>
+          <td class="url-cell">{{ item.urls[0] if item.urls else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== SCHEMA ANALYSIS ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Schema Markup Analysis</div>
+    <div class="section-icon">🔗</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box" style="border-color: var(--green);">
+        <div class="metric-value" style="color: var(--green);">{{ schema.summary.get('pages_with_schema', 0) }}</div>
+        <div class="metric-label">Pages With Schema</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--red);">
+        <div class="metric-value" style="color: var(--red);">{{ schema.summary.get('pages_without_schema', 0) }}</div>
+        <div class="metric-label">Pages Without Schema</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ schema.summary.get('schema_coverage_percent', 0) }}%</div>
+        <div class="metric-label">Schema Coverage</div>
+      </div>
+    </div>
+
+    <div class="subsection-title">Schema Types Found</div>
+    {% if schema.all_schema_types_found %}
+    <div class="schema-tags">
+      {% for st in schema.all_schema_types_found %}
+      <span class="schema-tag">{{ st }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color: var(--red);">No schema markup found on any page.</p>
+    {% endif %}
+
+    {% if schema.missing_schema_types %}
+    <div class="subsection-title">Recommended Schema Types to Add</div>
+    <div class="schema-tags">
+      {% for st in schema.missing_schema_types[:12] %}
+      <span class="schema-tag-missing">{{ st }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if schema.schema_errors %}
+    <div class="subsection-title">Schema Validation Errors</div>
+    <table class="data-table">
+      <thead><tr><th>URL</th><th>Error</th></tr></thead>
+      <tbody>
+        {% for item in schema.schema_errors[:15] %}
+        {% for error in item.errors %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td><span class="badge badge-warning">{{ error }}</span></td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if schema.pages_without_schema %}
+    <div class="subsection-title">Pages Without Schema (Top 15)</div>
+    <table class="data-table">
+      <thead><tr><th>URL</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for item in schema.pages_without_schema[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td><span class="badge badge-warning">No Schema</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== AEO ANALYSIS ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">AEO — Answer Engine Optimization</div>
+    <div class="section-icon">💡</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-value">{{ aeo.summary.get('avg_aeo_score', 0) }}</div>
+        <div class="metric-label">Avg AEO Score</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--green);">
+        <div class="metric-value" style="color: var(--green);">{{ aeo.summary.get('pages_with_faq_content', 0) }}</div>
+        <div class="metric-label">Pages With FAQ</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ aeo.summary.get('pages_with_question_headings', 0) }}</div>
+        <div class="metric-label">Question Headings</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--orange);">
+        <div class="metric-value" style="color: var(--orange);">{{ aeo.summary.get('pages_with_howto_content', 0) }}</div>
+        <div class="metric-label">HowTo Content</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--green);">
+        <div class="metric-value" style="color: var(--green);">{{ aeo.summary.get('high_aeo_readiness_pages', 0) }}</div>
+        <div class="metric-label">High Readiness Pages</div>
+      </div>
+    </div>
+
+    {% if aeo.page_results %}
+    <div class="subsection-title">Top AEO Pages</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>AEO Score</th>
+          <th>Key Signals</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for page in aeo.page_results[:10] %}
+        <tr>
+          <td class="url-cell">{{ page.url }}</td>
+          <td>
+            <span class="badge {% if page.aeo_score >= 60 %}badge-good{% elif page.aeo_score >= 30 %}badge-warning{% else %}badge-critical{% endif %}">
+              {{ page.aeo_score }}/100
+            </span>
+          </td>
+          <td style="font-size: 10px; color: var(--gray-500);">
+            {% if page.signals %}{{ page.signals[0] }}{% else %}No AEO signals{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== GEO ANALYSIS ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">GEO — Generative Engine Optimization</div>
+    <div class="section-icon">🤖</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-value">{{ geo.summary.get('avg_geo_score', 0) }}</div>
+        <div class="metric-label">Avg GEO Score</div>
+      </div>
+      <div class="metric-box" style="border-color: {% if geo.has_about_page %}var(--green){% else %}var(--red){% endif %};">
+        <div class="metric-value" style="color: {% if geo.has_about_page %}var(--green){% else %}var(--red){% endif %};">
+          {% if geo.has_about_page %}✓{% else %}✗{% endif %}
+        </div>
+        <div class="metric-label">About Page</div>
+      </div>
+      <div class="metric-box" style="border-color: {% if geo.has_contact_page %}var(--green){% else %}var(--red){% endif %};">
+        <div class="metric-value" style="color: {% if geo.has_contact_page %}var(--green){% else %}var(--red){% endif %};">
+          {% if geo.has_contact_page %}✓{% else %}✗{% endif %}
+        </div>
+        <div class="metric-label">Contact Page</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ geo.summary.get('pages_with_author_byline', 0) }}</div>
+        <div class="metric-label">Pages With Author</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--orange);">
+        <div class="metric-value" style="color: var(--orange);">{{ geo.summary.get('pages_with_statistics', 0) }}</div>
+        <div class="metric-label">Pages With Stats</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--green);">
+        <div class="metric-value" style="color: var(--green);">{{ geo.summary.get('high_geo_readiness_pages', 0) }}</div>
+        <div class="metric-label">High Readiness Pages</div>
+      </div>
+    </div>
+
+    {% if geo.page_results %}
+    <div class="subsection-title">Top GEO Pages</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>GEO Score</th>
+          <th>Word Count</th>
+          <th>Key Signal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for page in geo.page_results[:10] %}
+        <tr>
+          <td class="url-cell">{{ page.url }}</td>
+          <td>
+            <span class="badge {% if page.geo_score >= 60 %}badge-good{% elif page.geo_score >= 30 %}badge-warning{% else %}badge-critical{% endif %}">
+              {{ page.geo_score }}/100
+            </span>
+          </td>
+          <td>{{ page.word_count }}</td>
+          <td style="font-size: 10px; color: var(--gray-500);">
+            {% if page.signals %}{{ page.signals[0] }}{% else %}No signals{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== PERFORMANCE ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Performance Analysis</div>
+    <div class="section-icon">⚡</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box" style="border-color: {% if performance.summary.get('avg_response_time', 0) > 3 %}var(--red){% elif performance.summary.get('avg_response_time', 0) > 1 %}var(--yellow){% else %}var(--green){% endif %};">
+        <div class="metric-value" style="color: {% if performance.summary.get('avg_response_time', 0) > 3 %}var(--red){% elif performance.summary.get('avg_response_time', 0) > 1 %}var(--yellow){% else %}var(--green){% endif %};">
+          {{ performance.summary.get('avg_response_time', 0) }}s
+        </div>
+        <div class="metric-label">Avg Response Time</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">{{ performance.summary.get('max_response_time', 0) }}s</div>
+        <div class="metric-label">Max Response Time</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">{{ performance.summary.get('slow_pages', 0) }}</div>
+        <div class="metric-label">Slow Pages (&gt;3s)</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">{{ performance.summary.get('avg_page_size_kb', 0) }} KB</div>
+        <div class="metric-label">Avg Page Size</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">{{ performance.summary.get('total_crawled_size_mb', 0) }} MB</div>
+        <div class="metric-label">Total Crawled</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">{{ performance.summary.get('large_pages', 0) }}</div>
+        <div class="metric-label">Large Pages (&gt;1MB)</div>
+      </div>
+    </div>
+
+    {% if performance.slow_pages %}
+    <div class="subsection-title">Slow Pages</div>
+    <table class="data-table">
+      <thead><tr><th>URL</th><th>Response Time</th><th>Severity</th></tr></thead>
+      <tbody>
+        {% for item in performance.slow_pages[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td>{{ item.response_time }}s</td>
+          <td><span class="badge badge-{{ item.severity }}">{{ item.severity }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if performance.large_pages %}
+    <div class="subsection-title">Large Pages (&gt;1MB)</div>
+    <table class="data-table">
+      <thead><tr><th>URL</th><th>Page Size</th><th>Severity</th></tr></thead>
+      <tbody>
+        {% for item in performance.large_pages[:10] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td>{{ item.page_size_kb }} KB</td>
+          <td><span class="badge badge-{{ item.severity }}">{{ item.severity }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== IMAGE ANALYSIS ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Image Analysis</div>
+    <div class="section-icon">🖼️</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box">
+        <div class="metric-value">{{ images.summary.get('total_images', 0) }}</div>
+        <div class="metric-label">Total Images</div>
+      </div>
+      <div class="metric-box" style="border-color: {% if images.summary.get('missing_alt', 0) > 0 %}var(--red){% else %}var(--green){% endif %};">
+        <div class="metric-value" style="color: {% if images.summary.get('missing_alt', 0) > 0 %}var(--red){% else %}var(--green){% endif %};">
+          {{ images.summary.get('missing_alt', 0) }}
+        </div>
+        <div class="metric-label">Missing Alt Text</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">{{ images.summary.get('empty_alt', 0) }}</div>
+        <div class="metric-label">Empty Alt Text</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">{{ images.summary.get('no_dimensions', 0) }}</div>
+        <div class="metric-label">No Dimensions</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">{{ images.summary.get('external_images', 0) }}</div>
+        <div class="metric-label">External Images</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">{{ images.summary.get('pages_with_image_issues', 0) }}</div>
+        <div class="metric-label">Pages With Issues</div>
+      </div>
+    </div>
+
+    {% if images.missing_alt_images %}
+    <div class="subsection-title">Images Missing Alt Text (Top 20)</div>
+    <table class="data-table">
+      <thead><tr><th>Image URL</th><th>Page URL</th></tr></thead>
+      <tbody>
+        {% for item in images.missing_alt_images[:20] %}
+        <tr>
+          <td class="url-cell">{{ item.src }}</td>
+          <td class="url-cell">{{ item.page_url }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if images.page_image_stats %}
+    <div class="subsection-title">Pages With Most Image Issues</div>
+    <table class="data-table">
+      <thead><tr><th>URL</th><th>Total Images</th><th>Missing Alt</th><th>Empty Alt</th></tr></thead>
+      <tbody>
+        {% for item in images.pages_with_issues[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td>{{ item.total_images }}</td>
+          <td>
+            {% if item.missing_alt > 0 %}
+            <span class="badge badge-critical">{{ item.missing_alt }}</span>
+            {% else %}
+            <span class="badge badge-good">0</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.empty_alt > 0 %}
+            <span class="badge badge-warning">{{ item.empty_alt }}</span>
+            {% else %}
+            <span class="badge badge-good">0</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== QUICK WINS ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Quick Wins</div>
+    <div class="section-icon">🚀</div>
+  </div>
+  <div class="section-body">
+    <p style="margin-bottom: 16px; color: var(--gray-500);">These are the easiest fixes with the highest SEO impact. Tackle these first.</p>
+
+    {% if scores.quick_wins %}
+    {% for i, win in enumerate(scores.quick_wins) %}
+    <div class="quick-win-card">
+      <div class="quick-win-number">{{ loop.index }}</div>
+      <div class="quick-win-content">
+        <div class="quick-win-action">{{ win.action }}</div>
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <span class="badge badge-info">{{ win.category }}</span>
+          <span class="badge {% if win.effort == 'low' %}badge-good{% elif win.effort == 'medium' %}badge-warning{% else %}badge-critical{% endif %}">
+            Effort: {{ win.effort }}
+          </span>
+          <span class="badge {% if win.impact == 'high' %}badge-critical{% elif win.impact == 'medium' %}badge-warning{% else %}badge-low{% endif %}">
+            Impact: {{ win.impact }}
+          </span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color: var(--green); font-weight: 600;">Excellent! No quick wins needed — your site is well-optimized.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ===== RECOMMENDATIONS ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Prioritized Recommendations</div>
+    <div class="section-icon">📋</div>
+  </div>
+  <div class="section-body">
+
+    <!-- HIGH PRIORITY -->
+    <div class="subsection-title">High Priority</div>
+
+    {% if technical.issues_4xx %}
+    <div class="recommendation">
+      <div class="rec-priority high">HIGH PRIORITY — TECHNICAL</div>
+      <div class="rec-title">Fix {{ technical.issues_4xx|length }} Broken Page(s)</div>
+      <div class="rec-desc">4xx errors harm user experience and waste crawl budget. Set up proper 301 redirects or restore the missing content for all broken pages.</div>
+    </div>
+    {% endif %}
+
+    {% if onpage.missing_title %}
+    <div class="recommendation">
+      <div class="rec-priority high">HIGH PRIORITY — ON-PAGE SEO</div>
+      <div class="rec-title">Add Title Tags to {{ onpage.missing_title|length }} Page(s)</div>
+      <div class="rec-desc">Title tags are one of the most important on-page SEO factors. Each page needs a unique, descriptive title between 10-60 characters.</div>
+    </div>
+    {% endif %}
+
+    {% if onpage.missing_h1 %}
+    <div class="recommendation">
+      <div class="rec-priority high">HIGH PRIORITY — ON-PAGE SEO</div>
+      <div class="rec-title">Add H1 Headings to {{ onpage.missing_h1|length }} Page(s)</div>
+      <div class="rec-desc">Every page should have exactly one H1 heading that clearly describes the page topic. This helps search engines understand page content.</div>
+    </div>
+    {% endif %}
+
+    <!-- MEDIUM PRIORITY -->
+    <div class="subsection-title">Medium Priority</div>
+
+    {% if onpage.missing_meta_description %}
+    <div class="recommendation">
+      <div class="rec-priority medium">MEDIUM PRIORITY — ON-PAGE SEO</div>
+      <div class="rec-title">Write Meta Descriptions for {{ onpage.missing_meta_description|length }} Page(s)</div>
+      <div class="rec-desc">Meta descriptions improve click-through rates from search results. Write compelling descriptions under 160 characters for each page.</div>
+    </div>
+    {% endif %}
+
+    {% if schema.pages_without_schema %}
+    <div class="recommendation">
+      <div class="rec-priority medium">MEDIUM PRIORITY — SCHEMA</div>
+      <div class="rec-title">Implement Schema Markup on {{ schema.pages_without_schema|length }} Page(s)</div>
+      <div class="rec-desc">Structured data helps search engines and AI systems understand your content better. Start with Organization, BreadcrumbList, and FAQPage schemas.</div>
+    </div>
+    {% endif %}
+
+    {% if images.missing_alt_images %}
+    <div class="recommendation">
+      <div class="rec-priority medium">MEDIUM PRIORITY — IMAGES</div>
+      <div class="rec-title">Add Alt Text to {{ images.missing_alt_images|length }} Image(s)</div>
+      <div class="rec-desc">Alt text improves accessibility and helps images rank in image search. Add descriptive alt text to all meaningful images.</div>
+    </div>
+    {% endif %}
+
+    <!-- LOW PRIORITY -->
+    <div class="subsection-title">Low Priority</div>
+
+    <div class="recommendation">
+      <div class="rec-priority low">LOW PRIORITY — AEO</div>
+      <div class="rec-title">Improve Answer Engine Optimization</div>
+      <div class="rec-desc">Add FAQ sections, question-based headings, and step-by-step content to increase chances of appearing in AI-generated answers and featured snippets.</div>
+    </div>
+
+    <div class="recommendation">
+      <div class="rec-priority low">LOW PRIORITY — GEO</div>
+      <div class="rec-title">Strengthen E-E-A-T Signals</div>
+      <div class="rec-desc">Add author bylines, publication dates, statistics with sources, and ensure you have both an About and Contact page to improve trust signals for AI systems.</div>
+    </div>
+
+    {% if not geo.has_about_page %}
+    <div class="recommendation">
+      <div class="rec-priority low">LOW PRIORITY — GEO/E-E-A-T</div>
+      <div class="rec-title">Create an About Page</div>
+      <div class="rec-desc">An About page is a fundamental E-E-A-T signal. It establishes authority and trust for both search engines and AI systems.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="page-footer">
+  SEO Audit Report for {{ domain }} | Generated {{ report_date }} | SEO Audit Pro — Running on localhost:8000
+</div>
+
+</body>
+</html>
