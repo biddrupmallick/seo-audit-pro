@@ -27,6 +27,7 @@ from analyzers.images import analyze_images
 from analyzers.local_seo import analyze_local_seo
 from analyzers.conversion import analyze_conversion
 from analyzers.content import analyze_content
+from analyzers.ai_recommendations import generate_ai_recommendations
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
 
@@ -261,7 +262,16 @@ async def run_analysis(job_id: str, url: str):
         await send_progress(job_id, 91, "Calculating scores…")
         scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images, local_seo, conversion, content)
 
-        await send_progress(job_id, 93, "Generating PDF report…")
+        await send_progress(job_id, 93, "Generating AI recommendations… (this may take a minute)")
+        parsed_domain = url.replace("https://", "").replace("http://", "").split("/")[0]
+        ai_recommendations = await asyncio.to_thread(
+            generate_ai_recommendations,
+            parsed_domain, total_pages, scores,
+            technical, onpage, schema, aeo, geo,
+            performance, images, local_seo, conversion, content,
+        )
+
+        await send_progress(job_id, 96, "Generating PDF report…")
         report_path = await asyncio.to_thread(
             generate_report,
             job_id,
@@ -278,6 +288,7 @@ async def run_analysis(job_id: str, url: str):
             local_seo,
             conversion,
             content,
+            ai_recommendations,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")
