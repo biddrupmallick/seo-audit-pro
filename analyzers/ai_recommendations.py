@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any
 import ollama
 
@@ -16,6 +17,16 @@ Be direct, confident, and encouraging. Write in plain English — no jargon with
 Keep each recommendation concise but impactful. Never use generic advice."""
 
 
+def _markdown_to_html(text: str) -> str:
+    """Convert basic markdown to HTML for clean report rendering."""
+    # Bold
+    text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+    # Bullet points
+    text = re.sub(r'^\s*[\*\-]\s+', '• ', text, flags=re.MULTILINE)
+    # Numbered lists keep as-is
+    return text
+
+
 def _ask(prompt: str, max_tokens: int = 500) -> str:
     """Send a prompt to Ollama and return the response text."""
     try:
@@ -27,7 +38,7 @@ def _ask(prompt: str, max_tokens: int = 500) -> str:
             ],
             options={"num_predict": max_tokens, "temperature": 0.7},
         )
-        return response["message"]["content"].strip()
+        return _markdown_to_html(response["message"]["content"].strip())
     except Exception as e:
         return f"AI recommendation unavailable: {e}"
 

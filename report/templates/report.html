@@ -1438,42 +1438,42 @@
     {% if ai.executive_summary %}
     <div class="subsection-title">Executive Summary</div>
     <div style="background: linear-gradient(135deg, #f0f4ff, #e8f0fe); border-left: 4px solid #0f3460; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 20px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.executive_summary | replace('\n\n', '</p><p style="margin-top:10px;">') | replace('\n', ' ') }}
+      {{ ai.executive_summary | replace('\n\n', '</p><p style="margin-top:10px;">') | replace('\n', ' ') | safe }}
     </div>
     {% endif %}
 
     {% if ai.local_seo %}
     <div class="subsection-title">📍 Local SEO Recommendations</div>
     <div style="background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.local_seo | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') }}
+      {{ ai.local_seo | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') | safe }}
     </div>
     {% endif %}
 
     {% if ai.aeo %}
     <div class="subsection-title">💡 AEO Recommendations</div>
     <div style="background: #fffbeb; border-left: 4px solid #eab308; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.aeo | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') }}
+      {{ ai.aeo | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') | safe }}
     </div>
     {% endif %}
 
     {% if ai.geo %}
     <div class="subsection-title">🌐 GEO / AI Search Recommendations</div>
     <div style="background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.geo | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') }}
+      {{ ai.geo | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') | safe }}
     </div>
     {% endif %}
 
     {% if ai.conversion %}
     <div class="subsection-title">🎯 Conversion Optimization Recommendations</div>
     <div style="background: #fdf4ff; border-left: 4px solid #a855f7; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; color: #334155;">
-      {{ ai.conversion | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') }}
+      {{ ai.conversion | replace('\n\n', '</p><p style="margin-top:8px;">') | replace('\n', ' ') | safe }}
     </div>
     {% endif %}
 
     {% if ai.action_plan %}
     <div class="subsection-title">📅 Your 30-Day Action Plan</div>
     <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 10px; padding: 20px 24px; font-size: 12px; line-height: 1.9; color: #e2e8f0;">
-      {{ ai.action_plan | replace('\n\n', '</p><p style="margin-top:10px;">') | replace('\n', '<br>') }}
+      {{ ai.action_plan | replace('\n\n', '</p><p style="margin-top:10px;">') | replace('\n', '<br>') | safe }}
     </div>
     {% endif %}
 
