@@ -36,8 +36,18 @@ def calculate_scores(
     geo: Dict[str, Any],
     performance: Dict[str, Any],
     images: Dict[str, Any],
+    local_seo: Dict[str, Any] = None,
+    conversion: Dict[str, Any] = None,
+    content: Dict[str, Any] = None,
 ) -> Dict[str, Any]:
     """Calculate weighted overall score and category scores."""
+
+    if local_seo is None:
+        local_seo = {}
+    if conversion is None:
+        conversion = {}
+    if content is None:
+        content = {}
 
     category_scores = {
         "technical": technical.get("score", 0),
@@ -46,6 +56,9 @@ def calculate_scores(
         "aeo": aeo.get("score", 0),
         "geo": geo.get("score", 0),
         "performance": performance.get("score", 0),
+        "local_seo": local_seo.get("score", 0),
+        "conversion": conversion.get("score", 0),
+        "content": content.get("score", 0),
     }
 
     # Image score influences onpage slightly
@@ -138,6 +151,41 @@ def calculate_scores(
             "impact": "medium",
         })
 
+    local_seo_summary = local_seo.get("summary", {})
+    if not local_seo_summary.get("has_local_business_schema", True):
+        critical_issues.append({
+            "category": "Local SEO",
+            "issue": "No LocalBusiness schema markup detected",
+            "severity": "warning",
+            "impact": "medium",
+        })
+    if not local_seo_summary.get("has_contact_page", True):
+        critical_issues.append({
+            "category": "Local SEO",
+            "issue": "No contact page detected",
+            "severity": "warning",
+            "impact": "medium",
+        })
+
+    conversion_summary = conversion.get("summary", {})
+    if conversion_summary.get("pages_with_cta", 1) == 0:
+        critical_issues.append({
+            "category": "Conversion",
+            "issue": "No pages have detectable CTA (call-to-action) elements",
+            "severity": "warning",
+            "impact": "high",
+        })
+
+    content_summary = content.get("summary", {})
+    thin_pages = content_summary.get("thin_content_pages", 0)
+    if thin_pages > 0:
+        critical_issues.append({
+            "category": "Content",
+            "issue": f"{thin_pages} page(s) have thin content (fewer than 300 words)",
+            "severity": "warning",
+            "impact": "medium",
+        })
+
     # Sort by severity
     severity_order = {"critical": 0, "warning": 1, "info": 2}
     critical_issues.sort(key=lambda x: severity_order.get(x["severity"], 99))
@@ -179,6 +227,27 @@ def calculate_scores(
             "effort": "low",
             "impact": "high",
             "category": "Technical",
+        })
+    if not local_seo_summary.get("has_local_business_schema", True):
+        quick_wins.append({
+            "action": "Add LocalBusiness JSON-LD schema with name, address, telephone and url",
+            "effort": "low",
+            "impact": "high",
+            "category": "Local SEO",
+        })
+    if conversion_summary.get("pages_with_cta", 1) == 0:
+        quick_wins.append({
+            "action": "Add clear call-to-action buttons to key landing pages",
+            "effort": "low",
+            "impact": "high",
+            "category": "Conversion",
+        })
+    if thin_pages > 0:
+        quick_wins.append({
+            "action": f"Expand {thin_pages} thin content page(s) to at least 300 words",
+            "effort": "medium",
+            "impact": "medium",
+            "category": "Content",
         })
 
     return {

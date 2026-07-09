@@ -1144,6 +1144,288 @@
   </div>
 </div>
 
+<!-- ===== LOCAL SEO ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Local SEO Analysis</div>
+    <div class="section-icon">📍</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box" style="border-color: {% if local_seo.get('has_contact_page') %}var(--green){% else %}var(--red){% endif %};">
+        <div class="metric-value" style="color: {% if local_seo.get('has_contact_page') %}var(--green){% else %}var(--red){% endif %};">
+          {% if local_seo.get('has_contact_page') %}✓{% else %}✗{% endif %}
+        </div>
+        <div class="metric-label">Contact Page</div>
+      </div>
+      <div class="metric-box" style="border-color: {% if local_seo.get('has_google_maps') %}var(--green){% else %}var(--red){% endif %};">
+        <div class="metric-value" style="color: {% if local_seo.get('has_google_maps') %}var(--green){% else %}var(--red){% endif %};">
+          {% if local_seo.get('has_google_maps') %}✓{% else %}✗{% endif %}
+        </div>
+        <div class="metric-label">Google Maps Embed</div>
+      </div>
+      <div class="metric-box" style="border-color: {% if local_seo.get('has_local_business_schema') %}var(--green){% else %}var(--red){% endif %};">
+        <div class="metric-value" style="color: {% if local_seo.get('has_local_business_schema') %}var(--green){% else %}var(--red){% endif %};">
+          {% if local_seo.get('has_local_business_schema') %}✓{% else %}✗{% endif %}
+        </div>
+        <div class="metric-label">LocalBusiness Schema</div>
+      </div>
+      <div class="metric-box" style="border-color: {% if local_seo.get('has_nap_info') %}var(--green){% else %}var(--red){% endif %};">
+        <div class="metric-value" style="color: {% if local_seo.get('has_nap_info') %}var(--green){% else %}var(--red){% endif %};">
+          {% if local_seo.get('has_nap_info') %}✓{% else %}✗{% endif %}
+        </div>
+        <div class="metric-label">NAP Info</div>
+      </div>
+      <div class="metric-box" style="border-color: {% if local_seo.get('has_review_schema') %}var(--green){% else %}var(--orange){% endif %};">
+        <div class="metric-value" style="color: {% if local_seo.get('has_review_schema') %}var(--green){% else %}var(--orange){% endif %};">
+          {% if local_seo.get('has_review_schema') %}✓{% else %}✗{% endif %}
+        </div>
+        <div class="metric-label">Review Schema</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ local_seo.get('location_optimized_pages', 0) }}</div>
+        <div class="metric-label">Location Pages</div>
+      </div>
+    </div>
+
+    {% if local_seo.get('missing_local_signals') %}
+    <div class="subsection-title">Missing Local SEO Signals</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
+      {% for signal in local_seo.get('missing_local_signals', []) %}
+      <span class="badge badge-critical">{{ signal }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if local_seo.get('nap_pages') %}
+    <div class="subsection-title">Pages With Phone / NAP Info</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Phone</th>
+          <th>Address</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in local_seo.get('nap_pages', [])[:20] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td style="font-size: 11px;">{{ item.phone if item.phone else '—' }}</td>
+          <td>
+            {% if item.has_address %}
+            <span class="badge badge-good">Yes</span>
+            {% else %}
+            <span class="badge badge-low">No</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if local_seo.get('location_pages') %}
+    <div class="subsection-title">Location-Optimized Pages</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Location Keyword</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in local_seo.get('location_pages', [])[:20] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td><span class="badge badge-info">{{ item.location_keyword }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- ===== CONVERSION OPTIMIZATION ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Conversion Optimization</div>
+    <div class="section-icon">🎯</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box" style="border-color: {% if conversion.get('summary', {}).get('pages_with_cta', 0) > 0 %}var(--green){% else %}var(--red){% endif %};">
+        <div class="metric-value" style="color: {% if conversion.get('summary', {}).get('pages_with_cta', 0) > 0 %}var(--green){% else %}var(--red){% endif %};">{{ conversion.get('summary', {}).get('pages_with_cta', 0) }}</div>
+        <div class="metric-label">Pages With CTA</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ conversion.get('summary', {}).get('pages_with_trust_signals', 0) }}</div>
+        <div class="metric-label">Pages With Trust Signals</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--orange);">
+        <div class="metric-value" style="color: var(--orange);">{{ conversion.get('summary', {}).get('pages_with_forms', 0) }}</div>
+        <div class="metric-label">Pages With Forms</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--green);">
+        <div class="metric-value" style="color: var(--green);">{{ conversion.get('summary', {}).get('pages_with_social_proof', 0) }}</div>
+        <div class="metric-label">Pages With Social Proof</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--green);">
+        <div class="metric-value" style="color: var(--green);">{{ conversion.get('summary', {}).get('high_conversion_pages', 0) }}</div>
+        <div class="metric-label">High Conversion Pages</div>
+      </div>
+      <div class="metric-box" style="border-color: {% if conversion.get('summary', {}).get('low_conversion_pages', 0) > 0 %}var(--red){% else %}var(--green){% endif %};">
+        <div class="metric-value" style="color: {% if conversion.get('summary', {}).get('low_conversion_pages', 0) > 0 %}var(--red){% else %}var(--green){% endif %};">{{ conversion.get('summary', {}).get('low_conversion_pages', 0) }}</div>
+        <div class="metric-label">Low Conversion Pages</div>
+      </div>
+    </div>
+
+    {% if conversion.get('pages_missing_cta') %}
+    <div class="subsection-title">Pages Missing CTAs (Top 15)</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in conversion.get('pages_missing_cta', [])[:15] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td><span class="badge badge-warning">No CTA</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if conversion.get('page_results') %}
+    {% set top_pages = conversion.get('page_results', [])[:10] %}
+    {% if top_pages %}
+    <div class="subsection-title">Top Performing Conversion Pages</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Score</th>
+          <th>CTAs</th>
+          <th>Key Signals</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in top_pages %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td>
+            <span class="badge {% if item.conversion_score >= 60 %}badge-good{% elif item.conversion_score >= 30 %}badge-warning{% else %}badge-critical{% endif %}">
+              {{ item.conversion_score }}/100
+            </span>
+          </td>
+          <td>{{ item.cta_count }}</td>
+          <td style="font-size: 10px; color: var(--gray-500);">
+            {% if item.signals %}{{ item.signals[0] }}{% else %}None{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- ===== CONTENT QUALITY ===== -->
+<div class="section section-break">
+  <div class="section-header">
+    <div class="section-title">Content Quality Analysis</div>
+    <div class="section-icon">✍️</div>
+  </div>
+  <div class="section-body">
+
+    <div class="metrics-grid">
+      <div class="metric-box" style="border-color: {% if content.get('summary', {}).get('avg_word_count', 0) >= 500 %}var(--green){% elif content.get('summary', {}).get('avg_word_count', 0) >= 300 %}var(--yellow){% else %}var(--red){% endif %};">
+        <div class="metric-value" style="color: {% if content.get('summary', {}).get('avg_word_count', 0) >= 500 %}var(--green){% elif content.get('summary', {}).get('avg_word_count', 0) >= 300 %}var(--yellow){% else %}var(--red){% endif %};">{{ content.get('summary', {}).get('avg_word_count', 0) }}</div>
+        <div class="metric-label">Avg Word Count</div>
+      </div>
+      <div class="metric-box" style="border-color: {% if content.get('summary', {}).get('thin_content_pages', 0) > 0 %}var(--red){% else %}var(--green){% endif %};">
+        <div class="metric-value" style="color: {% if content.get('summary', {}).get('thin_content_pages', 0) > 0 %}var(--red){% else %}var(--green){% endif %};">{{ content.get('summary', {}).get('thin_content_pages', 0) }}</div>
+        <div class="metric-label">Thin Content Pages</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ content.get('summary', {}).get('pages_with_video', 0) }}</div>
+        <div class="metric-label">Pages With Video</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--orange);">
+        <div class="metric-value" style="color: var(--orange);">{{ content.get('summary', {}).get('avg_internal_links', 0) }}</div>
+        <div class="metric-label">Avg Internal Links</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--green);">
+        <div class="metric-value" style="color: var(--green);">{{ content.get('summary', {}).get('avg_images_per_page', 0) }}</div>
+        <div class="metric-label">Avg Images/Page</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ content.get('summary', {}).get('pages_with_fresh_content', 0) }}</div>
+        <div class="metric-label">Fresh Content Pages</div>
+      </div>
+    </div>
+
+    {% if content.get('thin_content_pages') %}
+    <div class="subsection-title">Thin Content Pages (&lt;300 words)</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Word Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in content.get('thin_content_pages', [])[:20] %}
+        <tr>
+          <td class="url-cell">{{ item.url }}</td>
+          <td>{{ item.word_count }}</td>
+          <td>
+            <span class="badge {% if item.word_count < 100 %}badge-critical{% else %}badge-warning{% endif %}">
+              Thin Content
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if content.get('duplicate_content_groups') %}
+    <div class="subsection-title">Duplicate Content Groups</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Title / Snippet</th>
+          <th>Pages Affected</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in content.get('duplicate_content_groups', [])[:10] %}
+        <tr>
+          <td><span class="badge badge-warning">{{ group.type | replace('_', ' ') | title }}</span></td>
+          <td style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ group.title }}</td>
+          <td><span class="badge badge-critical">{{ group.urls | length }} pages</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+  </div>
+</div>
+
 <!-- ===== QUICK WINS ===== -->
 <div class="section section-break">
   <div class="section-header">

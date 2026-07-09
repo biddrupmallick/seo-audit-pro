@@ -8,12 +8,15 @@ REPORTS_DIR = "reports"
 
 # Scoring weights (must sum to 1.0)
 SCORING_WEIGHTS = {
-    "technical": 0.25,
-    "onpage": 0.20,
-    "schema": 0.15,
-    "aeo": 0.15,
-    "geo": 0.15,
-    "performance": 0.10,
+    "technical": 0.20,
+    "onpage": 0.15,
+    "schema": 0.10,
+    "aeo": 0.10,
+    "geo": 0.10,
+    "performance": 0.08,
+    "local_seo": 0.12,
+    "conversion": 0.10,
+    "content": 0.05,
 }
 
 # Thresholds

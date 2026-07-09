@@ -24,6 +24,9 @@ from analyzers.aeo import analyze_aeo
 from analyzers.geo import analyze_geo
 from analyzers.performance import analyze_performance
 from analyzers.images import analyze_images
+from analyzers.local_seo import analyze_local_seo
+from analyzers.conversion import analyze_conversion
+from analyzers.content import analyze_content
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
 
@@ -246,10 +249,19 @@ async def run_analysis(job_id: str, url: str):
         await send_progress(job_id, 83, "Analyzing images…")
         images = await asyncio.to_thread(analyze_images, crawled_pages)
 
-        await send_progress(job_id, 87, "Calculating scores…")
-        scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images)
+        await send_progress(job_id, 85, "Analyzing local SEO…")
+        local_seo = await asyncio.to_thread(analyze_local_seo, crawled_pages)
 
-        await send_progress(job_id, 90, "Generating PDF report…")
+        await send_progress(job_id, 87, "Analyzing conversion optimization…")
+        conversion = await asyncio.to_thread(analyze_conversion, crawled_pages)
+
+        await send_progress(job_id, 89, "Analyzing content quality…")
+        content = await asyncio.to_thread(analyze_content, crawled_pages)
+
+        await send_progress(job_id, 91, "Calculating scores…")
+        scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images, local_seo, conversion, content)
+
+        await send_progress(job_id, 93, "Generating PDF report…")
         report_path = await asyncio.to_thread(
             generate_report,
             job_id,
@@ -263,6 +275,9 @@ async def run_analysis(job_id: str, url: str):
             geo,
             performance,
             images,
+            local_seo,
+            conversion,
+            content,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")
@@ -311,6 +326,28 @@ async def run_analysis(job_id: str, url: str):
             "images": _make_serializable({
                 "score": images.get("score", 0),
                 "summary": images.get("summary", {}),
+            }),
+            "local_seo": _make_serializable({
+                "score": local_seo.get("score", 0),
+                "summary": local_seo.get("summary", {}),
+                "has_contact_page": local_seo.get("has_contact_page", False),
+                "has_google_maps": local_seo.get("has_google_maps", False),
+                "has_local_business_schema": local_seo.get("has_local_business_schema", False),
+                "has_nap_info": local_seo.get("has_nap_info", False),
+                "has_review_schema": local_seo.get("has_review_schema", False),
+                "has_opening_hours": local_seo.get("has_opening_hours", False),
+                "location_optimized_pages": local_seo.get("location_optimized_pages", 0),
+                "missing_local_signals": local_seo.get("missing_local_signals", []),
+            }),
+            "conversion": _make_serializable({
+                "score": conversion.get("score", 0),
+                "summary": conversion.get("summary", {}),
+                "pages_missing_cta": conversion.get("pages_missing_cta", [])[:15],
+            }),
+            "content": _make_serializable({
+                "score": content.get("score", 0),
+                "summary": content.get("summary", {}),
+                "thin_content_pages": content.get("thin_content_pages", [])[:15],
             }),
         }
 

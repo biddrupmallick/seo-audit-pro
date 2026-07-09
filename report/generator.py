@@ -88,6 +88,9 @@ def generate_report(
     geo: Dict[str, Any],
     performance: Dict[str, Any],
     images: Dict[str, Any],
+    local_seo: Dict[str, Any] = None,
+    conversion: Dict[str, Any] = None,
+    content: Dict[str, Any] = None,
 ) -> str:
     """Generate a PDF report using Chrome headless. Falls back to HTML if Chrome unavailable."""
     try:
@@ -109,6 +112,9 @@ def generate_report(
         "geo": geo,
         "performance": performance,
         "images": images,
+        "local_seo": local_seo or {},
+        "conversion": conversion or {},
+        "content": content or {},
     }
 
     html_path = _render_html(job_id, context)
