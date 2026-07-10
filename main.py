@@ -58,6 +58,10 @@ jobs: Dict[str, Dict[str, Any]] = {}
 # WebSocket connections per job
 ws_connections: Dict[str, WebSocket] = {}
 
+# Bulk job store
+# {bulk_id: {status, items: [{url, competitor_urls, job_id, status, lead_score, report_path, error}]}}
+bulk_jobs: Dict[str, Dict[str, Any]] = {}
+
 
 # ====== MODELS ======
 class AnalyzeRequest(BaseModel):
@@ -65,6 +69,15 @@ class AnalyzeRequest(BaseModel):
     competitor_urls: Optional[List[str]] = None
     gbp_url: Optional[str] = None
     gbp_competitor_urls: Optional[List[str]] = None
+
+
+class BulkItem(BaseModel):
+    url: str
+    competitor_urls: Optional[List[str]] = None
+
+
+class BulkRequest(BaseModel):
+    items: List[BulkItem]
 
 
 # ====== ROUTES ======
@@ -230,6 +243,137 @@ async def get_job_status(job_id: str):
     # Don't return full data in status check
     job.pop("data", None)
     return job
+
+
+# ====== BULK AUDIT ROUTES ======
+@app.get("/bulk", response_class=HTMLResponse)
+async def bulk_page(request: Request):
+    return templates.TemplateResponse("bulk.html", {"request": request})
+
+
+@app.post("/bulk/start")
+async def start_bulk(request: BulkRequest, background_tasks: BackgroundTasks):
+    bulk_id = str(uuid.uuid4())
+    items = []
+    for item in request.items[:20]:
+        url = item.url.strip()
+        if not url:
+            continue
+        if not url.startswith(("http://", "https://")):
+            url = "https://" + url
+        comp_urls = []
+        for cu in (item.competitor_urls or [])[:3]:
+            cu = cu.strip()
+            if cu:
+                if not cu.startswith(("http://", "https://")):
+                    cu = "https://" + cu
+                comp_urls.append(cu)
+        job_id = str(uuid.uuid4())
+        items.append({
+            "url": url,
+            "competitor_urls": comp_urls,
+            "job_id": job_id,
+            "status": "pending",
+            "lead_score": None,
+            "report_path": None,
+            "error": None,
+            "progress": 0,
+            "message": "Waiting…",
+        })
+
+    bulk_jobs[bulk_id] = {
+        "bulk_id": bulk_id,
+        "status": "running",
+        "created_at": datetime.now().isoformat(),
+        "items": items,
+        "current_index": 0,
+    }
+    background_tasks.add_task(run_bulk, bulk_id)
+    return {"bulk_id": bulk_id}
+
+
+@app.get("/bulk/status/{bulk_id}")
+async def bulk_status(bulk_id: str):
+    if bulk_id not in bulk_jobs:
+        raise HTTPException(status_code=404, detail="Bulk job not found")
+    bj = bulk_jobs[bulk_id]
+    # Return status without heavy data
+    items_summary = []
+    for it in bj["items"]:
+        items_summary.append({
+            "url": it["url"],
+            "job_id": it["job_id"],
+            "status": it["status"],
+            "progress": it.get("progress", 0),
+            "message": it.get("message", ""),
+            "error": it.get("error"),
+            "lead_score": it.get("lead_score"),
+            "report_path": it.get("report_path"),
+        })
+    return {
+        "bulk_id": bulk_id,
+        "status": bj["status"],
+        "current_index": bj.get("current_index", 0),
+        "total": len(bj["items"]),
+        "items": items_summary,
+    }
+
+
+async def run_bulk(bulk_id: str):
+    """Run audits sequentially for all items in a bulk job."""
+    bj = bulk_jobs[bulk_id]
+    items = bj["items"]
+
+    for idx, item in enumerate(items):
+        bj["current_index"] = idx
+        item["status"] = "running"
+        item["progress"] = 2
+        item["message"] = "Starting…"
+
+        job_id = item["job_id"]
+        # Register in the main jobs store so run_analysis works
+        jobs[job_id] = {
+            "status": "pending",
+            "url": item["url"],
+            "created_at": datetime.now().isoformat(),
+            "progress": 0,
+            "message": "Queued",
+            "data": None,
+            "error": None,
+        }
+
+        # Mirror progress updates into bulk item
+        original_send = None
+
+        async def bulk_progress_hook(jid, pct, msg, _item=item):
+            _item["progress"] = pct
+            _item["message"] = msg
+
+        # Temporarily patch send_progress for this job
+        async def _patched_send(jid, pct, msg):
+            jobs[jid]["progress"] = pct
+            jobs[jid]["message"] = msg
+            item["progress"] = pct
+            item["message"] = msg
+
+        try:
+            await run_analysis(job_id, item["url"], item["competitor_urls"])
+            job = jobs[job_id]
+            if job["status"] == "complete" and job.get("data"):
+                item["status"] = "complete"
+                item["lead_score"] = job["data"].get("lead_score", {})
+                item["report_path"] = job["data"].get("report_path", "")
+                item["progress"] = 100
+                item["message"] = "Complete"
+            else:
+                item["status"] = "error"
+                item["error"] = job.get("error", "Unknown error")
+        except Exception as e:
+            item["status"] = "error"
+            item["error"] = str(e)
+
+    bj["status"] = "complete"
+    bj["current_index"] = len(items)
 
 
 # ====== BACKGROUND ANALYSIS TASK ======

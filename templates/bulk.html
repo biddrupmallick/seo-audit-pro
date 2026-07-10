@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bulk Audit — SEO Audit Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+
+    .topbar { background: #0f172a; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-logo { color: #fff; font-size: 16px; font-weight: 800; }
+    .topbar-logo span { color: #3b82f6; }
+    .topbar-nav a { color: #94a3b8; font-size: 13px; text-decoration: none; margin-left: 20px; }
+    .topbar-nav a:hover { color: #fff; }
+    .topbar-nav a.active { color: #3b82f6; font-weight: 600; }
+
+    .page { max-width: 900px; margin: 36px auto; padding: 0 20px 60px; }
+    h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+    .card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 20px; }
+    .card-title { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+
+    /* Site rows */
+    .site-row {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .site-row-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .site-num { font-size: 11px; font-weight: 700; color: #94a3b8; min-width: 22px; }
+    .site-url-input {
+      flex: 1; padding: 9px 13px; border: 1px solid #e2e8f0; border-radius: 8px;
+      font-size: 13px; color: #1e293b; background: #fff; outline: none;
+    }
+    .site-url-input:focus { border-color: #3b82f6; }
+    .btn-remove-site {
+      background: #fee2e2; border: none; border-radius: 6px; color: #dc2626;
+      font-size: 15px; width: 32px; height: 32px; cursor: pointer; flex-shrink: 0;
+    }
+    .comp-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+    .comp-label { font-size: 10px; color: #94a3b8; min-width: 22px; text-align: center; }
+    .comp-input {
+      flex: 1; padding: 7px 11px; border: 1px solid #e2e8f0; border-radius: 7px;
+      font-size: 12px; color: #475569; background: #fff; outline: none;
+    }
+    .comp-input:focus { border-color: #6366f1; }
+    .comp-input::placeholder { color: #cbd5e1; }
+
+    .btn-add-site {
+      background: #eff6ff; border: 1px dashed #93c5fd; border-radius: 10px;
+      color: #2563eb; font-size: 13px; font-weight: 600; padding: 12px;
+      width: 100%; cursor: pointer; margin-top: 4px;
+    }
+    .btn-add-site:hover { background: #dbeafe; }
+
+    .btn-start {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff; border: none; border-radius: 10px;
+      padding: 14px 32px; font-size: 15px; font-weight: 700;
+      width: 100%; cursor: pointer; margin-top: 4px;
+    }
+    .btn-start:hover { opacity: 0.92; }
+    .btn-start:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Queue view ── */
+    #queue-view { display: none; }
+    .queue-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .queue-title { font-size: 18px; font-weight: 800; }
+    .queue-progress-bar { background: #e2e8f0; border-radius: 99px; height: 8px; margin-bottom: 20px; overflow: hidden; }
+    .queue-progress-fill { background: linear-gradient(90deg,#2563eb,#6366f1); height: 100%; border-radius: 99px; transition: width 0.5s; }
+
+    .queue-item {
+      display: flex; align-items: center; gap: 14px;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 12px 16px; margin-bottom: 8px;
+    }
+    .qi-status { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+    .qi-url { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qi-msg { font-size: 10px; color: #94a3b8; flex-shrink: 0; }
+    .qi-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 99px; flex-shrink: 0; }
+
+    /* ── Results view ── */
+    #results-view { display: none; }
+    .results-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .results-subtitle { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+
+    .result-card {
+      background: #fff; border: 2px solid #e2e8f0; border-radius: 12px;
+      padding: 16px 20px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .result-rank { font-size: 22px; font-weight: 800; color: #cbd5e1; min-width: 32px; text-align: center; }
+    .result-tier { font-size: 20px; flex-shrink: 0; }
+    .result-info { flex: 1; min-width: 160px; }
+    .result-url { font-size: 14px; font-weight: 700; color: #1e293b; }
+    .result-desc { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .result-score-box { text-align: center; min-width: 70px; }
+    .result-score-num { font-size: 28px; font-weight: 800; }
+    .result-score-lbl { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .result-tp { flex: 2; min-width: 200px; }
+    .result-tp-item { font-size: 10px; color: #374151; padding: 3px 8px; background: #f8fafc; border-radius: 4px; margin-bottom: 3px; border-left: 2px solid #e2e8f0; }
+    .btn-download { background: #2563eb; color: #fff; border: none; border-radius: 7px; padding: 8px 16px; font-size: 12px; font-weight: 700; text-decoration: none; flex-shrink: 0; }
+    .btn-download:hover { background: #1d4ed8; }
+    .result-error { font-size: 11px; color: #dc2626; flex: 1; }
+
+    .tip-box { background: #fefce8; border: 1px solid #fde047; border-radius: 10px; padding: 14px 18px; font-size: 12px; color: #713f12; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">SEO Audit <span>Pro</span></div>
+  <div class="topbar-nav">
+    <a href="/">Single Audit</a>
+    <a href="/bulk" class="active">Bulk Audit</a>
+    <a href="/settings">⚙️ Branding</a>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ── INPUT FORM ── -->
+  <div id="input-view">
+    <h1>Bulk Audit</h1>
+    <p class="subtitle">Add up to 20 websites with up to 3 competitors each. Audits run one at a time — leave this page open or check back later.</p>
+
+    <div class="tip-box">
+      💡 Audits run sequentially (~3–8 min each). For 10 sites expect 30–80 minutes total. You can close this tab and come back — results are saved.
+    </div>
+
+    <div class="card">
+      <div class="card-title">Sites to Audit</div>
+      <div id="site-list"></div>
+      <button class="btn-add-site" onclick="addSite()">+ Add Another Site</button>
+    </div>
+
+    <button class="btn-start" id="btn-start" onclick="startBulk()">🚀 Start Bulk Audit</button>
+  </div>
+
+  <!-- ── QUEUE VIEW ── -->
+  <div id="queue-view">
+    <div class="queue-header">
+      <div class="queue-title">⏳ Running Bulk Audit…</div>
+      <div id="queue-counter" style="font-size:13px; color:#64748b;">0 / 0 complete</div>
+    </div>
+    <div class="queue-progress-bar">
+      <div class="queue-progress-fill" id="queue-fill" style="width:0%"></div>
+    </div>
+    <div id="queue-list"></div>
+  </div>
+
+  <!-- ── RESULTS VIEW ── -->
+  <div id="results-view">
+    <div class="results-title">✅ Bulk Audit Complete</div>
+    <p class="results-subtitle" id="results-subtitle"></p>
+    <div id="results-list"></div>
+    <button onclick="location.reload()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;color:#475569;cursor:pointer;margin-top:10px;">↩ Start New Bulk Audit</button>
+  </div>
+
+</div>
+
+<script>
+let bulkId = null;
+let pollInterval = null;
+let siteCount = 0;
+
+// ── Build initial rows ──
+function addSite(url='', comps=['','','']) {
+  if (siteCount >= 20) return;
+  siteCount++;
+  const idx = siteCount;
+  const div = document.createElement('div');
+  div.className = 'site-row';
+  div.id = `site-row-${idx}`;
+  div.innerHTML = `
+    <div class="site-row-header">
+      <span class="site-num">#${idx}</span>
+      <input type="url" class="site-url-input site-url" placeholder="https://client${idx}.com" value="${url}" autocomplete="off">
+      <button class="btn-remove-site" onclick="removeSite(${idx})" title="Remove">×</button>
+    </div>
+    <div style="padding-left:32px;">
+      ${[0,1,2].map((i) => `
+      <div class="comp-row">
+        <span class="comp-label">C${i+1}</span>
+        <input type="url" class="comp-input comp-url-${idx}" placeholder="Competitor ${i+1} URL (optional)" value="${comps[i]||''}" autocomplete="off">
+      </div>`).join('')}
+    </div>
+  `;
+  document.getElementById('site-list').appendChild(div);
+}
+
+function removeSite(idx) {
+  const row = document.getElementById(`site-row-${idx}`);
+  if (row) row.remove();
+}
+
+// Start with 3 default rows
+addSite(); addSite(); addSite();
+
+// ── Start bulk ──
+async function startBulk() {
+  const rows = document.querySelectorAll('.site-row');
+  const items = [];
+  rows.forEach(row => {
+    const urlInput = row.querySelector('.site-url');
+    const url = (urlInput?.value || '').trim();
+    if (!url) return;
+    const compInputs = row.querySelectorAll('[class*="comp-url"]');
+    const competitor_urls = Array.from(compInputs).map(i => i.value.trim()).filter(Boolean);
+    items.push({ url, competitor_urls });
+  });
+
+  if (items.length === 0) {
+    alert('Add at least one website URL.');
+    return;
+  }
+
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-start').textContent = 'Starting…';
+
+  const resp = await fetch('/bulk/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  });
+  const data = await resp.json();
+  bulkId = data.bulk_id;
+
+  document.getElementById('input-view').style.display = 'none';
+  document.getElementById('queue-view').style.display = 'block';
+
+  initQueueUI(items);
+  pollInterval = setInterval(pollStatus, 4000);
+  pollStatus();
+}
+
+function initQueueUI(items) {
+  const list = document.getElementById('queue-list');
+  list.innerHTML = items.map((it, i) => `
+    <div class="queue-item" id="qi-${i}">
+      <div class="qi-status" id="qi-status-${i}">○</div>
+      <div class="qi-url">${it.url}</div>
+      <div class="qi-msg" id="qi-msg-${i}">Waiting…</div>
+    </div>
+  `).join('');
+}
+
+async function pollStatus() {
+  if (!bulkId) return;
+  try {
+    const resp = await fetch(`/bulk/status/${bulkId}`);
+    const data = await resp.json();
+    updateQueueUI(data);
+    if (data.status === 'complete') {
+      clearInterval(pollInterval);
+      setTimeout(() => showResults(data), 800);
+    }
+  } catch(e) { /* ignore */ }
+}
+
+const TIER_COLORS = { 'Hot Lead': '#dc2626', 'Warm Lead': '#d97706', 'Nurture': '#16a34a' };
+const TIER_ICONS = { 'Hot Lead': '🔥', 'Warm Lead': '⚡', 'Nurture': '🌱' };
+
+function updateQueueUI(data) {
+  const total = data.total;
+  const done = data.items.filter(i => i.status === 'complete' || i.status === 'error').length;
+  document.getElementById('queue-counter').textContent = `${done} / ${total} complete`;
+  document.getElementById('queue-fill').style.width = `${Math.round((done/total)*100)}%`;
+
+  data.items.forEach((item, i) => {
+    const statusEl = document.getElementById(`qi-status-${i}`);
+    const msgEl = document.getElementById(`qi-msg-${i}`);
+    const row = document.getElementById(`qi-${i}`);
+    if (!statusEl) return;
+
+    if (item.status === 'complete') {
+      statusEl.textContent = '✅';
+      const ls = item.lead_score;
+      const tier = ls?.tier || '';
+      const score = ls?.score ?? '';
+      msgEl.innerHTML = ls
+        ? `<span class="qi-badge" style="background:${TIER_COLORS[tier]}22;color:${TIER_COLORS[tier]};">${TIER_ICONS[tier]} ${tier} · ${score}/100</span>`
+        : 'Complete';
+      row.style.borderColor = '#86efac';
+    } else if (item.status === 'running') {
+      statusEl.textContent = '⏳';
+      msgEl.textContent = item.message || 'Running…';
+      row.style.borderColor = '#93c5fd';
+      row.style.background = '#eff6ff';
+    } else if (item.status === 'error') {
+      statusEl.textContent = '❌';
+      msgEl.textContent = 'Failed';
+      row.style.borderColor = '#fca5a5';
+    } else {
+      statusEl.textContent = '○';
+      msgEl.textContent = 'Waiting…';
+    }
+  });
+}
+
+function showResults(data) {
+  document.getElementById('queue-view').style.display = 'none';
+  document.getElementById('results-view').style.display = 'block';
+
+  const completed = data.items.filter(i => i.status === 'complete');
+  const failed = data.items.filter(i => i.status === 'error');
+
+  document.getElementById('results-subtitle').textContent =
+    `${completed.length} audits complete, ${failed.length} failed — ranked by lead score (highest first)`;
+
+  // Sort by lead score desc
+  const sorted = [...data.items].sort((a, b) => {
+    const sa = a.lead_score?.score ?? -1;
+    const sb = b.lead_score?.score ?? -1;
+    return sb - sa;
+  });
+
+  const list = document.getElementById('results-list');
+  list.innerHTML = sorted.map((item, i) => {
+    const ls = item.lead_score;
+    const tier = ls?.tier || '';
+    const color = TIER_COLORS[tier] || '#94a3b8';
+    const icon = TIER_ICONS[tier] || '○';
+    const jobId = item.job_id;
+
+    if (item.status === 'error') {
+      return `
+        <div class="result-card" style="border-color:#fca5a5;">
+          <div class="result-rank">${i+1}</div>
+          <div class="result-tier">❌</div>
+          <div class="result-info">
+            <div class="result-url">${item.url}</div>
+            <div class="result-error">${item.error || 'Analysis failed'}</div>
+          </div>
+        </div>`;
+    }
+
+    const tps = (ls?.talking_points || []).slice(0,2).map(tp =>
+      `<div class="result-tp-item" style="border-left-color:${color};">💬 ${tp}</div>`
+    ).join('');
+    const qws = (ls?.quick_wins || []).slice(0,1).map(qw =>
+      `<div class="result-tp-item" style="border-left-color:#16a34a;">⚡ ${qw}</div>`
+    ).join('');
+
+    return `
+      <div class="result-card" style="border-color:${color}33;">
+        <div class="result-rank" style="color:${color};">${i+1}</div>
+        <div class="result-tier">${icon}</div>
+        <div class="result-info">
+          <div class="result-url">${item.url}</div>
+          <div class="result-desc">${tier} · ${item.competitor_urls?.length || 0} competitors analysed</div>
+        </div>
+        <div class="result-score-box">
+          <div class="result-score-num" style="color:${color};">${ls?.score ?? '—'}</div>
+          <div class="result-score-lbl">Lead Score</div>
+        </div>
+        <div class="result-tp">${tps}${qws}</div>
+        ${item.report_path
+          ? `<a class="btn-download" href="/report/${jobId}" target="_blank">📥 Report</a>`
+          : '<span style="font-size:11px;color:#94a3b8;">No report</span>'}
+      </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
