@@ -24,7 +24,7 @@ from analyzers.aeo import analyze_aeo
 from analyzers.geo import analyze_geo
 from analyzers.performance import analyze_performance
 from analyzers.images import analyze_images
-from analyzers.local_seo import analyze_local_seo
+from analyzers.local_seo import analyze_local_seo, enhance_with_gbp
 from analyzers.conversion import analyze_conversion
 from analyzers.content import analyze_content
 from analyzers.ai_recommendations import generate_ai_recommendations
@@ -406,10 +406,11 @@ async def start_upload(background_tasks: BackgroundTasks, file: UploadFile = Fil
         "status": "running",
         "step": "Starting…",
         "step_index": 0,
-        "total_steps": 5,
+        "total_steps": 6,
         "businesses": businesses,
         "total": len(businesses),
         "created_at": datetime.now().isoformat(),
+        "audit_progress": {"current": 0, "total": 0, "current_name": ""},
         "result": None,
         "error": None,
     }
@@ -431,6 +432,7 @@ async def upload_status(upload_id: str):
         "total": job["total"],
         "error": job.get("error"),
         "has_result": job.get("result") is not None,
+        "audit_progress": job.get("audit_progress", {}),
     }
 
 
@@ -442,6 +444,107 @@ async def upload_results(upload_id: str):
     if job["status"] != "complete":
         raise HTTPException(status_code=400, detail="Pipeline not complete yet")
     return JSONResponse(content=_make_serializable(job["result"]))
+
+
+def _estimate_dist(rating: float, count: int) -> dict:
+    if not rating or not count:
+        return {}
+    five = max(0, int(count * min(0.95, (rating - 1) / 4 * 0.9 + 0.1)))
+    one = max(0, int(count * max(0.01, (5 - rating) / 4 * 0.15)))
+    remaining = max(0, count - five - one)
+    four = int(remaining * 0.5)
+    three = int(remaining * 0.3)
+    two = remaining - four - three
+    return {"5": five, "4": four, "3": three, "2": two, "1": one}
+
+
+def _gbp_from_excel(biz: Dict) -> Dict:
+    """Build GBP-compatible dict from Excel row data."""
+    competitors = biz.get("nearest_competitors") or []
+    reviews = biz.get("reviews") or 0
+    rating = biz.get("rating")
+    group_analysis = biz.get("_group_analysis") or {}
+
+    score = 0
+    if rating:
+        score += int((rating / 5.0) * 40)
+    if reviews >= 100: score += 30
+    elif reviews >= 50: score += 22
+    elif reviews >= 20: score += 15
+    elif reviews >= 5: score += 8
+    if biz.get("phone"): score += 10
+    if biz.get("address"): score += 10
+    if biz.get("website"): score += 10
+    score = min(100, score)
+
+    comp_counts = [c.get("reviews") or 0 for c in competitors]
+    top_comp = max(comp_counts) if comp_counts else 0
+    avg_comp = round(sum(comp_counts) / max(len(comp_counts), 1)) if comp_counts else 0
+    review_gap = max(0, top_comp - reviews)
+
+    # Map group-level review analysis to per-business GBP insights format
+    insights = {}
+    if group_analysis:
+        insights = {
+            "PRAISE_THEMES": group_analysis.get("TOP_PRAISE", ""),
+            "COMPLAINT_THEMES": group_analysis.get("TOP_COMPLAINTS", ""),
+            "TOP_ACTION": group_analysis.get("KEY_INSIGHT", ""),
+            "REVIEW_ASK": f"Would you mind leaving us a quick Google review? It helps other {biz.get('category', 'customers')} find us.",
+            "RESPONSE_SCRIPT": "Thank you for your feedback. We take all reviews seriously and will use this to improve our service.",
+        }
+
+    # Build comparison table from nearest competitors
+    comparison = {}
+    if competitors:
+        comp_names = [c.get("name", f"Competitor {i+1}")[:25] for i, c in enumerate(competitors)]
+        rows = [
+            {"label": "Rating", "client": str(rating) + "★" if rating else "—",
+             "competitors": [str(c.get("rating", "—")) + "★" if c.get("rating") else "—" for c in competitors]},
+            {"label": "Reviews", "client": str(reviews),
+             "competitors": [str(c.get("reviews") or "—") for c in competitors]},
+            {"label": "Distance", "client": "📍 Client",
+             "competitors": [str(c.get("distance_miles", "?")) + " mi" for c in competitors]},
+            {"label": "Website", "client": "✓" if biz.get("website") else "✗",
+             "competitors": ["✓" if c.get("website") else "✗" for c in competitors]},
+        ]
+        comparison = {"competitor_names": comp_names, "rows": rows}
+
+    return {
+        "available": True,
+        "source": "excel",
+        "client": {
+            "name": biz.get("name", ""),
+            "rating": rating,
+            "review_count": reviews,
+            "category": biz.get("category", ""),
+            "address": biz.get("address", ""),
+            "phone": biz.get("phone", ""),
+            "website": biz.get("website", ""),
+            "score": score,
+            "has_hours": True,
+            "has_photos": True,
+            "has_description": True,
+            "has_posts": False,
+            "photo_count": None,
+            "issues": [],
+            "wins": [],
+        },
+        "competitors": [
+            {"name": c.get("name", ""), "rating": c.get("rating"),
+             "review_count": c.get("reviews"), "distance_miles": c.get("distance_miles")}
+            for c in competitors
+        ],
+        "comparison": comparison,
+        "review_intel": {
+            "distribution": _estimate_dist(rating, reviews) if rating and reviews else {},
+            "count": reviews,
+            "review_gap": review_gap,
+            "top_competitor_reviews": top_comp,
+            "competitor_avg_count": avg_comp,
+            "months_to_close_gap": round(review_gap / 4) if review_gap > 0 else 0,
+            "insights": insights,
+        },
+    }
 
 
 async def run_upload_pipeline(upload_id: str):
@@ -491,20 +594,93 @@ async def run_upload_pipeline(upload_id: str):
             )
             all_emails.extend(emails)
 
-        # Step 5: Build result
-        job["step"] = "Finalising results…"
+        # Step 5: Website audits — full single-audit quality for every business with a website
+        job["step"] = "Auditing websites…"
         job["step_index"] = 5
 
-        # Geo stats
+        # Pre-populate group analysis into each business for GBP report enrichment
+        for biz in enriched:
+            biz_key = f"{(biz.get('category') or '').strip()} | {(biz.get('state') or '').strip()}"
+            if biz_key in review_analysis:
+                biz["_group_analysis"] = review_analysis[biz_key].get("analysis", {})
+
+        businesses_with_sites = [b for b in enriched if (b.get("website") or "").strip()]
+        job["audit_progress"] = {"current": 0, "total": len(businesses_with_sites), "current_name": ""}
+        audit_results = []
+
+        for i, biz in enumerate(businesses_with_sites):
+            website = biz["website"].strip()
+            if not website.startswith(("http://", "https://")):
+                website = "https://" + website
+
+            biz_name = biz.get("name", website)
+            job["step"] = f"Auditing {biz_name} ({i+1}/{len(businesses_with_sites)})…"
+            job["audit_progress"] = {"current": i + 1, "total": len(businesses_with_sites), "current_name": biz_name}
+
+            audit_job_id = str(uuid.uuid4())
+            jobs[audit_job_id] = {
+                "status": "pending", "url": website,
+                "created_at": datetime.now().isoformat(),
+                "progress": 0, "message": "Queued", "data": None, "error": None,
+            }
+
+            comp_websites = []
+            for c in biz.get("nearest_competitors") or []:
+                cw = (c.get("website") or "").strip()
+                if cw and cw != biz.get("website", "").strip():
+                    if not cw.startswith(("http://", "https://")):
+                        cw = "https://" + cw
+                    comp_websites.append(cw)
+            comp_websites = comp_websites[:3]
+
+            try:
+                await run_analysis(audit_job_id, website, comp_websites, biz_data=biz)
+                aj = jobs[audit_job_id]
+                if aj["status"] == "complete" and aj.get("data"):
+                    audit_results.append({
+                        "business_name": biz.get("name", ""),
+                        "owner_name": biz.get("owner_name", ""),
+                        "category": biz.get("category", ""),
+                        "website": website,
+                        "job_id": audit_job_id,
+                        "lead_score": aj["data"].get("lead_score", {}),
+                        "report_path": aj["data"].get("report_path", ""),
+                    })
+                else:
+                    audit_results.append({
+                        "business_name": biz.get("name", ""),
+                        "website": website,
+                        "job_id": audit_job_id,
+                        "error": aj.get("error", "Unknown error"),
+                    })
+            except Exception as e:
+                audit_results.append({
+                    "business_name": biz.get("name", ""),
+                    "website": website,
+                    "job_id": audit_job_id,
+                    "error": str(e),
+                })
+
+        audit_results.sort(
+            key=lambda x: (x.get("lead_score") or {}).get("score", 0),
+            reverse=True,
+        )
+
+        # Step 6: Finalise
+        job["step"] = "Finalising results…"
+        job["step_index"] = 6
+
         located = [b for b in enriched if b.get("latlon")]
 
         job["result"] = {
             "total": len(enriched),
             "located": len(located),
+            "audited": len([r for r in audit_results if not r.get("error")]),
             "businesses": enriched,
             "review_analysis": review_analysis,
             "blog_posts": blog_posts,
             "emails": all_emails,
+            "audit_results": audit_results,
         }
         job["status"] = "complete"
         job["step"] = "Complete!"
@@ -535,7 +711,7 @@ async def send_progress(job_id: str, percent: int, message: str):
             pass
 
 
-async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str]] = None, gbp_url: Optional[str] = None, gbp_competitor_urls: Optional[List[str]] = None):
+async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str]] = None, gbp_url: Optional[str] = None, gbp_competitor_urls: Optional[List[str]] = None, biz_data: Optional[Dict] = None):
     """Main background task: crawl + analyze + generate report."""
     try:
         jobs[job_id]["status"] = "running"
@@ -581,6 +757,8 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
 
         await send_progress(job_id, 85, "Analyzing local SEO…")
         local_seo = await asyncio.to_thread(analyze_local_seo, crawled_pages)
+        if biz_data:
+            local_seo = enhance_with_gbp(local_seo, biz_data)
 
         await send_progress(job_id, 87, "Analyzing conversion optimization…")
         conversion = await asyncio.to_thread(analyze_conversion, crawled_pages)
@@ -619,9 +797,11 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
         await send_progress(job_id, 91, "Checking Wayback Machine history…")
         wayback = await analyze_wayback(parsed_domain)
 
-        # Google Business Profile audit (only if URLs provided)
+        # GBP: from Excel data (no scraping) or from provided URL
         gbp = {}
-        if gbp_url:
+        if biz_data:
+            gbp = _gbp_from_excel(biz_data)
+        elif gbp_url:
             await send_progress(job_id, 91, "Auditing Google Business Profile…")
             gbp = await asyncio.to_thread(analyze_gbp, gbp_url, gbp_competitor_urls or [])
 

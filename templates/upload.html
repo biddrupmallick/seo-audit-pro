@@ -90,6 +90,21 @@
     .btn-primary { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; }
     .btn-primary:hover { background: #1d4ed8; }
     .btn-export { background: #059669; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
+
+    /* Audit result rows */
+    .audit-row { display:flex; align-items:center; gap:14px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; margin-bottom:8px; flex-wrap:wrap; }
+    .audit-rank { font-size:18px; font-weight:800; color:#cbd5e1; min-width:28px; text-align:center; }
+    .audit-tier { font-size:22px; flex-shrink:0; }
+    .audit-info { flex:1; min-width:140px; }
+    .audit-name { font-size:13px; font-weight:700; color:#1e293b; }
+    .audit-site { font-size:10px; color:#94a3b8; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px; }
+    .audit-score { text-align:center; min-width:54px; }
+    .audit-score-num { font-size:24px; font-weight:800; }
+    .audit-score-lbl { font-size:9px; color:#94a3b8; text-transform:uppercase; }
+    .audit-tier-label { font-size:10px; font-weight:700; padding:3px 8px; border-radius:99px; flex-shrink:0; }
+    .btn-report { background:#2563eb; color:#fff; border:none; border-radius:7px; padding:7px 14px; font-size:11px; font-weight:700; text-decoration:none; flex-shrink:0; }
+    .btn-report:hover { background:#1d4ed8; }
+    .audit-error { font-size:11px; color:#dc2626; flex:1; }
   </style>
 </head>
 <body>
@@ -156,8 +171,10 @@
         <div class="step-item pending" id="step-1"><span class="step-icon">🔍</span><span class="step-label">Analysing review themes with AI</span></div>
         <div class="step-item pending" id="step-2"><span class="step-icon">✍️</span><span class="step-label">Writing blog posts (3 formats)</span></div>
         <div class="step-item pending" id="step-3"><span class="step-icon">✉️</span><span class="step-label">Generating 2-sentence cold emails</span></div>
-        <div class="step-item pending" id="step-4"><span class="step-icon">✅</span><span class="step-label">Finalising results</span></div>
+        <div class="step-item pending" id="step-4"><span class="step-icon">🕷️</span><span class="step-label" id="step-4-label">Auditing all websites (full SEO audit + PDF reports)</span></div>
+        <div class="step-item pending" id="step-5"><span class="step-icon">✅</span><span class="step-label">Finalising results</span></div>
       </div>
+      <div id="audit-live" style="display:none;margin-top:14px;font-size:12px;color:#64748b;text-align:center;"></div>
     </div>
   </div>
 
@@ -167,10 +184,11 @@
     <p class="subtitle">All outputs ready below.</p>
 
     <!-- Summary stats -->
-    <div class="results-grid">
-      <div class="stat-box"><div class="stat-num" id="r-total">—</div><div class="stat-lbl">Businesses Processed</div></div>
+    <div class="results-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+      <div class="stat-box"><div class="stat-num" id="r-total">—</div><div class="stat-lbl">Businesses</div></div>
       <div class="stat-box"><div class="stat-num" id="r-located">—</div><div class="stat-lbl">Geo-Located</div></div>
-      <div class="stat-box"><div class="stat-num" id="r-emails">—</div><div class="stat-lbl">Cold Emails Ready</div></div>
+      <div class="stat-box"><div class="stat-num" id="r-audited">—</div><div class="stat-lbl">Websites Audited</div></div>
+      <div class="stat-box"><div class="stat-num" id="r-emails">—</div><div class="stat-lbl">Cold Emails</div></div>
     </div>
 
     <!-- Geo-match preview -->
@@ -202,11 +220,17 @@
       </div>
     </div>
 
+    <!-- Audit results ranked by lead score -->
+    <div class="card" id="audit-card" style="display:none;">
+      <div class="card-title">🎯 Website Audit Results — Ranked by Lead Score</div>
+      <div id="audit-list"></div>
+    </div>
+
     <!-- Launch bulk audit -->
     <div class="card" style="background: linear-gradient(135deg,#eff6ff,#f0fdf4); border-color:#93c5fd;">
-      <div class="card-title" style="color:#1d4ed8;">🚀 Ready to Audit Websites?</div>
-      <p style="font-size:13px;color:#374151;margin-bottom:14px;">All websites + geo-matched competitors are pre-loaded. Click to launch bulk audit — audits run overnight.</p>
-      <button class="btn-primary" onclick="launchBulkAudit()" id="btn-bulk">Launch Bulk Audit with These Sites →</button>
+      <div class="card-title" style="color:#1d4ed8;">🔁 Re-run or Extend Bulk Audit</div>
+      <p style="font-size:13px;color:#374151;margin-bottom:14px;">Already audited above, but you can re-run or add more sites to a new bulk audit session.</p>
+      <button class="btn-primary" onclick="launchBulkAudit()" id="btn-bulk">Launch Bulk Audit →</button>
     </div>
   </div>
 
@@ -277,11 +301,24 @@ async function pollStatus() {
 
 function updateProgress(data) {
   const stepIdx = (data.step_index || 1) - 1;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const el = document.getElementById(`step-${i}`);
+    if (!el) continue;
     el.className = 'step-item ' + (i < stepIdx ? 'done' : i === stepIdx ? 'active' : 'pending');
     if (i < stepIdx) el.querySelector('.step-icon').textContent = '✅';
     else if (i === stepIdx) el.querySelector('.step-icon').textContent = '⏳';
+  }
+
+  // Show per-business audit progress in step 4
+  const ap = data.audit_progress || {};
+  const liveEl = document.getElementById('audit-live');
+  if (stepIdx === 4 && ap.total > 0) {
+    liveEl.style.display = 'block';
+    liveEl.textContent = `${ap.current_name} — ${ap.current} of ${ap.total} websites audited`;
+    const label = document.getElementById('step-4-label');
+    if (label) label.textContent = `Auditing websites (${ap.current}/${ap.total})…`;
+  } else {
+    liveEl.style.display = 'none';
   }
 }
 
@@ -295,10 +332,51 @@ async function loadResults() {
   const total = allData.total || 0;
   const located = allData.located || 0;
   const emails = (allData.emails || []).length;
+  const audited = allData.audited || 0;
 
   document.getElementById('r-total').textContent = total;
   document.getElementById('r-located').textContent = located;
+  document.getElementById('r-audited').textContent = audited;
   document.getElementById('r-emails').textContent = emails;
+
+  // Audit results ranked by lead score
+  const auditResults = allData.audit_results || [];
+  const auditCard = document.getElementById('audit-card');
+  const auditList = document.getElementById('audit-list');
+  if (auditResults.length > 0) {
+    auditCard.style.display = 'block';
+    auditList.innerHTML = auditResults.map((r, i) => {
+      if (r.error) {
+        return `<div class="audit-row">
+          <div class="audit-rank">${i+1}</div>
+          <div class="audit-info">
+            <div class="audit-name">${r.business_name || '—'}</div>
+            <div class="audit-site">${r.website || ''}</div>
+          </div>
+          <div class="audit-error">⚠️ ${escHtml(r.error)}</div>
+        </div>`;
+      }
+      const ls = r.lead_score || {};
+      const score = ls.score || 0;
+      const tier = ls.tier || '—';
+      const icon = ls.tier_icon || '📊';
+      const color = ls.tier_color || '#64748b';
+      return `<div class="audit-row">
+        <div class="audit-rank">#${i+1}</div>
+        <div class="audit-tier">${icon}</div>
+        <div class="audit-info">
+          <div class="audit-name">${r.business_name || '—'}</div>
+          <div class="audit-site">${r.website}</div>
+        </div>
+        <div class="audit-score">
+          <div class="audit-score-num" style="color:${color};">${score}</div>
+          <div class="audit-score-lbl">Lead Score</div>
+        </div>
+        <div class="audit-tier-label" style="background:${color}22;color:${color};">${tier}</div>
+        ${r.report_path ? `<a class="btn-report" href="/report/${r.job_id}" target="_blank">📥 Report</a>` : ''}
+      </div>`;
+    }).join('');
+  }
 
   // Geo table (first 10)
   const geoTbody = document.getElementById('geo-tbody');

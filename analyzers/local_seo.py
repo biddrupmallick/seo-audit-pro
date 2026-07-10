@@ -240,6 +240,68 @@ def analyze_page_local_seo(page: CrawledPage) -> Dict[str, Any]:
     }
 
 
+def enhance_with_gbp(local_seo: Dict[str, Any], biz_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Cross-reference crawled local SEO signals with GBP data from Excel."""
+    if not biz_data:
+        return local_seo
+
+    rating = biz_data.get("rating")
+    reviews = biz_data.get("reviews") or 0
+    gbp_phone = (biz_data.get("phone") or "").strip()
+    competitors = biz_data.get("nearest_competitors") or []
+    missing = list(local_seo.get("missing_local_signals", []))
+
+    if rating is not None:
+        local_seo["gbp_rating"] = rating
+        if rating < 4.0:
+            missing.append(f"GBP rating is {rating}★ — below 4.0 hurts local pack ranking")
+
+    local_seo["gbp_reviews"] = reviews
+    if reviews < 10:
+        missing.append(f"Only {reviews} reviews — aim for 50+ to compete in local pack")
+
+    if gbp_phone:
+        site_phones = [p.get("phone", "") for p in local_seo.get("nap_pages", []) if p.get("phone")]
+        gbp_digits = re.sub(r"\D", "", gbp_phone)[-7:]
+        if site_phones:
+            phone_match = any(gbp_digits in re.sub(r"\D", "", p) for p in site_phones)
+            local_seo["nap_phone_consistent"] = phone_match
+            if not phone_match:
+                missing.append("Phone on website doesn't match GBP phone — NAP inconsistency hurts local SEO")
+        elif not local_seo.get("has_nap_info"):
+            missing.append("Phone not found on website — add GBP phone to every page footer")
+
+    if competitors:
+        comp_counts = [c.get("reviews") or 0 for c in competitors]
+        top = max(comp_counts)
+        gap = max(0, top - reviews)
+        local_seo["review_gap"] = gap
+        local_seo["top_competitor_reviews"] = top
+        local_seo["months_to_close_gap"] = round(gap / 4) if gap > 0 else 0
+        if gap > 20:
+            missing.append(f"Review gap: nearest competitor has {top} reviews vs {reviews} — {gap} behind")
+
+    local_seo["missing_local_signals"] = missing
+
+    score = local_seo.get("score", 0)
+    if rating is not None:
+        if rating >= 4.5:
+            score = min(100, score + 10)
+        elif rating >= 4.0:
+            score = min(100, score + 5)
+        else:
+            score = max(0, score - 10)
+    if reviews >= 100:
+        score = min(100, score + 10)
+    elif reviews >= 50:
+        score = min(100, score + 5)
+    elif reviews < 10:
+        score = max(0, score - 10)
+    local_seo["score"] = round(score, 1)
+
+    return local_seo
+
+
 def analyze_local_seo(pages: List[CrawledPage]) -> Dict[str, Any]:
     """Analyze Local SEO signals across all pages."""
     html_pages = [p for p in pages if p.html and 200 <= p.status_code < 300]
