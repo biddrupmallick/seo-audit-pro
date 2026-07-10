@@ -492,10 +492,171 @@
     color: var(--dark-3);
   }
 
+  /* ===== SCORE PROGRESS BARS ===== */
+  .score-bar-track {
+    height: 6px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+  .cat-bar-track {
+    height: 5px;
+    background: var(--gray-200);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 8px 0 6px;
+  }
+  .cat-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  /* ===== COVER REDESIGN ===== */
+  .cover-layout {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto 50px;
+  }
+  .cover-left { flex: 1; text-align: center; }
+  .cover-right {
+    flex: 1;
+    background: rgba(255,255,255,0.05);
+    border-radius: 16px;
+    padding: 28px 24px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .cover-cats-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 18px;
+  }
+  .cover-cat-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .cover-cat-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    width: 100px;
+    flex-shrink: 0;
+  }
+  .cover-cat-bar-track {
+    flex: 1;
+    height: 7px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .cover-cat-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+  }
+  .cover-cat-score {
+    font-size: 12px;
+    font-weight: 800;
+    width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ===== SECTION SCORE BADGE ===== */
+  .section-header-score {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .ssh-number {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .ssh-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+  }
+  .ssh-bar-track {
+    width: 80px;
+    height: 5px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .ssh-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  /* ===== IMPROVED METRIC BOXES ===== */
+  .metric-box {
+    background: white;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    border: 1px solid var(--gray-200);
+    border-top: 3px solid var(--dark-3);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .metric-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--dark-1);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .metric-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gray-500);
+    font-weight: 600;
+  }
+
+  /* ===== IMPROVED SCORE CARDS ===== */
+  .score-card {
+    flex: 1;
+    min-width: 130px;
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    border: 1px solid var(--gray-200);
+    border-bottom: 3px solid transparent;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+
+  /* ===== CALLOUT BOX ===== */
+  .callout-box {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-text { font-size: 11px; line-height: 1.6; }
+
   /* Print styles */
   @media print {
     .section { box-shadow: none; }
     .cover-page { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { background: white; }
   }
 </style>
 </head>
@@ -504,31 +665,62 @@
 <!-- ===== COVER PAGE ===== -->
 <div class="cover-page">
   <div class="cover-logo">SEO Audit Pro</div>
-  <div class="cover-title">SEO Audit Report</div>
-  <div class="cover-subtitle">Comprehensive Website Analysis</div>
-  <div class="cover-domain">{{ domain }}</div>
 
-  <div class="score-circle-container">
-    <div class="score-circle">
-      <div class="score-number">{{ scores.overall_score }}</div>
-      <div class="score-label">Health Score</div>
-    </div>
-    <div class="grade-badge">{{ scores.grade }}</div>
-  </div>
+  <div class="cover-layout">
 
-  <div class="cover-meta">
-    <div class="cover-meta-item">
-      <strong>{{ report_date }}</strong>
-      Date Generated
+    <!-- Left: score circle -->
+    <div class="cover-left">
+      <div class="cover-title" style="font-size:32px;">SEO Audit Report</div>
+      <div class="cover-subtitle" style="font-size:13px; margin-bottom:24px;">Prepared exclusively for</div>
+      <div class="cover-domain" style="margin-bottom:28px;">{{ domain }}</div>
+
+      <div class="score-circle-container" style="margin-bottom:20px;">
+        <div class="score-circle">
+          <div class="score-number">{{ scores.overall_score }}</div>
+          <div class="score-label">Health Score</div>
+        </div>
+        <div class="grade-badge" style="margin-top:12px;">{{ scores.grade }}</div>
+      </div>
+
+      <div style="font-size:11px; color:rgba(255,255,255,0.4); margin-top:8px;">
+        {{ total_pages }} pages crawled · {{ report_date }}
+      </div>
     </div>
-    <div class="cover-meta-item">
-      <strong>{{ total_pages }}</strong>
-      Pages Crawled
+
+    <!-- Right: category breakdown bars -->
+    <div class="cover-right">
+      <div class="cover-cats-label">Category Breakdown</div>
+      {% for cat, data in scores.category_scores.items() %}
+      <div class="cover-cat-row">
+        <div class="cover-cat-name">{{ cat | replace('_',' ') | title }}</div>
+        <div class="cover-cat-bar-track">
+          <div class="cover-cat-bar-fill" style="width:{{ data.score }}%; background:{{ data.grade_color }};"></div>
+        </div>
+        <div class="cover-cat-score" style="color:{{ data.grade_color }};">{{ data.score }}</div>
+      </div>
+      {% endfor %}
+
+      <!-- Overall summary -->
+      <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.1);">
+        {% set critical_count = scores.critical_issues | length if scores.critical_issues else 0 %}
+        {% set good_cats = scores.category_scores.values() | selectattr('score', 'ge', 70) | list | length %}
+        <div style="display:flex; gap:20px; justify-content:center;">
+          <div style="text-align:center;">
+            <div style="font-size:22px; font-weight:800; color:#22c55e;">{{ good_cats }}</div>
+            <div style="font-size:9px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px;">Passing</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:22px; font-weight:800; color:#ef4444;">{{ critical_count }}</div>
+            <div style="font-size:9px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px;">Critical Issues</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:22px; font-weight:800; color:#e94560;">{{ scores.category_scores | length }}</div>
+            <div style="font-size:9px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px;">Areas Checked</div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="cover-meta-item">
-      <strong>{{ scores.grade }}</strong>
-      Overall Grade
-    </div>
+
   </div>
 </div>
 
@@ -542,9 +734,12 @@
 
     <div class="score-cards">
       {% for cat, data in scores.category_scores.items() %}
-      <div class="score-card" style="border-color: {{ data.grade_color }}22;">
+      <div class="score-card" style="border-bottom-color: {{ data.grade_color }}; border-bottom-width: 3px;">
         <div class="cat-score" style="color: {{ data.grade_color }};">{{ data.score }}</div>
-        <div class="cat-grade" style="color: {{ data.grade_color }};">Grade {{ data.grade }}</div>
+        <div class="cat-grade" style="color: {{ data.grade_color }}; font-size:12px; font-weight:700; margin-bottom:4px;">Grade {{ data.grade }}</div>
+        <div class="cat-bar-track">
+          <div class="cat-bar-fill" style="width:{{ data.score }}%; background:{{ data.grade_color }};"></div>
+        </div>
         <div class="cat-name">{{ cat|replace('_', ' ')|title }}</div>
         <div class="cat-weight">Weight: {{ (data.weight * 100)|int }}%</div>
       </div>
@@ -930,8 +1125,11 @@
 <!-- ===== TECHNICAL SEO ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">Technical SEO</div>
-    <div class="section-icon">⚙️</div>
+    <div><div class="section-title">⚙️ Technical SEO</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('technical',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('technical',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('technical',{}).get('score',0) }}%; background:{{ scores.category_scores.get('technical',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -1027,8 +1225,11 @@
 <!-- ===== ON-PAGE SEO ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">On-Page SEO</div>
-    <div class="section-icon">📝</div>
+    <div><div class="section-title">📝 On-Page SEO</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('onpage',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('onpage',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('onpage',{}).get('score',0) }}%; background:{{ scores.category_scores.get('onpage',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -1141,8 +1342,11 @@
 <!-- ===== SCHEMA ANALYSIS ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">Schema Markup Analysis</div>
-    <div class="section-icon">🔗</div>
+    <div><div class="section-title">🔗 Schema Markup</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('schema',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('schema',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('schema',{}).get('score',0) }}%; background:{{ scores.category_scores.get('schema',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -1218,8 +1422,11 @@
 <!-- ===== AEO ANALYSIS ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">AEO — Answer Engine Optimization</div>
-    <div class="section-icon">💡</div>
+    <div><div class="section-title">💡 AEO — Answer Engine Optimization</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('aeo',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('aeo',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('aeo',{}).get('score',0) }}%; background:{{ scores.category_scores.get('aeo',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -1279,8 +1486,11 @@
 <!-- ===== GEO ANALYSIS ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">GEO — Generative Engine Optimization</div>
-    <div class="section-icon">🤖</div>
+    <div><div class="section-title">🤖 GEO — Generative Engine Optimization</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('geo',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('geo',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('geo',{}).get('score',0) }}%; background:{{ scores.category_scores.get('geo',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -1350,8 +1560,11 @@
 <!-- ===== PERFORMANCE ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">Performance Analysis</div>
-    <div class="section-icon">⚡</div>
+    <div><div class="section-title">⚡ Performance Analysis</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('performance',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('performance',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('performance',{}).get('score',0) }}%; background:{{ scores.category_scores.get('performance',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -1421,8 +1634,11 @@
 <!-- ===== IMAGE ANALYSIS ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">Image Analysis</div>
-    <div class="section-icon">🖼️</div>
+    <div><div class="section-title">🖼️ Image Analysis</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('images',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('images',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('images',{}).get('score',0) }}%; background:{{ scores.category_scores.get('images',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -1504,8 +1720,11 @@
 <!-- ===== LOCAL SEO ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">Local SEO Analysis</div>
-    <div class="section-icon">📍</div>
+    <div><div class="section-title">📍 Local SEO Analysis</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('local_seo',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('local_seo',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('local_seo',{}).get('score',0) }}%; background:{{ scores.category_scores.get('local_seo',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -1609,8 +1828,11 @@
 <!-- ===== CONVERSION OPTIMIZATION ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">Conversion Optimization</div>
-    <div class="section-icon">🎯</div>
+    <div><div class="section-title">🎯 Conversion Optimization</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('conversion',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('conversion',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('conversion',{}).get('score',0) }}%; background:{{ scores.category_scores.get('conversion',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -1700,8 +1922,11 @@
 <!-- ===== CONTENT QUALITY ===== -->
 <div class="section section-break">
   <div class="section-header">
-    <div class="section-title">Content Quality Analysis</div>
-    <div class="section-icon">✍️</div>
+    <div><div class="section-title">✍️ Content Quality</div></div>
+    <div class="section-header-score">
+      <div><span class="ssh-number" style="color:{{ scores.category_scores.get('content',{}).get('grade_color','#fff') }};">{{ scores.category_scores.get('content',{}).get('score',0) }}</span><span class="ssh-label">/100</span></div>
+      <div class="ssh-bar-track"><div class="ssh-bar-fill" style="width:{{ scores.category_scores.get('content',{}).get('score',0) }}%; background:{{ scores.category_scores.get('content',{}).get('grade_color','#888') }};"></div></div>
+    </div>
   </div>
   <div class="section-body">
 
@@ -2066,8 +2291,19 @@
 </div>
 {% endif %}
 
-<div class="page-footer">
-  SEO Audit Report for {{ domain }} | Generated {{ report_date }} | SEO Audit Pro — Running on localhost:8000
+<div class="page-footer" style="background:linear-gradient(135deg,#1a1a2e,#0f3460); color:rgba(255,255,255,0.5); padding:28px 40px; margin-top:30px; border-radius:0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+  <div>
+    <div style="font-size:13px; font-weight:700; color:white; margin-bottom:4px;">SEO Audit Pro</div>
+    <div style="font-size:10px;">Confidential report prepared for {{ domain }}</div>
+  </div>
+  <div style="text-align:center;">
+    <div style="font-size:28px; font-weight:800; color:{{ scores.grade_color }};">{{ scores.overall_score }}/100</div>
+    <div style="font-size:9px; text-transform:uppercase; letter-spacing:1px;">Overall Score</div>
+  </div>
+  <div style="text-align:right;">
+    <div style="font-size:10px;">Generated {{ report_date }}</div>
+    <div style="font-size:10px; margin-top:2px;">{{ total_pages }} pages analysed</div>
+  </div>
 </div>
 
 </body>
