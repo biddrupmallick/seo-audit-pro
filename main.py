@@ -71,7 +71,7 @@ app = FastAPI(
 BASE_DIR = Path(__file__).parent
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"), cache_size=0)
 
 # ====== IN-MEMORY JOB STORE ======
 # Structure: {job_id: {"status": str, "data": dict, "progress": int, "message": str, "ws": WebSocket}}
