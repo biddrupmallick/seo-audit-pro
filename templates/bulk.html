@@ -80,9 +80,13 @@
       padding: 12px 16px; margin-bottom: 8px;
     }
     .qi-status { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
-    .qi-url { font-size: 13px; font-weight: 600; color: #1e293b; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .qi-msg { font-size: 10px; color: #94a3b8; flex-shrink: 0; }
+    .qi-main { flex: 1; min-width: 0; }
+    .qi-url { font-size: 13px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qi-msg { font-size: 10px; color: #94a3b8; margin-top: 3px; }
+    .qi-mini-bar { height: 4px; background: #e2e8f0; border-radius: 99px; margin-top: 5px; overflow: hidden; display: none; }
+    .qi-mini-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg,#2563eb,#6366f1); width: 0%; transition: width 0.4s; }
     .qi-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 99px; flex-shrink: 0; }
+    .qi-pct { font-size: 10px; font-weight: 700; color: #2563eb; flex-shrink: 0; min-width: 36px; text-align: right; display: none; }
 
     /* ── Results view ── */
     #results-view { display: none; }
@@ -245,8 +249,15 @@ function initQueueUI(items) {
   list.innerHTML = items.map((it, i) => `
     <div class="queue-item" id="qi-${i}">
       <div class="qi-status" id="qi-status-${i}">○</div>
-      <div class="qi-url">${it.url}</div>
-      <div class="qi-msg" id="qi-msg-${i}">Waiting…</div>
+      <div class="qi-main">
+        <div class="qi-url">${it.url}</div>
+        <div class="qi-msg" id="qi-msg-${i}">Waiting…</div>
+        <div class="qi-mini-bar" id="qi-bar-${i}">
+          <div class="qi-mini-fill" id="qi-fill-${i}"></div>
+        </div>
+      </div>
+      <div class="qi-pct" id="qi-pct-${i}"></div>
+      <div id="qi-badge-${i}"></div>
     </div>
   `).join('');
 }
@@ -275,31 +286,58 @@ function updateQueueUI(data) {
 
   data.items.forEach((item, i) => {
     const statusEl = document.getElementById(`qi-status-${i}`);
-    const msgEl = document.getElementById(`qi-msg-${i}`);
-    const row = document.getElementById(`qi-${i}`);
+    const msgEl    = document.getElementById(`qi-msg-${i}`);
+    const barEl    = document.getElementById(`qi-bar-${i}`);
+    const fillEl   = document.getElementById(`qi-fill-${i}`);
+    const pctEl    = document.getElementById(`qi-pct-${i}`);
+    const badgeEl  = document.getElementById(`qi-badge-${i}`);
+    const row      = document.getElementById(`qi-${i}`);
     if (!statusEl) return;
+
+    const pct = item.progress || 0;
 
     if (item.status === 'complete') {
       statusEl.textContent = '✅';
+      msgEl.textContent = 'Complete';
+      barEl.style.display = 'block';
+      fillEl.style.width = '100%';
+      fillEl.style.background = '#22c55e';
+      pctEl.style.display = 'none';
       const ls = item.lead_score;
       const tier = ls?.tier || '';
       const score = ls?.score ?? '';
-      msgEl.innerHTML = ls
+      badgeEl.innerHTML = ls
         ? `<span class="qi-badge" style="background:${TIER_COLORS[tier]}22;color:${TIER_COLORS[tier]};">${TIER_ICONS[tier]} ${tier} · ${score}/100</span>`
-        : 'Complete';
+        : '';
       row.style.borderColor = '#86efac';
+      row.style.background = '#f0fdf4';
     } else if (item.status === 'running') {
       statusEl.textContent = '⏳';
       msgEl.textContent = item.message || 'Running…';
+      barEl.style.display = 'block';
+      fillEl.style.width = pct + '%';
+      fillEl.style.background = 'linear-gradient(90deg,#2563eb,#6366f1)';
+      pctEl.style.display = 'block';
+      pctEl.textContent = pct + '%';
+      badgeEl.innerHTML = '';
       row.style.borderColor = '#93c5fd';
       row.style.background = '#eff6ff';
     } else if (item.status === 'error') {
       statusEl.textContent = '❌';
-      msgEl.textContent = 'Failed';
+      msgEl.textContent = item.error || 'Failed';
+      barEl.style.display = 'block';
+      fillEl.style.width = '100%';
+      fillEl.style.background = '#ef4444';
+      pctEl.style.display = 'none';
+      badgeEl.innerHTML = '';
       row.style.borderColor = '#fca5a5';
+      row.style.background = '#fff1f2';
     } else {
       statusEl.textContent = '○';
       msgEl.textContent = 'Waiting…';
+      barEl.style.display = 'none';
+      pctEl.style.display = 'none';
+      badgeEl.innerHTML = '';
     }
   });
 }
