@@ -3,6 +3,7 @@ import json
 import os
 import traceback
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -51,10 +52,20 @@ from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
 
 # ====== APP SETUP ======
+@asynccontextmanager
+async def lifespan(app):
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    print("=" * 60)
+    print("  SEO Audit Pro is running!")
+    print("  Open: http://localhost:8000")
+    print("=" * 60)
+    yield
+
 app = FastAPI(
     title="SEO Audit Pro",
     description="Unlimited local SEO crawler and audit tool",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 BASE_DIR = Path(__file__).parent
@@ -1025,16 +1036,6 @@ def _make_serializable(obj):
         return obj
     else:
         return str(obj)
-
-
-# ====== STARTUP ======
-@app.on_event("startup")
-async def startup_event():
-    os.makedirs(REPORTS_DIR, exist_ok=True)
-    print("=" * 60)
-    print("  SEO Audit Pro is running!")
-    print("  Open: http://localhost:8000")
-    print("=" * 60)
 
 
 # ====== ENTRY POINT ======
