@@ -330,6 +330,117 @@ def _compare_profiles(client: Dict, competitors: List[Dict]) -> Dict[str, Any]:
     return {"rows": rows, "competitor_names": [c.get("name", c.get("url", "Competitor")) for c in competitors]}
 
 
+def _review_intelligence(profile: Dict, competitors: List[Dict]) -> Dict[str, Any]:
+    """Generate review insights using rating + count data + Ollama."""
+    rating = profile.get("rating") or 0
+    count = profile.get("review_count") or 0
+    name = profile.get("name", "this business")
+    category = profile.get("category", "local business")
+
+    # Statistical rating distribution estimate (Wilson score-based heuristics)
+    dist = _estimate_distribution(rating, count)
+
+    # Review velocity vs competitor
+    comp_counts = [c.get("review_count") or 0 for c in competitors if c.get("review_count")]
+    avg_comp_count = int(sum(comp_counts) / len(comp_counts)) if comp_counts else 0
+    review_gap = max(0, avg_comp_count - count)
+    months_to_close = round(review_gap / 5) if review_gap > 0 else 0  # assume 5 reviews/month pace
+
+    # Rating improvement estimate
+    reviews_for_4star = 0
+    if rating and rating < 4.0 and count:
+        # How many 5★ reviews needed to reach 4.0?
+        needed = max(0, int((4.0 * (count + reviews_for_4star) - rating * count)))
+        reviews_for_4star = needed
+
+    # Ollama: generate qualitative insights
+    ollama_insights = _ollama_review_insights(name, category, rating, count, dist, avg_comp_count)
+
+    return {
+        "rating": rating,
+        "count": count,
+        "distribution": dist,
+        "competitor_avg_count": avg_comp_count,
+        "review_gap": review_gap,
+        "months_to_close_gap": months_to_close,
+        "reviews_for_4star": reviews_for_4star,
+        "insights": ollama_insights,
+    }
+
+
+def _estimate_distribution(rating: float, count: int) -> Dict[str, int]:
+    """Estimate star breakdown from average rating using statistical heuristics."""
+    if not rating or not count:
+        return {}
+    # Approximate star weights given an average rating
+    # Based on typical review distribution patterns
+    r = rating
+    if r >= 4.7:
+        w = [0.75, 0.12, 0.04, 0.03, 0.06]
+    elif r >= 4.3:
+        w = [0.60, 0.18, 0.08, 0.05, 0.09]
+    elif r >= 4.0:
+        w = [0.50, 0.20, 0.10, 0.07, 0.13]
+    elif r >= 3.5:
+        w = [0.35, 0.20, 0.13, 0.12, 0.20]
+    elif r >= 3.0:
+        w = [0.25, 0.15, 0.15, 0.18, 0.27]
+    else:
+        w = [0.15, 0.10, 0.13, 0.22, 0.40]
+
+    return {
+        "5": int(count * w[0]),
+        "4": int(count * w[1]),
+        "3": int(count * w[2]),
+        "2": int(count * w[3]),
+        "1": int(count * w[4]),
+    }
+
+
+def _ollama_review_insights(name, category, rating, count, dist, comp_avg) -> Dict[str, str]:
+    """Ask Ollama for specific review improvement recommendations."""
+    try:
+        import urllib.request as req
+        star_breakdown = ", ".join([f"{k}★: ~{v} reviews" for k, v in dist.items()]) if dist else "unknown"
+        prompt = f"""You are an expert in Google Business Profile reputation management.
+
+Business: {name}
+Category: {category}
+Current rating: {rating}★ from {count} reviews
+Estimated breakdown: {star_breakdown}
+Competitor average: {comp_avg} reviews
+
+Provide a concise analysis in EXACTLY this format (one line each):
+COMPLAINT_THEMES: [2-3 most likely complaint topics for a {category} business with {rating}★]
+PRAISE_THEMES: [2-3 most likely praise topics for a {category} business with {rating}★]
+TOP_ACTION: [single most impactful thing to do right now to improve reviews]
+RESPONSE_SCRIPT: [one-sentence template for responding to negative reviews]
+REVIEW_ASK: [one short sentence to ask happy customers for a review]"""
+
+        payload = json.dumps({
+            "model": "llama3.1",
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0.4, "num_predict": 300}
+        }).encode()
+
+        r = req.urlopen(req.Request(
+            "http://localhost:11434/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        ), timeout=45)
+        text = json.loads(r.read())["response"].strip()
+
+        result = {}
+        for line in text.splitlines():
+            if ":" in line:
+                key, _, val = line.partition(":")
+                result[key.strip()] = val.strip()
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def analyze_gbp(
     client_gbp_url: str,
     competitor_gbp_urls: Optional[List[str]] = None,
@@ -355,10 +466,12 @@ def analyze_gbp(
             competitors.append(_score_profile(comp_raw))
 
     comparison = _compare_profiles(client, competitors) if competitors else {}
+    review_intel = _review_intelligence(client, competitors)
 
     return {
         "available": True,
         "client": client,
         "competitors": competitors,
         "comparison": comparison,
+        "review_intel": review_intel,
     }

@@ -2339,6 +2339,88 @@
     </div>
     {% endif %}
 
+    <!-- Review Intelligence -->
+    {% set ri = gbp.review_intel %}
+    {% if ri %}
+    <div style="margin-top: 28px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+      <div style="font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 16px;">⭐ Review Intelligence</div>
+
+      <!-- Rating distribution -->
+      {% if ri.distribution %}
+      <div style="margin-bottom: 20px;">
+        <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 10px;">Estimated Rating Distribution ({{ ri.count }} reviews)</div>
+        {% for star in ['5','4','3','2','1'] %}
+        {% set cnt = ri.distribution.get(star, 0) %}
+        {% set pct = ((cnt / ri.count) * 100) | round | int if ri.count else 0 %}
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px; font-size: 10px;">
+          <div style="width: 28px; text-align: right; color: #475569; font-weight: 600;">{{ star }}★</div>
+          <div style="flex: 1; background: #f1f5f9; border-radius: 4px; height: 10px; overflow: hidden;">
+            <div style="background: {% if star in ['5','4'] %}#22c55e{% elif star == '3' %}#f59e0b{% else %}#ef4444{% endif %}; height: 100%; width: {{ pct }}%; border-radius: 4px;"></div>
+          </div>
+          <div style="width: 60px; color: #64748b;">~{{ cnt }} ({{ pct }}%)</div>
+        </div>
+        {% endfor %}
+        <div style="font-size: 9px; color: #94a3b8; margin-top: 6px;">* Estimated from average rating — actual breakdown requires Google API access.</div>
+      </div>
+      {% endif %}
+
+      <!-- Competitor gap + metrics -->
+      <div style="display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px;">
+        {% if ri.competitor_avg_count %}
+        <div class="metric-box" style="border-left: 3px solid #f59e0b;">
+          <div class="metric-value" style="color: #d97706;">{{ ri.review_gap }}</div>
+          <div class="metric-label">Review Gap vs Competitors</div>
+        </div>
+        <div class="metric-box" style="border-left: 3px solid #3b82f6;">
+          <div class="metric-value" style="color: #2563eb;">{{ ri.months_to_close_gap }}</div>
+          <div class="metric-label">Months to Close Gap (5/mo pace)</div>
+        </div>
+        <div class="metric-box" style="border-left: 3px solid #8b5cf6;">
+          <div class="metric-value" style="color: #7c3aed;">{{ ri.competitor_avg_count }}</div>
+          <div class="metric-label">Competitor Avg Reviews</div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Ollama insights -->
+      {% set ins = ri.insights %}
+      {% if ins and not ins.get('error') %}
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        {% if ins.COMPLAINT_THEMES %}
+        <div style="background: #fff1f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 10px; font-weight: 700; color: #dc2626; margin-bottom: 6px;">⚠️ Likely Complaint Themes</div>
+          <div style="font-size: 10px; color: #374151;">{{ ins.COMPLAINT_THEMES }}</div>
+        </div>
+        {% endif %}
+        {% if ins.PRAISE_THEMES %}
+        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 10px; font-weight: 700; color: #16a34a; margin-bottom: 6px;">✅ Likely Praise Themes</div>
+          <div style="font-size: 10px; color: #374151;">{{ ins.PRAISE_THEMES }}</div>
+        </div>
+        {% endif %}
+        {% if ins.TOP_ACTION %}
+        <div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 10px; font-weight: 700; color: #1d4ed8; margin-bottom: 6px;">🎯 Top Priority Action</div>
+          <div style="font-size: 10px; color: #374151;">{{ ins.TOP_ACTION }}</div>
+        </div>
+        {% endif %}
+        {% if ins.REVIEW_ASK %}
+        <div style="background: #fefce8; border: 1px solid #fde047; border-radius: 8px; padding: 12px;">
+          <div style="font-size: 10px; font-weight: 700; color: #854d0e; margin-bottom: 6px;">💬 Review Request Script</div>
+          <div style="font-size: 10px; color: #374151; font-style: italic;">"{{ ins.REVIEW_ASK }}"</div>
+        </div>
+        {% endif %}
+      </div>
+      {% if ins.RESPONSE_SCRIPT %}
+      <div style="margin-top: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+        <div style="font-size: 10px; font-weight: 700; color: #475569; margin-bottom: 4px;">📝 Negative Review Response Template</div>
+        <div style="font-size: 10px; color: #374151; font-style: italic;">"{{ ins.RESPONSE_SCRIPT }}"</div>
+      </div>
+      {% endif %}
+      {% endif %}
+    </div>
+    {% endif %}
+
   </div>
 </div>
 {% endif %}
