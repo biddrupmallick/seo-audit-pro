@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Niche Upload — SEO Audit Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+
+    .topbar { background: #0f172a; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-logo { color: #fff; font-size: 16px; font-weight: 800; }
+    .topbar-logo span { color: #3b82f6; }
+    .topbar-nav a { color: #94a3b8; font-size: 13px; text-decoration: none; margin-left: 20px; }
+    .topbar-nav a:hover { color: #fff; }
+    .topbar-nav a.active { color: #3b82f6; font-weight: 600; }
+
+    .page { max-width: 900px; margin: 36px auto; padding: 0 20px 80px; }
+    h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+    .card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 20px; }
+    .card-title { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+
+    /* Upload zone */
+    .drop-zone {
+      border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px;
+      text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #3b82f6; background: #eff6ff; }
+    .drop-icon { font-size: 36px; margin-bottom: 10px; }
+    .drop-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+    .drop-sub { font-size: 12px; color: #94a3b8; }
+    #file-input { display: none; }
+
+    /* Column guide */
+    .col-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .col-table th { background: #f8fafc; padding: 7px 10px; text-align: left; color: #475569; font-weight: 700; border-bottom: 1px solid #e2e8f0; }
+    .col-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; color: #374151; }
+    .req { color: #dc2626; font-weight: 700; }
+    .opt { color: #94a3b8; }
+
+    /* Progress */
+    #progress-view { display: none; }
+    .step-list { display: flex; flex-direction: column; gap: 12px; }
+    .step-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 13px; }
+    .step-icon { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
+    .step-label { flex: 1; font-weight: 600; color: #1e293b; }
+    .step-item.active { background: #eff6ff; border-color: #93c5fd; }
+    .step-item.done { background: #f0fdf4; border-color: #86efac; }
+    .step-item.pending { opacity: 0.4; }
+
+    /* Results */
+    #results-view { display: none; }
+
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+    .stat-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; text-align: center; }
+    .stat-num { font-size: 28px; font-weight: 800; color: #2563eb; }
+    .stat-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+    /* Blog tabs */
+    .tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer; }
+    .tab-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .blog-content {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 20px; font-size: 12px; line-height: 1.8; color: #374151;
+      white-space: pre-wrap; max-height: 500px; overflow-y: auto;
+      font-family: Georgia, serif;
+    }
+    .btn-copy { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 14px; font-size: 11px; font-weight: 600; color: #475569; cursor: pointer; margin-top: 8px; }
+    .btn-copy:hover { background: #e2e8f0; }
+
+    /* Email table */
+    .email-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .email-table th { background: #f8fafc; padding: 8px 10px; text-align: left; color: #475569; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+    .email-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    .email-table tr:hover td { background: #f8fafc; }
+    .email-body-cell { max-width: 320px; color: #374151; line-height: 1.5; }
+    .email-subject-cell { font-weight: 600; color: #1e293b; max-width: 200px; }
+    .competitor-badge { font-size: 9px; color: #7c3aed; background: #f5f3ff; border-radius: 4px; padding: 1px 5px; }
+
+    /* Geo preview */
+    .geo-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .geo-table th { background: #f8fafc; padding: 7px 10px; text-align: left; color: #475569; font-weight: 700; border-bottom: 1px solid #e2e8f0; }
+    .geo-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; }
+
+    .btn-primary { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-export { background: #059669; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">SEO Audit <span>Pro</span></div>
+  <div class="topbar-nav">
+    <a href="/">Single Audit</a>
+    <a href="/bulk">Bulk Audit</a>
+    <a href="/upload" class="active">Niche Upload</a>
+    <a href="/settings">⚙️ Branding</a>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ── INPUT ── -->
+  <div id="input-view">
+    <h1>Niche Upload Pipeline</h1>
+    <p class="subtitle">Upload your Excel or CSV with 100+ businesses → get geo-matched competitors, review analysis, blog posts, and 2-sentence cold emails — all in one go.</p>
+
+    <div class="card">
+      <div class="card-title">Upload File</div>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="drop-icon">📂</div>
+        <div class="drop-title">Click to upload or drag & drop</div>
+        <div class="drop-sub">.xlsx or .csv · up to 500 businesses</div>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx,.csv" onchange="handleFile(this.files[0])">
+      <div id="file-name" style="font-size:12px;color:#64748b;margin-top:10px;display:none;"></div>
+      <button class="btn-primary" id="btn-start" onclick="startUpload()" style="margin-top:16px;width:100%;display:none;">
+        🚀 Run Niche Pipeline
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Required Columns (column names are flexible)</div>
+      <table class="col-table">
+        <thead><tr><th>Column</th><th>Required?</th><th>Description</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><strong>gmb_url</strong></td><td class="req">Required</td><td>Google Maps URL for the business</td><td>https://maps.google.com/maps/place/...</td></tr>
+          <tr><td><strong>name</strong></td><td class="req">Required</td><td>Business name</td><td>California Auto Body Shop</td></tr>
+          <tr><td><strong>website</strong></td><td class="req">Required</td><td>Website URL to audit</td><td>https://calauto.com</td></tr>
+          <tr><td><strong>category</strong></td><td class="req">Required</td><td>Business type / niche</td><td>Auto Body Shop</td></tr>
+          <tr><td><strong>state</strong></td><td class="req">Required</td><td>State name</td><td>California</td></tr>
+          <tr><td><strong>rating</strong></td><td class="req">Required</td><td>Google star rating</td><td>4.8</td></tr>
+          <tr><td><strong>reviews</strong></td><td class="req">Required</td><td>Total review count</td><td>87</td></tr>
+          <tr><td><strong>owner_name</strong></td><td class="opt">Optional</td><td>Owner first + last name</td><td>Sarah Johnson</td></tr>
+          <tr><td><strong>address</strong></td><td class="opt">Optional</td><td>Street address</td><td>123 Main St, Los Angeles CA</td></tr>
+          <tr><td><strong>phone</strong></td><td class="opt">Optional</td><td>Phone number</td><td>+1 310-555-0100</td></tr>
+          <tr><td><strong>reviews_text</strong></td><td class="opt">Optional</td><td>Copy-pasted customer reviews</td><td>John said: "Great service..."</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PROGRESS ── -->
+  <div id="progress-view">
+    <h1>Running Niche Pipeline…</h1>
+    <p class="subtitle" id="progress-sub">Processing your businesses.</p>
+    <div class="card" style="margin-top:20px;">
+      <div class="step-list" id="step-list">
+        <div class="step-item pending" id="step-0"><span class="step-icon">📍</span><span class="step-label">Extracting coordinates & matching nearest competitors</span></div>
+        <div class="step-item pending" id="step-1"><span class="step-icon">🔍</span><span class="step-label">Analysing review themes with AI</span></div>
+        <div class="step-item pending" id="step-2"><span class="step-icon">✍️</span><span class="step-label">Writing blog posts (3 formats)</span></div>
+        <div class="step-item pending" id="step-3"><span class="step-icon">✉️</span><span class="step-label">Generating 2-sentence cold emails</span></div>
+        <div class="step-item pending" id="step-4"><span class="step-icon">✅</span><span class="step-label">Finalising results</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RESULTS ── -->
+  <div id="results-view">
+    <h1>✅ Pipeline Complete</h1>
+    <p class="subtitle">All outputs ready below.</p>
+
+    <!-- Summary stats -->
+    <div class="results-grid">
+      <div class="stat-box"><div class="stat-num" id="r-total">—</div><div class="stat-lbl">Businesses Processed</div></div>
+      <div class="stat-box"><div class="stat-num" id="r-located">—</div><div class="stat-lbl">Geo-Located</div></div>
+      <div class="stat-box"><div class="stat-num" id="r-emails">—</div><div class="stat-lbl">Cold Emails Ready</div></div>
+    </div>
+
+    <!-- Geo-match preview -->
+    <div class="card">
+      <div class="card-title">📍 Geo-Match Preview (first 10)</div>
+      <table class="geo-table">
+        <thead><tr><th>Business</th><th>Owner</th><th>Rating</th><th>Reviews</th><th>Nearest Competitor</th><th>Distance</th></tr></thead>
+        <tbody id="geo-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Blog posts -->
+    <div class="card" id="blog-card" style="display:none;">
+      <div class="card-title">📝 Blog Posts</div>
+      <div id="blog-groups"></div>
+    </div>
+
+    <!-- Cold emails -->
+    <div class="card">
+      <div class="card-title">✉️ 2-Sentence Cold Emails</div>
+      <div style="margin-bottom:10px;">
+        <button class="btn-export" onclick="exportCSV()">⬇️ Export CSV</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="email-table">
+          <thead><tr><th>#</th><th>Business</th><th>Owner</th><th>Subject Line</th><th>Email Body (2 sentences)</th><th>Nearest Comp</th><th>Distance</th></tr></thead>
+          <tbody id="email-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Launch bulk audit -->
+    <div class="card" style="background: linear-gradient(135deg,#eff6ff,#f0fdf4); border-color:#93c5fd;">
+      <div class="card-title" style="color:#1d4ed8;">🚀 Ready to Audit Websites?</div>
+      <p style="font-size:13px;color:#374151;margin-bottom:14px;">All websites + geo-matched competitors are pre-loaded. Click to launch bulk audit — audits run overnight.</p>
+      <button class="btn-primary" onclick="launchBulkAudit()" id="btn-bulk">Launch Bulk Audit with These Sites →</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let uploadId = null;
+let pollTimer = null;
+let allData = null;
+let selectedFile = null;
+
+// ── Drag & drop ──
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  selectedFile = file;
+  document.getElementById('file-name').style.display = 'block';
+  document.getElementById('file-name').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+  document.getElementById('btn-start').style.display = 'block';
+}
+
+// ── Start upload ──
+async function startUpload() {
+  if (!selectedFile) return;
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+
+  document.getElementById('input-view').style.display = 'none';
+  document.getElementById('progress-view').style.display = 'block';
+
+  const resp = await fetch('/upload/start', { method: 'POST', body: fd });
+  if (!resp.ok) {
+    const err = await resp.json();
+    alert('Error: ' + (err.detail || 'Upload failed'));
+    return;
+  }
+  const data = await resp.json();
+  uploadId = data.upload_id;
+  document.getElementById('progress-sub').textContent =
+    `Processing ${data.total} businesses — this may take several minutes…`;
+
+  pollTimer = setInterval(pollStatus, 4000);
+  pollStatus();
+}
+
+async function pollStatus() {
+  if (!uploadId) return;
+  try {
+    const resp = await fetch(`/upload/status/${uploadId}`);
+    const data = await resp.json();
+    updateProgress(data);
+    if (data.status === 'complete') {
+      clearInterval(pollTimer);
+      await loadResults();
+    } else if (data.status === 'error') {
+      clearInterval(pollTimer);
+      alert('Pipeline error: ' + data.error);
+    }
+  } catch(e) {}
+}
+
+function updateProgress(data) {
+  const stepIdx = (data.step_index || 1) - 1;
+  for (let i = 0; i < 5; i++) {
+    const el = document.getElementById(`step-${i}`);
+    el.className = 'step-item ' + (i < stepIdx ? 'done' : i === stepIdx ? 'active' : 'pending');
+    if (i < stepIdx) el.querySelector('.step-icon').textContent = '✅';
+    else if (i === stepIdx) el.querySelector('.step-icon').textContent = '⏳';
+  }
+}
+
+async function loadResults() {
+  const resp = await fetch(`/upload/results/${uploadId}`);
+  allData = await resp.json();
+
+  document.getElementById('progress-view').style.display = 'none';
+  document.getElementById('results-view').style.display = 'block';
+
+  const total = allData.total || 0;
+  const located = allData.located || 0;
+  const emails = (allData.emails || []).length;
+
+  document.getElementById('r-total').textContent = total;
+  document.getElementById('r-located').textContent = located;
+  document.getElementById('r-emails').textContent = emails;
+
+  // Geo table (first 10)
+  const geoTbody = document.getElementById('geo-tbody');
+  const businesses = allData.businesses || [];
+  geoTbody.innerHTML = businesses.slice(0, 10).map(biz => {
+    const comp = (biz.nearest_competitors || [])[0];
+    return `<tr>
+      <td><strong>${biz.name || '—'}</strong></td>
+      <td>${biz.owner_name || '—'}</td>
+      <td>${biz.rating ? biz.rating + '★' : '—'}</td>
+      <td>${biz.reviews || '—'}</td>
+      <td>${comp ? comp.name : '—'}</td>
+      <td>${comp ? comp.distance_miles + ' mi' : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  // Blog posts
+  const blogPosts = allData.blog_posts || {};
+  const blogGroups = document.getElementById('blog-groups');
+  const blogCard = document.getElementById('blog-card');
+  if (Object.keys(blogPosts).length > 0) {
+    blogCard.style.display = 'block';
+    blogGroups.innerHTML = Object.entries(blogPosts).map(([key, posts]) => `
+      <div style="margin-bottom:24px;">
+        <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:10px;">${key}</div>
+        <div class="tabs">
+          ${Object.entries(posts).map(([fmt, post], i) =>
+            `<button class="tab-btn ${i===0?'active':''}" onclick="switchTab('${key}','${fmt}',this)">${post.icon} ${post.format} · ${post.word_count} words</button>`
+          ).join('')}
+        </div>
+        ${Object.entries(posts).map(([fmt, post], i) => `
+          <div class="tab-panel ${i===0?'active':''}" id="tab-${key.replace(/\W/g,'_')}-${fmt}">
+            <div class="blog-content">${escHtml(post.content)}</div>
+            <button class="btn-copy" onclick="copyText(this, ${JSON.stringify(post.content)})">📋 Copy</button>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  // Emails table
+  const emailTbody = document.getElementById('email-tbody');
+  const emails2 = allData.emails || [];
+  emailTbody.innerHTML = emails2.map((e, i) => `
+    <tr>
+      <td style="color:#94a3b8;">${i+1}</td>
+      <td><strong>${e.name || '—'}</strong></td>
+      <td>${e.owner_name || '—'}</td>
+      <td class="email-subject-cell">${escHtml(e.subject || '')}</td>
+      <td class="email-body-cell">${escHtml(e.body || '')}</td>
+      <td><span class="competitor-badge">${e.nearest_competitor || '—'}</span></td>
+      <td>${e.distance ? e.distance + ' mi' : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function switchTab(key, fmt, btn) {
+  const safeKey = key.replace(/\W/g,'_');
+  document.querySelectorAll(`[id^="tab-${safeKey}-"]`).forEach(p => p.classList.remove('active'));
+  btn.closest('.card, div').querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${safeKey}-${fmt}`).classList.add('active');
+  btn.classList.add('active');
+}
+
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 2000);
+  });
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function exportCSV() {
+  const emails = allData?.emails || [];
+  const rows = [['Business','Owner','Website','Subject','Body','Nearest Competitor','Distance (mi)']];
+  emails.forEach(e => rows.push([e.name, e.owner_name, e.website, e.subject, e.body, e.nearest_competitor, e.distance]));
+  const csv = rows.map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'cold_emails.csv';
+  a.click();
+}
+
+async function launchBulkAudit() {
+  const businesses = allData?.businesses || [];
+  const items = businesses.map(biz => ({
+    url: biz.website || '',
+    competitor_urls: (biz.nearest_competitors || []).slice(0,3).map(c => c.website).filter(Boolean),
+  })).filter(i => i.url);
+
+  if (!items.length) { alert('No websites found to audit.'); return; }
+
+  document.getElementById('btn-bulk').textContent = 'Starting…';
+  document.getElementById('btn-bulk').disabled = true;
+
+  const resp = await fetch('/bulk/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  });
+  const data = await resp.json();
+  window.location.href = `/bulk?id=${data.bulk_id}`;
+}
+</script>
+</body>
+</html>

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 import httpx
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -36,6 +36,11 @@ from analyzers.keyword_opportunities import analyze_keyword_opportunities
 from analyzers.gbp import analyze_gbp
 from analyzers.lead_score import calculate_lead_score
 from analyzers.history import save_audit, get_history, build_progress
+from analyzers.excel_parser import parse_excel
+from analyzers.geo_match import find_nearest_competitors
+from analyzers.review_analyzer import analyze_reviews_batch
+from analyzers.niche_blog import generate_blog_posts
+from analyzers.ultra_email import generate_ultra_emails
 from report.branding import load_branding, save_branding
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
@@ -59,8 +64,10 @@ jobs: Dict[str, Dict[str, Any]] = {}
 ws_connections: Dict[str, WebSocket] = {}
 
 # Bulk job store
-# {bulk_id: {status, items: [{url, competitor_urls, job_id, status, lead_score, report_path, error}]}}
 bulk_jobs: Dict[str, Dict[str, Any]] = {}
+
+# Upload pipeline store
+upload_jobs: Dict[str, Dict[str, Any]] = {}
 
 
 # ====== MODELS ======
@@ -374,6 +381,140 @@ async def run_bulk(bulk_id: str):
 
     bj["status"] = "complete"
     bj["current_index"] = len(items)
+
+
+# ====== UPLOAD PIPELINE ROUTES ======
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_page(request: Request):
+    return templates.TemplateResponse("upload.html", {"request": request})
+
+
+@app.post("/upload/start")
+async def start_upload(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    content = await file.read()
+    try:
+        businesses = parse_excel(content, file.filename)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse file: {e}")
+
+    if not businesses:
+        raise HTTPException(status_code=400, detail="No businesses found in file. Check column names.")
+
+    upload_id = str(uuid.uuid4())
+    upload_jobs[upload_id] = {
+        "upload_id": upload_id,
+        "status": "running",
+        "step": "Starting…",
+        "step_index": 0,
+        "total_steps": 5,
+        "businesses": businesses,
+        "total": len(businesses),
+        "created_at": datetime.now().isoformat(),
+        "result": None,
+        "error": None,
+    }
+    background_tasks.add_task(run_upload_pipeline, upload_id)
+    return {"upload_id": upload_id, "total": len(businesses)}
+
+
+@app.get("/upload/status/{upload_id}")
+async def upload_status(upload_id: str):
+    if upload_id not in upload_jobs:
+        raise HTTPException(status_code=404, detail="Upload job not found")
+    job = upload_jobs[upload_id]
+    return {
+        "upload_id": upload_id,
+        "status": job["status"],
+        "step": job["step"],
+        "step_index": job["step_index"],
+        "total_steps": job["total_steps"],
+        "total": job["total"],
+        "error": job.get("error"),
+        "has_result": job.get("result") is not None,
+    }
+
+
+@app.get("/upload/results/{upload_id}")
+async def upload_results(upload_id: str):
+    if upload_id not in upload_jobs:
+        raise HTTPException(status_code=404, detail="Upload job not found")
+    job = upload_jobs[upload_id]
+    if job["status"] != "complete":
+        raise HTTPException(status_code=400, detail="Pipeline not complete yet")
+    return JSONResponse(content=_make_serializable(job["result"]))
+
+
+async def run_upload_pipeline(upload_id: str):
+    """Full pipeline: parse → geo-match → review analysis → blog → emails."""
+    job = upload_jobs[upload_id]
+    businesses = job["businesses"]
+
+    try:
+        # Step 1: Geo-match
+        job["step"] = "Extracting coordinates & matching nearest competitors…"
+        job["step_index"] = 1
+        enriched = await asyncio.to_thread(find_nearest_competitors, businesses)
+
+        # Step 2: Review analysis
+        job["step"] = "Analysing review themes with AI…"
+        job["step_index"] = 2
+        review_analysis = await asyncio.to_thread(analyze_reviews_batch, enriched)
+
+        # Step 3: Blog posts (per niche group)
+        job["step"] = "Writing blog posts…"
+        job["step_index"] = 3
+        blog_posts = {}
+        for key, grp in review_analysis.items():
+            if grp.get("has_review_text") or grp.get("avg_rating"):
+                posts = await asyncio.to_thread(
+                    generate_blog_posts,
+                    grp["category"], grp["state"],
+                    grp["business_count"], grp["avg_rating"] or 0,
+                    grp["avg_reviews"] or 0, grp["analysis"],
+                )
+                blog_posts[key] = posts
+
+        # Step 4: Ultra-short emails (one template per niche group)
+        job["step"] = "Generating 2-sentence cold emails…"
+        job["step_index"] = 4
+        all_emails = []
+        for key, grp in review_analysis.items():
+            group_businesses = [
+                b for b in enriched
+                if (b.get("category") or "").strip() == grp["category"]
+                and (b.get("state") or "").strip() == grp["state"]
+            ]
+            emails = await asyncio.to_thread(
+                generate_ultra_emails,
+                group_businesses,
+                grp["category"], grp["state"], grp["analysis"],
+            )
+            all_emails.extend(emails)
+
+        # Step 5: Build result
+        job["step"] = "Finalising results…"
+        job["step_index"] = 5
+
+        # Geo stats
+        located = [b for b in enriched if b.get("latlon")]
+
+        job["result"] = {
+            "total": len(enriched),
+            "located": len(located),
+            "businesses": enriched,
+            "review_analysis": review_analysis,
+            "blog_posts": blog_posts,
+            "emails": all_emails,
+        }
+        job["status"] = "complete"
+        job["step"] = "Complete!"
+
+    except Exception as e:
+        import traceback
+        job["status"] = "error"
+        job["error"] = str(e)
+        job["step"] = f"Error: {e}"
+        print(f"[Upload {upload_id}] Error: {traceback.format_exc()}")
 
 
 # ====== BACKGROUND ANALYSIS TASK ======
