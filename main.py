@@ -35,6 +35,7 @@ from analyzers.cold_email import generate_cold_emails
 from analyzers.keyword_opportunities import analyze_keyword_opportunities
 from analyzers.gbp import analyze_gbp
 from analyzers.history import save_audit, get_history, build_progress
+from report.branding import load_branding, save_branding
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
 
@@ -69,6 +70,26 @@ class AnalyzeRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request):
+    return templates.TemplateResponse("settings.html", {
+        "request": request,
+        "branding": load_branding(),
+    })
+
+
+@app.post("/settings")
+async def save_settings(request: Request):
+    form = await request.form()
+    data = {k: v for k, v in form.items()}
+    save_branding(data)
+    return templates.TemplateResponse("settings.html", {
+        "request": request,
+        "branding": load_branding(),
+        "saved": True,
+    })
 
 
 @app.post("/analyze")

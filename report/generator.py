@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from config import REPORTS_DIR
+from report.branding import load_branding
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
@@ -131,6 +132,7 @@ def generate_report(
         "progress":     progress or {},
         "keywords":     keywords or {},
         "gbp":          gbp or {},
+        "branding":     load_branding(),
     }
 
     html_path = _render_html(job_id, context)

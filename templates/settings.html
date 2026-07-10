@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Branding — SEO Audit Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+
+    .topbar {
+      background: #0f172a;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .topbar-logo { color: #fff; font-size: 16px; font-weight: 800; letter-spacing: -0.5px; }
+    .topbar-logo span { color: #3b82f6; }
+    .topbar-nav a { color: #94a3b8; font-size: 13px; text-decoration: none; margin-left: 20px; }
+    .topbar-nav a:hover { color: #fff; }
+    .topbar-nav a.active { color: #3b82f6; font-weight: 600; }
+
+    .page { max-width: 680px; margin: 40px auto; padding: 0 20px 60px; }
+
+    h1 { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+    input[type="text"], input[type="email"], input[type="url"], input[type="color"], textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #1e293b;
+      background: #f8fafc;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, textarea:focus { border-color: #3b82f6; background: #fff; }
+    textarea { resize: vertical; min-height: 70px; }
+
+    .color-row { display: flex; align-items: center; gap: 10px; }
+    input[type="color"] { width: 46px; height: 40px; padding: 3px; cursor: pointer; }
+    .color-preview { font-size: 12px; color: #64748b; }
+
+    .btn-save {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 28px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.15s;
+    }
+    .btn-save:hover { background: #1d4ed8; }
+
+    .saved-banner {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #166534;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preview-box {
+      background: #0f172a;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 8px;
+    }
+    .preview-agency { font-size: 15px; font-weight: 800; color: #fff; }
+    .preview-tagline { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .preview-contact { font-size: 10px; color: #64748b; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">SEO Audit <span>Pro</span></div>
+  <div class="topbar-nav">
+    <a href="/">New Audit</a>
+    <a href="/settings" class="active">Branding</a>
+  </div>
+</div>
+
+<div class="page">
+  <h1>Report Branding</h1>
+  <p class="subtitle">Your details appear on every PDF report you generate — cover page, footer, and prepared-by line.</p>
+
+  {% if saved %}
+  <div class="saved-banner">✅ Branding saved — all new reports will use these details.</div>
+  {% endif %}
+
+  <form method="POST" action="/settings">
+
+    <div class="card">
+      <div class="card-title">Agency Identity</div>
+
+      <div class="field">
+        <label>Agency / Your Name</label>
+        <input type="text" name="agency_name" value="{{ branding.agency_name }}" placeholder="Biddrup Digital">
+      </div>
+      <div class="field">
+        <label>Tagline</label>
+        <input type="text" name="tagline" value="{{ branding.tagline }}" placeholder="SEO & Digital Growth Specialists">
+      </div>
+      <div class="field">
+        <label>Prepared By (your name)</label>
+        <input type="text" name="prepared_by" value="{{ branding.prepared_by }}" placeholder="Biddrup Mallick">
+      </div>
+      <div class="field">
+        <label>Accent Color (used in report header)</label>
+        <div class="color-row">
+          <input type="color" name="accent_color" value="{{ branding.accent_color }}" id="color-picker">
+          <span class="color-preview" id="color-val">{{ branding.accent_color }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Contact Details</div>
+
+      <div class="field">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ branding.email }}" placeholder="hello@youragency.com">
+      </div>
+      <div class="field">
+        <label>Phone</label>
+        <input type="text" name="phone" value="{{ branding.phone }}" placeholder="+1 (555) 000-0000">
+      </div>
+      <div class="field">
+        <label>Website</label>
+        <input type="url" name="website" value="{{ branding.website }}" placeholder="https://youragency.com">
+      </div>
+      <div class="field">
+        <label>Logo URL <span style="font-weight:400;color:#94a3b8;">(optional — paste a direct image link)</span></label>
+        <input type="url" name="logo_url" value="{{ branding.logo_url }}" placeholder="https://youragency.com/logo.png">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Report Footer Note</div>
+      <div class="field">
+        <textarea name="footer_note" placeholder="This report is confidential and prepared exclusively for the recipient.">{{ branding.footer_note }}</textarea>
+      </div>
+    </div>
+
+    <!-- Live preview -->
+    <div class="card">
+      <div class="card-title">Preview</div>
+      <div class="preview-box" id="preview-box">
+        <div class="preview-agency" id="prev-name">{{ branding.agency_name }}</div>
+        <div class="preview-tagline" id="prev-tagline">{{ branding.tagline }}</div>
+        <div class="preview-contact" id="prev-contact">{{ branding.email }} · {{ branding.phone }} · {{ branding.website }}</div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-save">Save Branding</button>
+  </form>
+</div>
+
+<script>
+  // Live preview updates
+  const fields = {
+    agency_name: 'prev-name',
+    tagline: 'prev-tagline',
+  };
+  Object.entries(fields).forEach(([name, id]) => {
+    const el = document.querySelector(`[name="${name}"]`);
+    if (el) el.addEventListener('input', () => {
+      document.getElementById(id).textContent = el.value;
+    });
+  });
+
+  // Contact preview
+  ['email','phone','website'].forEach(name => {
+    const el = document.querySelector(`[name="${name}"]`);
+    if (el) el.addEventListener('input', updateContact);
+  });
+  function updateContact() {
+    const e = document.querySelector('[name="email"]').value;
+    const p = document.querySelector('[name="phone"]').value;
+    const w = document.querySelector('[name="website"]').value;
+    document.getElementById('prev-contact').textContent = [e,p,w].filter(Boolean).join(' · ');
+  }
+
+  // Color picker
+  const picker = document.getElementById('color-picker');
+  picker.addEventListener('input', () => {
+    document.getElementById('color-val').textContent = picker.value;
+    document.getElementById('preview-box').style.borderTop = `4px solid ${picker.value}`;
+  });
+</script>
+</body>
+</html>
