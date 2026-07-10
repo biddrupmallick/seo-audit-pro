@@ -54,20 +54,25 @@
               <span>🔍</span> Analyze Now
             </button>
           </div>
-          <!-- Optional competitor URL -->
-          <div style="margin-top: 12px;">
-            <label style="font-size: 11px; font-weight: 600; color: #64748b; display: block; margin-bottom: 6px;">
-              ⚔️ Competitor URL <span style="font-weight: 400; color: #94a3b8;">(optional — adds side-by-side comparison)</span>
-            </label>
-            <input
-              type="url"
-              id="competitor-input"
-              class="url-input"
-              placeholder="https://competitor.com"
-              autocomplete="off"
-              spellcheck="false"
-              style="font-size: 13px; padding: 10px 14px;"
-            >
+          <!-- Competitor URLs -->
+          <div style="margin-top: 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <label style="font-size: 11px; font-weight: 600; color: #64748b;">
+                ⚔️ Competitor URLs <span style="font-weight: 400; color: #94a3b8;">(optional · up to 5 · side-by-side report)</span>
+              </label>
+              <button type="button" onclick="addCompetitor()" id="add-competitor-btn"
+                style="font-size: 10px; font-weight: 600; color: #3b82f6; background: none; border: 1px solid #bfdbfe; border-radius: 6px; padding: 3px 10px; cursor: pointer;">
+                + Add Competitor
+              </button>
+            </div>
+            <div id="competitor-list">
+              <div class="competitor-row" style="display: flex; gap: 6px; margin-bottom: 6px;">
+                <input type="url" class="competitor-input url-input" placeholder="https://competitor1.com"
+                  autocomplete="off" spellcheck="false" style="font-size: 13px; padding: 10px 14px; flex: 1;">
+                <button type="button" onclick="removeCompetitor(this)"
+                  style="background: #fee2e2; border: none; border-radius: 8px; color: #dc2626; font-size: 16px; width: 38px; cursor: pointer; flex-shrink: 0;">×</button>
+              </div>
+            </div>
           </div>
 
           <div class="form-hints">
@@ -277,6 +282,29 @@ function resetUI() {
 }
 
 // ====== START ANALYSIS ======
+function addCompetitor() {
+  const list = document.getElementById('competitor-list');
+  if (list.children.length >= 5) {
+    document.getElementById('add-competitor-btn').textContent = 'Max 5 reached';
+    return;
+  }
+  const row = document.createElement('div');
+  row.className = 'competitor-row';
+  row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
+  row.innerHTML = `
+    <input type="url" class="competitor-input url-input" placeholder="https://competitor${list.children.length + 1}.com"
+      autocomplete="off" spellcheck="false" style="font-size:13px;padding:10px 14px;flex:1;">
+    <button type="button" onclick="removeCompetitor(this)"
+      style="background:#fee2e2;border:none;border-radius:8px;color:#dc2626;font-size:16px;width:38px;cursor:pointer;flex-shrink:0;">×</button>
+  `;
+  list.appendChild(row);
+}
+
+function removeCompetitor(btn) {
+  btn.closest('.competitor-row').remove();
+  document.getElementById('add-competitor-btn').textContent = '+ Add Competitor';
+}
+
 async function startAnalysis() {
   const urlInput = document.getElementById('url-input');
   const url = urlInput.value.trim();
@@ -318,7 +346,8 @@ async function startAnalysis() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         url: urlInput.value,
-        competitor_url: document.getElementById('competitor-input').value.trim() || null,
+        competitor_urls: Array.from(document.querySelectorAll('.competitor-input'))
+          .map(i => i.value.trim()).filter(Boolean),
       }),
     });
 

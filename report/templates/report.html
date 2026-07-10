@@ -646,108 +646,81 @@
 {% endif %}
 
 <!-- ===== COMPETITOR ANALYSIS ===== -->
-{% if competitor and competitor.available %}
+{% if competitors and competitors | length > 0 %}
 <div class="section section-break">
   <div class="section-header" style="background: linear-gradient(135deg, #1e3a5f, #312e81);">
-    <div class="section-title">⚔️ Competitor Analysis — {{ domain }} vs {{ competitor.competitor_domain }}</div>
+    <div class="section-title">⚔️ Competitor Analysis — {{ domain }} vs {{ competitors | length }} Competitor{{ 's' if competitors | length > 1 else '' }}</div>
     <div class="section-icon">📊</div>
   </div>
   <div class="section-body">
 
-    {% set cmp = competitor.comparison %}
-    {% set ins = competitor.insights %}
+    <!-- Overall score cards -->
+    <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
 
-    <!-- Overall Score Comparison -->
-    <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
-
-      <!-- Client -->
-      <div style="flex: 1; min-width: 180px; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 2px solid #38bdf8; border-radius: 12px; padding: 20px; text-align: center;">
-        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #0369a1; margin-bottom: 8px;">YOU</div>
-        <div style="font-size: 11px; color: #475569; margin-bottom: 6px;">{{ domain }}</div>
-        <div style="font-size: 42px; font-weight: 800; color: {{ scores.grade_color }}; line-height: 1;">{{ cmp.client_overall }}</div>
-        <div style="font-size: 13px; font-weight: 700; color: {{ scores.grade_color }};">Grade {{ scores.grade }}</div>
+      <!-- Client card -->
+      <div style="flex: 1; min-width: 140px; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 2px solid #38bdf8; border-radius: 12px; padding: 16px; text-align: center;">
+        <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #0369a1; margin-bottom: 6px;">⭐ YOU</div>
+        <div style="font-size: 10px; color: #475569; margin-bottom: 5px; word-break: break-all;">{{ domain }}</div>
+        <div style="font-size: 36px; font-weight: 800; color: {{ scores.grade_color }}; line-height: 1;">{{ scores.overall_score }}</div>
+        <div style="font-size: 12px; font-weight: 700; color: {{ scores.grade_color }};">Grade {{ scores.grade }}</div>
       </div>
 
-      <!-- VS -->
-      <div style="display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #9ca3af; padding: 0 8px;">VS</div>
-
-      <!-- Competitor -->
-      <div style="flex: 1; min-width: 180px; background: #faf5ff; border: 2px solid #c084fc; border-radius: 12px; padding: 20px; text-align: center;">
-        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #7c3aed; margin-bottom: 8px;">COMPETITOR</div>
-        <div style="font-size: 11px; color: #475569; margin-bottom: 6px;">{{ competitor.competitor_domain }}</div>
-        <div style="font-size: 42px; font-weight: 800; color: {{ competitor.competitor_scores.grade_color }}; line-height: 1;">{{ cmp.competitor_overall }}</div>
-        <div style="font-size: 13px; font-weight: 700; color: {{ competitor.competitor_scores.grade_color }};">Grade {{ competitor.competitor_scores.grade }}</div>
+      {% for comp in competitors %}
+      <div style="flex: 1; min-width: 140px; background: #faf5ff; border: 2px solid {{ ['#c084fc','#f9a8d4','#fdba74','#6ee7b7','#93c5fd'][loop.index0 % 5] }}; border-radius: 12px; padding: 16px; text-align: center;">
+        <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #7c3aed; margin-bottom: 6px;">COMPETITOR {{ loop.index }}</div>
+        <div style="font-size: 10px; color: #475569; margin-bottom: 5px; word-break: break-all;">{{ comp.competitor_domain }}</div>
+        <div style="font-size: 36px; font-weight: 800; color: {{ comp.competitor_scores.grade_color }}; line-height: 1;">{{ comp.comparison.competitor_overall }}</div>
+        <div style="font-size: 12px; font-weight: 700; color: {{ comp.competitor_scores.grade_color }};">Grade {{ comp.competitor_scores.grade }}</div>
+        <div style="font-size: 9px; color: #9ca3af; margin-top: 4px;">{{ comp.pages_crawled }} pages crawled</div>
       </div>
-
+      {% endfor %}
     </div>
 
-    <!-- AI Insights Banner -->
-    {% if ins %}
-    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 12px; padding: 18px 22px; margin-bottom: 22px;">
-      {% if ins.headline %}
-      <div style="font-size: 14px; font-weight: 700; color: white; margin-bottom: 14px;">{{ ins.headline }}</div>
-      {% endif %}
-      <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-        {% if ins.their_edge %}
-        <div style="flex: 1; min-width: 180px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 12px 14px;">
-          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #f87171; margin-bottom: 6px;">⚠️ Their Advantage</div>
-          <div style="font-size: 11px; color: #e2e8f0; line-height: 1.5;">{{ ins.their_edge }}</div>
-        </div>
-        {% endif %}
-        {% if ins.your_edge %}
-        <div style="flex: 1; min-width: 180px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; padding: 12px 14px;">
-          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #4ade80; margin-bottom: 6px;">✅ Your Advantage</div>
-          <div style="font-size: 11px; color: #e2e8f0; line-height: 1.5;">{{ ins.your_edge }}</div>
-        </div>
-        {% endif %}
-        {% if ins.steal %}
-        <div style="flex: 1; min-width: 180px; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3); border-radius: 8px; padding: 12px 14px;">
-          <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #fbbf24; margin-bottom: 6px;">🎯 Steal This Week</div>
-          <div style="font-size: 11px; color: #e2e8f0; line-height: 1.5;">{{ ins.steal }}</div>
-        </div>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Category-by-Category Scorecard -->
+    <!-- Multi-competitor category table -->
     <div class="subsection-title">Category Scorecard</div>
     <table class="data-table">
       <thead>
         <tr>
           <th>Category</th>
           <th style="text-align:center;">You</th>
-          <th style="text-align:center;">Competitor</th>
-          <th style="text-align:center;">Gap</th>
-          <th style="text-align:center;">Winner</th>
+          {% for comp in competitors %}
+          <th style="text-align:center;">{{ comp.competitor_domain | truncate(18, true, '…') }}</th>
+          {% endfor %}
+          <th style="text-align:center;">Your Position</th>
         </tr>
       </thead>
       <tbody>
-        {% for cat, data in cmp.by_category.items() %}
+        {% set categories = ['technical','onpage','schema','aeo','geo','performance','local_seo','conversion','content'] %}
+        {% for cat in categories %}
+        {% set client_score = scores.category_scores.get(cat, {}).get('score', 0) %}
+        {% set all_scores = [client_score] + [c.comparison.by_category.get(cat, {}).get('competitor', 0) for c in competitors] %}
+        {% set max_score = all_scores | max %}
         <tr>
-          <td style="font-weight: 600; text-transform: capitalize;">{{ cat | replace('_',' ') | title }}</td>
+          <td style="font-weight: 600;">{{ cat | replace('_',' ') | title }}</td>
           <td style="text-align:center;">
-            <span style="font-size: 14px; font-weight: 800; color: {% if data.client >= 70 %}#16a34a{% elif data.client >= 40 %}#d97706{% else %}#dc2626{% endif %};">{{ data.client }}</span>
+            <span style="font-size: 14px; font-weight: 800; color: {% if client_score >= 70 %}#16a34a{% elif client_score >= 40 %}#d97706{% else %}#dc2626{% endif %};">
+              {{ client_score }}
+              {% if client_score == max_score and competitors | length > 0 %}<span style="font-size:9px; color:#16a34a;"> ★</span>{% endif %}
+            </span>
           </td>
+          {% for comp in competitors %}
+          {% set cs = comp.comparison.by_category.get(cat, {}).get('competitor', 0) %}
           <td style="text-align:center;">
-            <span style="font-size: 14px; font-weight: 800; color: {% if data.competitor >= 70 %}#16a34a{% elif data.competitor >= 40 %}#d97706{% else %}#dc2626{% endif %};">{{ data.competitor }}</span>
+            <span style="font-size: 13px; font-weight: 700; color: {% if cs >= 70 %}#16a34a{% elif cs >= 40 %}#d97706{% else %}#dc2626{% endif %};">
+              {{ cs }}
+              {% if cs == max_score and cs > client_score %}<span style="font-size:9px; color:#dc2626;"> ★</span>{% endif %}
+            </span>
           </td>
+          {% endfor %}
           <td style="text-align:center;">
-            {% if data.diff > 5 %}
-            <span class="badge badge-good">+{{ data.diff }}</span>
-            {% elif data.diff < -5 %}
-            <span class="badge badge-critical">{{ data.diff }}</span>
+            {% set beats = competitors | selectattr('comparison.by_category.' + cat + '.winner', 'equalto', 'client') | list | length %}
+            {% set loses = competitors | selectattr('comparison.by_category.' + cat + '.winner', 'equalto', 'competitor') | list | length %}
+            {% if loses == 0 %}
+            <span class="badge badge-good">Leading</span>
+            {% elif beats == 0 %}
+            <span class="badge badge-critical">Behind all</span>
             {% else %}
-            <span class="badge badge-low">~tie</span>
-            {% endif %}
-          </td>
-          <td style="text-align:center;">
-            {% if data.winner == 'client' %}
-            <span style="color: #16a34a; font-weight: 700; font-size: 11px;">✅ YOU</span>
-            {% elif data.winner == 'competitor' %}
-            <span style="color: #dc2626; font-weight: 700; font-size: 11px;">❌ THEM</span>
-            {% else %}
-            <span style="color: #6b7280; font-size: 11px;">— Tie</span>
+            <span class="badge badge-warning">Mixed</span>
             {% endif %}
           </td>
         </tr>
@@ -755,29 +728,40 @@
       </tbody>
     </table>
 
-    <!-- Win/Loss Summary -->
-    <div style="display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap;">
-      {% if cmp.client_wins %}
-      <div style="flex: 1; min-width: 160px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px;">
-        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #15803d; margin-bottom: 8px;">✅ Categories You Win ({{ cmp.client_wins | length }})</div>
-        {% for cat in cmp.client_wins %}
-        <div style="font-size: 11px; color: #1a1a2e; margin-bottom: 3px;">• {{ cat | replace('_',' ') | title }}</div>
-        {% endfor %}
+    <!-- Per-competitor AI insights -->
+    {% for comp in competitors %}
+    {% set ins = comp.insights %}
+    {% if ins %}
+    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 10px; padding: 16px 20px; margin-top: 16px;">
+      <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px;">
+        vs {{ comp.competitor_domain }}
       </div>
+      {% if ins.headline %}
+      <div style="font-size: 13px; font-weight: 700; color: white; margin-bottom: 12px;">{{ ins.headline }}</div>
       {% endif %}
-      {% if cmp.competitor_wins %}
-      <div style="flex: 1; min-width: 160px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px;">
-        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #dc2626; margin-bottom: 8px;">❌ Categories They Win ({{ cmp.competitor_wins | length }})</div>
-        {% for cat in cmp.competitor_wins %}
-        <div style="font-size: 11px; color: #1a1a2e; margin-bottom: 3px;">• {{ cat | replace('_',' ') | title }}</div>
-        {% endfor %}
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        {% if ins.their_edge %}
+        <div style="flex: 1; min-width: 160px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 10px 12px;">
+          <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: #f87171; margin-bottom: 5px;">⚠️ Their Edge</div>
+          <div style="font-size: 11px; color: #e2e8f0; line-height: 1.5;">{{ ins.their_edge }}</div>
+        </div>
+        {% endif %}
+        {% if ins.your_edge %}
+        <div style="flex: 1; min-width: 160px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; padding: 10px 12px;">
+          <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: #4ade80; margin-bottom: 5px;">✅ Your Edge</div>
+          <div style="font-size: 11px; color: #e2e8f0; line-height: 1.5;">{{ ins.your_edge }}</div>
+        </div>
+        {% endif %}
+        {% if ins.steal %}
+        <div style="flex: 1; min-width: 160px; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3); border-radius: 8px; padding: 10px 12px;">
+          <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: #fbbf24; margin-bottom: 5px;">🎯 Steal This Week</div>
+          <div style="font-size: 11px; color: #e2e8f0; line-height: 1.5;">{{ ins.steal }}</div>
+        </div>
+        {% endif %}
       </div>
-      {% endif %}
     </div>
-
-    <div style="margin-top: 12px; font-size: 10px; color: #9ca3af; font-style: italic;">
-      Based on {{ competitor.pages_crawled }} competitor pages crawled.
-    </div>
+    {% endif %}
+    {% endfor %}
 
   </div>
 </div>

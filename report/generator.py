@@ -94,7 +94,7 @@ def generate_report(
     ai_recommendations: Dict[str, Any] = None,
     revenue_impact: Dict[str, Any] = None,
     wayback: Dict[str, Any] = None,
-    competitor: Dict[str, Any] = None,
+    competitors: List[Dict[str, Any]] = None,
     cold_emails: Dict[str, Any] = None,
 ) -> str:
     """Generate a PDF report using Chrome headless. Falls back to HTML if Chrome unavailable."""
@@ -123,7 +123,7 @@ def generate_report(
         "ai": ai_recommendations or {},
         "revenue_impact": revenue_impact or {},
         "wayback":      wayback or {},
-        "competitor":   competitor or {},
+        "competitors":  competitors or [],
         "cold_emails":  cold_emails or {},
     }
 

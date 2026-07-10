@@ -57,7 +57,7 @@ ws_connections: Dict[str, WebSocket] = {}
 # ====== MODELS ======
 class AnalyzeRequest(BaseModel):
     url: str
-    competitor_url: Optional[str] = None
+    competitor_urls: Optional[List[str]] = None
 
 
 # ====== ROUTES ======
@@ -86,11 +86,16 @@ async def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTa
         "error": None,
     }
 
-    competitor_url = request.competitor_url or None
-    if competitor_url and not competitor_url.startswith(("http://", "https://")):
-        competitor_url = "https://" + competitor_url
+    raw_competitors = request.competitor_urls or []
+    competitor_urls = []
+    for cu in raw_competitors[:5]:
+        cu = cu.strip()
+        if cu:
+            if not cu.startswith(("http://", "https://")):
+                cu = "https://" + cu
+            competitor_urls.append(cu)
 
-    background_tasks.add_task(run_analysis, job_id, url, competitor_url)
+    background_tasks.add_task(run_analysis, job_id, url, competitor_urls)
 
     return {"job_id": job_id, "status": "started"}
 
@@ -215,7 +220,7 @@ async def send_progress(job_id: str, percent: int, message: str):
             pass
 
 
-async def run_analysis(job_id: str, url: str, competitor_url: Optional[str] = None):
+async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str]] = None):
     """Main background task: crawl + analyze + generate report."""
     try:
         jobs[job_id]["status"] = "running"
@@ -271,15 +276,20 @@ async def run_analysis(job_id: str, url: str, competitor_url: Optional[str] = No
         await send_progress(job_id, 91, "Calculating scores…")
         scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images, local_seo, conversion, content)
 
-        # Competitor analysis (optional)
-        competitor = {}
-        if competitor_url:
-            await send_progress(job_id, 91, f"Crawling competitor {competitor_url}… (this may take a minute)")
-            competitor = await analyze_competitor(
-                competitor_url, parsed_domain,
-                scores, technical, onpage, schema, aeo, geo,
-                performance, images, local_seo, conversion, content,
-            )
+        # Competitor analysis (optional — run all concurrently)
+        competitors = []
+        if competitor_urls:
+            await send_progress(job_id, 91, f"Crawling {len(competitor_urls)} competitor(s)… (this may take a minute)")
+            tasks = [
+                analyze_competitor(
+                    cu, parsed_domain,
+                    scores, technical, onpage, schema, aeo, geo,
+                    performance, images, local_seo, conversion, content,
+                )
+                for cu in competitor_urls
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            competitors = [r for r in results if isinstance(r, dict) and r.get("available")]
 
         await send_progress(job_id, 91, "Checking Wayback Machine history…")
         wayback = await analyze_wayback(parsed_domain)
@@ -304,7 +314,8 @@ async def run_analysis(job_id: str, url: str, competitor_url: Optional[str] = No
         await send_progress(job_id, 95, "Generating cold email drafts…")
         cold_emails = await asyncio.to_thread(
             generate_cold_emails,
-            parsed_domain, scores, revenue_impact, competitor, wayback, local_seo,
+            parsed_domain, scores, revenue_impact,
+            competitors[0] if competitors else {}, wayback, local_seo,
         )
 
         await send_progress(job_id, 96, "Generating PDF report…")
@@ -327,7 +338,7 @@ async def run_analysis(job_id: str, url: str, competitor_url: Optional[str] = No
             ai_recommendations,
             revenue_impact,
             wayback,
-            competitor,
+            competitors,
             cold_emails,
         )
 
@@ -402,7 +413,7 @@ async def run_analysis(job_id: str, url: str, competitor_url: Optional[str] = No
             }),
             "revenue_impact": _make_serializable(revenue_impact),
             "wayback": _make_serializable(wayback),
-            "competitor":  _make_serializable(competitor),
+            "competitors": _make_serializable(competitors),
             "cold_emails": _make_serializable(cold_emails),
         }
 
