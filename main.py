@@ -29,6 +29,7 @@ from analyzers.conversion import analyze_conversion
 from analyzers.content import analyze_content
 from analyzers.ai_recommendations import generate_ai_recommendations
 from analyzers.revenue_impact import calculate_revenue_impact
+from analyzers.wayback import analyze_wayback
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
 
@@ -263,6 +264,9 @@ async def run_analysis(job_id: str, url: str):
         await send_progress(job_id, 91, "Calculating scores…")
         scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images, local_seo, conversion, content)
 
+        await send_progress(job_id, 91, "Checking Wayback Machine history…")
+        wayback = await analyze_wayback(parsed_domain)
+
         await send_progress(job_id, 92, "Calculating revenue impact…")
         revenue_impact = await asyncio.to_thread(
             calculate_revenue_impact,
@@ -299,6 +303,7 @@ async def run_analysis(job_id: str, url: str):
             content,
             ai_recommendations,
             revenue_impact,
+            wayback,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")
@@ -371,6 +376,7 @@ async def run_analysis(job_id: str, url: str):
                 "thin_content_pages": content.get("thin_content_pages", [])[:15],
             }),
             "revenue_impact": _make_serializable(revenue_impact),
+            "wayback": _make_serializable(wayback),
         }
 
         # Store full data in job

@@ -645,6 +645,166 @@
 </div>
 {% endif %}
 
+<!-- ===== WAYBACK MACHINE ===== -->
+{% if wayback and wayback.available %}
+<div class="section section-break">
+  <div class="section-header" style="background: linear-gradient(135deg, #1e3a5f, #0f3460);">
+    <div class="section-title">🕰️ Website History — Wayback Machine</div>
+    <div class="section-icon">📜</div>
+  </div>
+  <div class="section-body">
+
+    {% set wb = wayback %}
+    {% set diff = wb.comparison %}
+    {% set ins = wb.insights %}
+
+    <!-- Stats bar -->
+    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 24px;">
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ wb.total_snapshots_found }}</div>
+        <div class="metric-label">Total Snapshots</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--blue);">
+        <div class="metric-value" style="color: var(--blue);">{{ wb.snapshots_analysed }}</div>
+        <div class="metric-label">Snapshots Analysed</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--dark-3);">
+        <div class="metric-value">{{ diff.earliest_date }}</div>
+        <div class="metric-label">First Seen</div>
+      </div>
+      <div class="metric-box" style="border-color: var(--dark-3);">
+        <div class="metric-value">{{ diff.latest_date }}</div>
+        <div class="metric-label">Last Captured</div>
+      </div>
+      {% if diff.years_tracked %}
+      <div class="metric-box" style="border-color: var(--green);">
+        <div class="metric-value" style="color: var(--green);">{{ diff.years_tracked }}yrs</div>
+        <div class="metric-label">History Tracked</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- AI Insights -->
+    {% if ins %}
+    <div style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border: 1px solid #7dd3fc; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;">
+      <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #0369a1; margin-bottom: 14px;">🤖 AI Business Intelligence</div>
+
+      {% if ins.summary %}
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 3px;">Business Overview</div>
+        <div style="font-size: 12px; color: #1e3a5f; line-height: 1.6;">{{ ins.summary }}</div>
+      </div>
+      {% endif %}
+
+      {% if ins.pivot %}
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 3px;">Strategic Pivot Detected</div>
+        <div style="font-size: 12px; color: #1e3a5f; line-height: 1.6;">{{ ins.pivot }}</div>
+      </div>
+      {% endif %}
+
+      {% if ins.opportunity %}
+      <div style="margin-bottom: 12px; background: #dcfce7; border-radius: 8px; padding: 10px 14px;">
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #15803d; margin-bottom: 3px;">💡 SEO Opportunity</div>
+        <div style="font-size: 12px; color: #1a1a2e; line-height: 1.6;">{{ ins.opportunity }}</div>
+      </div>
+      {% endif %}
+
+      {% if ins.talking_point %}
+      <div style="background: #fef3c7; border-radius: 8px; padding: 10px 14px;">
+        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #d97706; margin-bottom: 3px;">💬 Sales Talking Point</div>
+        <div style="font-size: 12px; color: #1a1a2e; line-height: 1.6;">{{ ins.talking_point }}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Title Evolution -->
+    {% if diff.title_changed %}
+    <div class="subsection-title">Page Title Evolution</div>
+    <div style="display: flex; gap: 12px; align-items: stretch; margin-bottom: 20px; flex-wrap: wrap;">
+      <div style="flex: 1; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; min-width: 200px;">
+        <div style="font-size: 10px; font-weight: 700; color: #9ca3af; margin-bottom: 6px;">{{ diff.earliest_date }} — THEN</div>
+        <div style="font-size: 12px; color: #374151;">{{ diff.old_title or '(no title)' }}</div>
+      </div>
+      <div style="display: flex; align-items: center; font-size: 18px; color: #9ca3af;">→</div>
+      <div style="flex: 1; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px; min-width: 200px;">
+        <div style="font-size: 10px; font-weight: 700; color: #9ca3af; margin-bottom: 6px;">{{ diff.latest_date }} — NOW</div>
+        <div style="font-size: 12px; color: #374151;">{{ diff.new_title or '(no title)' }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Navigation Changes -->
+    {% if diff.added_nav or diff.removed_nav %}
+    <div class="subsection-title">Navigation Changes</div>
+    <div style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+      {% if diff.added_nav %}
+      <div style="flex: 1; min-width: 180px;">
+        <div style="font-size: 10px; font-weight: 700; color: #15803d; text-transform: uppercase; margin-bottom: 8px;">✅ Added</div>
+        {% for item in diff.added_nav %}
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 5px 10px; margin-bottom: 5px; font-size: 11px; color: #1a1a2e;">{{ item }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if diff.removed_nav %}
+      <div style="flex: 1; min-width: 180px;">
+        <div style="font-size: 10px; font-weight: 700; color: #dc2626; text-transform: uppercase; margin-bottom: 8px;">❌ Removed</div>
+        {% for item in diff.removed_nav %}
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 5px 10px; margin-bottom: 5px; font-size: 11px; color: #1a1a2e; text-decoration: line-through; color: #6b7280;">{{ item }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Snapshot Timeline -->
+    {% if wb.snapshots %}
+    <div class="subsection-title">Snapshot Timeline</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Page Title</th>
+          <th>Word Count</th>
+          <th>Navigation Items</th>
+          <th>View</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for snap in wb.snapshots %}
+        <tr>
+          <td style="font-weight: 600; white-space: nowrap; color: #0f3460;">{{ snap.date }}</td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px;">{{ snap.title or '(no title)' }}</td>
+          <td>
+            <span class="badge {% if snap.word_count > 2000 %}badge-good{% elif snap.word_count > 500 %}badge-info{% else %}badge-warning{% endif %}">
+              {{ snap.word_count }} words
+            </span>
+          </td>
+          <td style="font-size: 10px; color: #64748b; max-width: 180px;">{{ snap.nav_items[:4] | join(' · ') }}</td>
+          <td>
+            <a href="{{ snap.wayback_url }}" style="font-size: 10px; color: #3b82f6; text-decoration: none; font-weight: 600;">View ↗</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Content Growth -->
+    {% if diff.content_trend %}
+    <div style="margin-top: 16px; background: #f8fafc; border-radius: 8px; padding: 12px 16px; font-size: 11px; color: #475569;">
+      📈 <strong>Content trend:</strong> Site content {{ diff.content_trend }}
+      ({{ diff.old_word_count }} words in {{ diff.earliest_date }} → {{ diff.new_word_count }} words in {{ diff.latest_date }})
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% elif wayback and not wayback.available %}
+<!-- No history found — skip section silently -->
+{% endif %}
+
 <!-- ===== TECHNICAL SEO ===== -->
 <div class="section section-break">
   <div class="section-header">
