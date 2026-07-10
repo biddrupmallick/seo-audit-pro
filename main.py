@@ -37,6 +37,11 @@ from analyzers.gbp import analyze_gbp
 from analyzers.lead_score import calculate_lead_score
 from analyzers.history import save_audit, get_history, build_progress
 from analyzers.excel_parser import parse_excel
+from analyzers.trust_signals import analyze_trust_signals
+from analyzers.mobile_screenshot import capture_mobile_screenshots
+from analyzers.competitor_gap import analyze_competitor_gap
+from analyzers.meta_rewrite import generate_meta_rewrites
+from analyzers.roadmap import generate_roadmap
 from analyzers.geo_match import find_nearest_competitors
 from analyzers.review_analyzer import analyze_reviews_batch
 from analyzers.niche_blog import generate_blog_posts
@@ -715,6 +720,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
     """Main background task: crawl + analyze + generate report."""
     try:
         jobs[job_id]["status"] = "running"
+        parsed_domain = url.replace("https://", "").replace("http://", "").split("/")[0]
         await send_progress(job_id, 2, f"Starting crawl of {url}…")
 
         # ====== CRAWL ======
@@ -769,6 +775,16 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
         await send_progress(job_id, 90, "Finding keyword opportunities…")
         keywords = await asyncio.to_thread(analyze_keyword_opportunities, crawled_pages)
 
+        await send_progress(job_id, 91, "Auditing trust signals…")
+        trust_signals = await asyncio.to_thread(analyze_trust_signals, crawled_pages, parsed_domain)
+
+        await send_progress(job_id, 91, "Rewriting weak meta descriptions…")
+        meta_rewrites = await asyncio.to_thread(generate_meta_rewrites, crawled_pages, parsed_domain)
+
+        await send_progress(job_id, 91, "Capturing mobile screenshots…")
+        comp_url_for_screenshot = competitor_urls[0] if competitor_urls else None
+        mobile_screenshots = await asyncio.to_thread(capture_mobile_screenshots, url, comp_url_for_screenshot, job_id)
+
         await send_progress(job_id, 91, "Calculating scores…")
         scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images, local_seo, conversion, content)
 
@@ -787,8 +803,6 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             results = await asyncio.gather(*tasks, return_exceptions=True)
             competitors = [r for r in results if isinstance(r, dict) and r.get("available")]
 
-        parsed_domain = url.replace("https://", "").replace("http://", "").split("/")[0]
-
         # Save audit to history DB
         await asyncio.to_thread(save_audit, parsed_domain, scores)
         audit_history = await asyncio.to_thread(get_history, parsed_domain)
@@ -804,6 +818,14 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
         elif gbp_url:
             await send_progress(job_id, 91, "Auditing Google Business Profile…")
             gbp = await asyncio.to_thread(analyze_gbp, gbp_url, gbp_competitor_urls or [])
+
+        # Competitor gap analysis (from biz_data nearest_competitors reviews_text)
+        competitor_gap = {"available": False}
+        if biz_data and biz_data.get("nearest_competitors"):
+            category = biz_data.get("category", "local business")
+            competitor_gap = await asyncio.to_thread(
+                analyze_competitor_gap, biz_data["nearest_competitors"], category
+            )
 
         await send_progress(job_id, 92, "Calculating revenue impact…")
         revenue_impact = await asyncio.to_thread(
@@ -835,6 +857,13 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             total_pages, gbp, keywords,
         )
 
+        await send_progress(job_id, 96, "Building 90-day roadmap…")
+        roadmap = await asyncio.to_thread(
+            generate_roadmap,
+            parsed_domain, scores, local_seo,
+            trust_signals, competitor_gap, lead_score,
+        )
+
         await send_progress(job_id, 96, "Generating PDF report…")
         report_path = await asyncio.to_thread(
             generate_report,
@@ -861,6 +890,11 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             keywords,
             gbp,
             lead_score,
+            trust_signals,
+            mobile_screenshots,
+            competitor_gap,
+            roadmap,
+            meta_rewrites,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")

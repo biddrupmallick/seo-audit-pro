@@ -823,6 +823,33 @@
 </div>
 {% endif %}
 
+{% if mobile_screenshots and mobile_screenshots.available %}
+<!-- ===== MOBILE SCREENSHOTS ===== -->
+<div class="section section-break">
+  <div class="section-header" style="background: linear-gradient(135deg, #1e293b, #334155);">
+    <div class="section-title">📱 Mobile Experience — How Customers See You</div>
+    <div class="section-icon">📲</div>
+  </div>
+  <div class="section-body">
+    <p style="font-size:11px;color:#64748b;margin-bottom:18px;">78% of local searches happen on mobile. This is exactly what customers see when they find you.</p>
+    <div style="display:grid;grid-template-columns:{% if mobile_screenshots.competitor %}1fr 1fr{% else %}1fr{% endif %};gap:20px;">
+      <div style="text-align:center;">
+        <div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:8px;">Your Website</div>
+        <div style="font-size:9px;color:#94a3b8;margin-bottom:10px;">{{ mobile_screenshots.client_url }}</div>
+        <img src="data:image/png;base64,{{ mobile_screenshots.client }}" style="width:100%;max-width:280px;border-radius:16px;border:4px solid #1e293b;box-shadow:0 8px 24px rgba(0,0,0,0.15);">
+      </div>
+      {% if mobile_screenshots.competitor %}
+      <div style="text-align:center;">
+        <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;">Top Competitor</div>
+        <div style="font-size:9px;color:#94a3b8;margin-bottom:10px;">{{ mobile_screenshots.competitor_url }}</div>
+        <img src="data:image/png;base64,{{ mobile_screenshots.competitor }}" style="width:100%;max-width:280px;border-radius:16px;border:4px solid #64748b;box-shadow:0 8px 24px rgba(0,0,0,0.1);">
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- ===== EXECUTIVE SUMMARY ===== -->
 <div class="section section-break">
   <div class="section-header">
@@ -2695,6 +2722,158 @@
     </div>
     {% endif %}
 
+  </div>
+</div>
+{% endif %}
+
+{% if trust_signals and trust_signals.score is defined %}
+<!-- ===== TRUST SIGNALS AUDIT ===== -->
+<div class="section section-break">
+  <div class="section-header" style="background: linear-gradient(135deg, #78350f, #92400e);">
+    <div class="section-title">🛡️ Trust Signals Audit</div>
+    <div class="section-header-score">{{ trust_signals.score }}/100</div>
+  </div>
+  <div class="section-body">
+    <p style="font-size:11px;color:#64748b;margin-bottom:18px;">Trust signals directly affect whether visitors call you or leave. Google also uses them as ranking signals.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#16a34a;margin-bottom:10px;">✅ Present ({{ trust_signals.present | length }})</div>
+        {% for item in trust_signals.present %}
+        <div style="font-size:10px;color:#166534;padding:5px 10px;background:#f0fdf4;border-radius:6px;margin-bottom:4px;border-left:3px solid #86efac;">{{ item }}</div>
+        {% endfor %}
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:10px;">❌ Missing ({{ trust_signals.missing | length }})</div>
+        {% for item in trust_signals.missing %}
+        <div style="font-size:10px;color:#991b1b;padding:5px 10px;background:#fff1f2;border-radius:6px;margin-bottom:4px;border-left:3px solid #fca5a5;">{{ item }}</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% if trust_signals.social_media %}
+    <div style="margin-top:16px;">
+      <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:8px;">Social Media Presence</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        {% for platform, present in trust_signals.social_media.items() %}
+        <div style="font-size:10px;padding:4px 10px;border-radius:99px;font-weight:600;background:{% if present %}#dbeafe{% else %}#f1f5f9{% endif %};color:{% if present %}#1d4ed8{% else %}#94a3b8{% endif %};">
+          {% if present %}✓{% else %}✗{% endif %} {{ platform }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if competitor_gap and competitor_gap.available %}
+<!-- ===== COMPETITOR GAP OPPORTUNITIES ===== -->
+<div class="section section-break">
+  <div class="section-header" style="background: linear-gradient(135deg, #4c0519, #881337);">
+    <div class="section-title">⚔️ Competitor Gap — Their Weaknesses, Your Opportunity</div>
+    <div class="section-icon">🎯</div>
+  </div>
+  <div class="section-body">
+    {% if competitor_gap.HEADLINE %}
+    <div style="font-size:15px;font-weight:800;color:#1e293b;margin-bottom:6px;">{{ competitor_gap.HEADLINE }}</div>
+    {% endif %}
+    <p style="font-size:11px;color:#64748b;margin-bottom:20px;">Based on {{ competitor_gap.competitor_count }} competitor review set(s). These are what their customers complain about most.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:10px;">⚠️ What Competitors Do Badly</div>
+        {% for i in [1,2,3] %}
+        {% set w = competitor_gap.get('WEAKNESS_' ~ i) %}
+        {% if w %}
+        <div style="font-size:10px;color:#991b1b;padding:8px 12px;background:#fff1f2;border-radius:8px;margin-bottom:6px;border-left:3px solid #f87171;">{{ w }}</div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#16a34a;margin-bottom:10px;">✅ Your Opportunity</div>
+        {% for i in [1,2,3] %}
+        {% set o = competitor_gap.get('OPPORTUNITY_' ~ i) %}
+        {% if o %}
+        <div style="font-size:10px;color:#166534;padding:8px 12px;background:#f0fdf4;border-radius:8px;margin-bottom:6px;border-left:3px solid #86efac;">{{ o }}</div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% if competitor_gap.EMAIL_HOOK %}
+    <div style="margin-top:16px;background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:12px 16px;">
+      <div style="font-size:10px;font-weight:700;color:#854d0e;margin-bottom:4px;">💬 Use This in Your Next Email</div>
+      <div style="font-size:11px;color:#713f12;font-style:italic;">"{{ competitor_gap.EMAIL_HOOK }}"</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if meta_rewrites and meta_rewrites.available %}
+<!-- ===== META DESCRIPTION QUICK WINS ===== -->
+<div class="section section-break">
+  <div class="section-header" style="background: linear-gradient(135deg, #0c4a6e, #075985);">
+    <div class="section-title">⚡ Quick Win — Meta Description Rewrites</div>
+    <div class="section-icon">✍️</div>
+  </div>
+  <div class="section-body">
+    <p style="font-size:11px;color:#64748b;margin-bottom:6px;">{{ meta_rewrites.missing_count }} pages have missing or weak meta descriptions. These rewrites are ready to copy-paste — no extra work needed.</p>
+    {% for rw in meta_rewrites.rewrites %}
+    <div style="margin-bottom:16px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+      <div style="background:#f8fafc;padding:8px 14px;font-size:10px;font-weight:700;color:#475569;border-bottom:1px solid #e2e8f0;">
+        {{ rw.url }} — <span style="color:{% if rw.issue == 'missing' %}#dc2626{% else %}#f59e0b{% endif %};">{{ rw.issue }}</span>
+      </div>
+      <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <div style="font-size:9px;font-weight:700;color:#94a3b8;margin-bottom:4px;">BEFORE</div>
+          <div style="font-size:10px;color:#dc2626;font-style:italic;background:#fff1f2;padding:8px;border-radius:6px;">{{ rw.before }}</div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;color:#94a3b8;margin-bottom:4px;">AFTER (copy this)</div>
+          <div style="font-size:10px;color:#16a34a;background:#f0fdf4;padding:8px;border-radius:6px;">{{ rw.after }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if roadmap and roadmap.MONTH1_TITLE %}
+<!-- ===== 90-DAY ROADMAP ===== -->
+<div class="section section-break">
+  <div class="section-header" style="background: linear-gradient(135deg, #1e1b4b, #312e81);">
+    <div class="section-title">🗓️ 90-Day SEO Roadmap</div>
+    <div class="section-icon">🚀</div>
+  </div>
+  <div class="section-body">
+    {% if roadmap.QUICK_WIN %}
+    <div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;color:#854d0e;margin-bottom:4px;">⚡ Quick Win — Do This in the Next 48 Hours</div>
+      <div style="font-size:11px;color:#713f12;">{{ roadmap.QUICK_WIN }}</div>
+    </div>
+    {% endif %}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+      {% for month, color, bg in [('1','#2563eb','#eff6ff'), ('2','#7c3aed','#f5f3ff'), ('3','#059669','#f0fdf4')] %}
+      {% set title = roadmap.get('MONTH' ~ month ~ '_TITLE', 'Month ' ~ month) %}
+      {% set a1 = roadmap.get('MONTH' ~ month ~ '_ACTION1', '') %}
+      {% set a2 = roadmap.get('MONTH' ~ month ~ '_ACTION2', '') %}
+      {% set a3 = roadmap.get('MONTH' ~ month ~ '_ACTION3', '') %}
+      {% set outcome = roadmap.get('MONTH' ~ month ~ '_OUTCOME', '') %}
+      <div style="background:{{ bg }};border:1px solid {{ color }}33;border-radius:10px;padding:14px;">
+        <div style="font-size:10px;font-weight:700;color:{{ color }};margin-bottom:4px;">MONTH {{ month }}</div>
+        <div style="font-size:12px;font-weight:800;color:#1e293b;margin-bottom:12px;">{{ title }}</div>
+        {% for action in [a1, a2, a3] %}{% if action %}
+        <div style="font-size:10px;color:#374151;padding:4px 0;border-bottom:1px solid {{ color }}22;display:flex;gap:6px;">
+          <span style="color:{{ color }};flex-shrink:0;">→</span><span>{{ action }}</span>
+        </div>
+        {% endif %}{% endfor %}
+        {% if outcome %}
+        <div style="margin-top:10px;font-size:9px;font-weight:700;color:{{ color }};padding:6px 8px;background:white;border-radius:6px;">
+          🎯 {{ outcome }}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
   </div>
 </div>
 {% endif %}

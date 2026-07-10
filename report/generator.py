@@ -101,6 +101,11 @@ def generate_report(
     keywords: Dict[str, Any] = None,
     gbp: Dict[str, Any] = None,
     lead_score: Dict[str, Any] = None,
+    trust_signals: Dict[str, Any] = None,
+    mobile_screenshots: Dict[str, Any] = None,
+    competitor_gap: Dict[str, Any] = None,
+    roadmap: Dict[str, Any] = None,
+    meta_rewrites: Dict[str, Any] = None,
 ) -> str:
     """Generate a PDF report using Chrome headless. Falls back to HTML if Chrome unavailable."""
     try:
@@ -132,9 +137,14 @@ def generate_report(
         "cold_emails":  cold_emails or {},
         "progress":     progress or {},
         "keywords":     keywords or {},
-        "gbp":          gbp or {},
-        "lead_score":   lead_score or {},
-        "branding":     load_branding(),
+        "gbp":               gbp or {},
+        "lead_score":        lead_score or {},
+        "trust_signals":     trust_signals or {},
+        "mobile_screenshots": mobile_screenshots or {},
+        "competitor_gap":    competitor_gap or {},
+        "roadmap":           roadmap or {},
+        "meta_rewrites":     meta_rewrites or {},
+        "branding":          load_branding(),
     }
 
     html_path = _render_html(job_id, context)
