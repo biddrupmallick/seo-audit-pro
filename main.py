@@ -267,7 +267,7 @@ async def bulk_page(request: Request):
 async def start_bulk(request: BulkRequest, background_tasks: BackgroundTasks):
     bulk_id = str(uuid.uuid4())
     items = []
-    for item in request.items[:20]:
+    for item in request.items:
         url = item.url.strip()
         if not url:
             continue
