@@ -13,6 +13,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Back
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from fastapi.requests import Request
 from pydantic import BaseModel, HttpUrl
 
@@ -71,7 +72,12 @@ app = FastAPI(
 BASE_DIR = Path(__file__).parent
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"), cache_size=0)
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates.env = Environment(
+    loader=FileSystemLoader(str(BASE_DIR / "templates")),
+    autoescape=select_autoescape(["html"]),
+    cache_size=0,
+)
 
 # ====== IN-MEMORY JOB STORE ======
 # Structure: {job_id: {"status": str, "data": dict, "progress": int, "message": str, "ws": WebSocket}}
