@@ -203,6 +203,19 @@
         </div>
       </div>
 
+      <!-- LEAD SCORE BADGE -->
+      <div id="lead-score-card" style="display:none; background:#fff; border-radius:12px; border:2px solid #e2e8f0; padding:18px 22px; margin-bottom:16px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+        <div style="text-align:center; min-width:80px;">
+          <div id="ls-score" style="font-size:32px; font-weight:800; color:#dc2626;">—</div>
+          <div style="font-size:9px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px;">Lead Score</div>
+        </div>
+        <div style="flex:1;">
+          <div id="ls-tier" style="font-size:15px; font-weight:800; color:#dc2626; margin-bottom:4px;">—</div>
+          <div id="ls-desc" style="font-size:11px; color:#64748b; margin-bottom:10px;">—</div>
+          <div id="ls-talking-points" style="display:flex; flex-direction:column; gap:5px;"></div>
+        </div>
+      </div>
+
       <!-- STATS BAR -->
       <div class="stats-bar" id="stats-bar">
         <div class="stat-item">
@@ -536,6 +549,23 @@ function showResults(data) {
   downloadBtn.href = `/report/${currentJobId}`;
 
   // Stats bar
+  // Lead score badge
+  const ls = data.lead_score;
+  if (ls && ls.score !== undefined) {
+    const lsCard = document.getElementById('lead-score-card');
+    lsCard.style.display = 'flex';
+    lsCard.style.borderColor = ls.tier_color;
+    document.getElementById('ls-score').textContent = ls.score;
+    document.getElementById('ls-score').style.color = ls.tier_color;
+    document.getElementById('ls-tier').textContent = ls.tier_icon + ' ' + ls.tier;
+    document.getElementById('ls-tier').style.color = ls.tier_color;
+    document.getElementById('ls-desc').textContent = ls.tier_desc;
+    const tpEl = document.getElementById('ls-talking-points');
+    tpEl.innerHTML = (ls.talking_points || []).map(tp =>
+      `<div style="font-size:10px;color:#374151;background:#f8fafc;border-left:3px solid ${ls.tier_color};padding:4px 8px;border-radius:0 4px 4px 0;">💬 ${tp}</div>`
+    ).join('');
+  }
+
   document.getElementById('stat-pages').textContent = total_pages;
   document.getElementById('stat-broken').textContent = technical.summary?.broken_pages || 0;
   document.getElementById('stat-missing-title').textContent = onpage.summary?.missing_title || 0;

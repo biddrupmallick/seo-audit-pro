@@ -100,6 +100,7 @@ def generate_report(
     progress: Dict[str, Any] = None,
     keywords: Dict[str, Any] = None,
     gbp: Dict[str, Any] = None,
+    lead_score: Dict[str, Any] = None,
 ) -> str:
     """Generate a PDF report using Chrome headless. Falls back to HTML if Chrome unavailable."""
     try:
@@ -132,6 +133,7 @@ def generate_report(
         "progress":     progress or {},
         "keywords":     keywords or {},
         "gbp":          gbp or {},
+        "lead_score":   lead_score or {},
         "branding":     load_branding(),
     }
 

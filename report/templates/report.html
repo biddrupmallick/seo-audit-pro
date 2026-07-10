@@ -744,6 +744,85 @@
   </div>
 </div>
 
+<!-- ===== LEAD SCORE ===== -->
+{% if lead_score and lead_score.score is defined %}
+{% set ls = lead_score %}
+<div class="section section-break" style="border: 2px solid {{ ls.tier_color }};">
+  <div class="section-header" style="background: linear-gradient(135deg, {{ ls.tier_color }}, {{ ls.tier_color }}cc);">
+    <div class="section-title">{{ ls.tier_icon }} Lead Score — {{ ls.tier }}</div>
+    <div class="section-icon" style="font-size:28px; font-weight:800; color:#fff;">{{ ls.score }}/100</div>
+  </div>
+  <div class="section-body">
+
+    <div style="display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: start;">
+
+      <!-- Score dial -->
+      <div style="text-align: center; min-width: 130px;">
+        <div style="width: 110px; height: 110px; border-radius: 50%; background: conic-gradient({{ ls.tier_color }} {{ ls.score }}%, #f1f5f9 0); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;">
+          <div style="width: 80px; height: 80px; border-radius: 50%; background: white; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div style="font-size: 24px; font-weight: 800; color: {{ ls.tier_color }};">{{ ls.score }}</div>
+            <div style="font-size: 8px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Lead Score</div>
+          </div>
+        </div>
+        <div style="font-size: 13px; font-weight: 800; color: {{ ls.tier_color }};">{{ ls.tier }}</div>
+        <div style="font-size: 10px; color: #64748b; margin-top: 4px; max-width: 120px; line-height: 1.4;">{{ ls.tier_desc }}</div>
+      </div>
+
+      <!-- Right: signals + metrics -->
+      <div>
+        <!-- Key metrics row -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px;">
+          <div class="metric-box" style="border-left: 3px solid {{ ls.tier_color }};">
+            <div class="metric-value" style="color: {{ ls.tier_color }};">{{ ls.overall_seo_score }}</div>
+            <div class="metric-label">SEO Score</div>
+          </div>
+          <div class="metric-box" style="border-left: 3px solid #dc2626;">
+            <div class="metric-value" style="color: #dc2626;">{{ ls.critical_issues_count }}</div>
+            <div class="metric-label">Critical Issues</div>
+          </div>
+          <div class="metric-box" style="border-left: 3px solid #16a34a;">
+            <div class="metric-value" style="color: #16a34a; font-size: 13px;">${{ ls.monthly_revenue_at_risk_low | int | string }}–${{ ls.monthly_revenue_at_risk_high | int | string }}</div>
+            <div class="metric-label">Revenue at Risk/mo</div>
+          </div>
+        </div>
+
+        <!-- Scoring signals -->
+        <div style="margin-bottom: 14px;">
+          <div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">📊 Scoring Signals</div>
+          {% for sig in ls.signals %}
+          <div style="font-size: 10px; color: #374151; padding: 3px 0; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;">
+            <div style="width: 5px; height: 5px; border-radius: 50%; background: {{ ls.tier_color }}; flex-shrink: 0;"></div>
+            {{ sig }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Talking points + quick wins side by side -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+      {% if ls.talking_points %}
+      <div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 10px; padding: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: #1d4ed8; margin-bottom: 10px;">💬 Cold Email Talking Points</div>
+        {% for tp in ls.talking_points %}
+        <div style="font-size: 10px; color: #1e3a8a; padding: 6px 8px; background: white; border-radius: 6px; margin-bottom: 6px; line-height: 1.5;">{{ tp }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if ls.quick_wins %}
+      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: #15803d; margin-bottom: 10px;">⚡ Quick Wins to Promise</div>
+        {% for qw in ls.quick_wins %}
+        <div style="font-size: 10px; color: #14532d; padding: 6px 8px; background: white; border-radius: 6px; margin-bottom: 6px; line-height: 1.5;">{{ qw }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endif %}
+
 <!-- ===== EXECUTIVE SUMMARY ===== -->
 <div class="section section-break">
   <div class="section-header">

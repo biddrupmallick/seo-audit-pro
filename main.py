@@ -34,6 +34,7 @@ from analyzers.competitor import analyze_competitor
 from analyzers.cold_email import generate_cold_emails
 from analyzers.keyword_opportunities import analyze_keyword_opportunities
 from analyzers.gbp import analyze_gbp
+from analyzers.lead_score import calculate_lead_score
 from analyzers.history import save_audit, get_history, build_progress
 from report.branding import load_branding, save_branding
 from scoring.scorer import calculate_scores
@@ -362,6 +363,13 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             competitors[0] if competitors else {}, wayback, local_seo,
         )
 
+        await send_progress(job_id, 96, "Scoring lead quality…")
+        lead_score = calculate_lead_score(
+            scores, technical, onpage, performance,
+            local_seo, conversion, revenue_impact,
+            total_pages, gbp, keywords,
+        )
+
         await send_progress(job_id, 96, "Generating PDF report…")
         report_path = await asyncio.to_thread(
             generate_report,
@@ -387,6 +395,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             progress_data,
             keywords,
             gbp,
+            lead_score,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")
@@ -471,6 +480,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
                 "top_keywords": keywords.get("top_keywords", [])[:30],
             }),
             "gbp": _make_serializable(gbp),
+            "lead_score": _make_serializable(lead_score),
         }
 
         # Store full data in job
