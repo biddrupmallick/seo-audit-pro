@@ -54,11 +54,27 @@
               <span>🔍</span> Analyze Now
             </button>
           </div>
+          <!-- Optional competitor URL -->
+          <div style="margin-top: 12px;">
+            <label style="font-size: 11px; font-weight: 600; color: #64748b; display: block; margin-bottom: 6px;">
+              ⚔️ Competitor URL <span style="font-weight: 400; color: #94a3b8;">(optional — adds side-by-side comparison)</span>
+            </label>
+            <input
+              type="url"
+              id="competitor-input"
+              class="url-input"
+              placeholder="https://competitor.com"
+              autocomplete="off"
+              spellcheck="false"
+              style="font-size: 13px; padding: 10px 14px;"
+            >
+          </div>
+
           <div class="form-hints">
             <div class="form-hint"><div class="form-hint-dot"></div> Crawls up to 200 pages</div>
             <div class="form-hint"><div class="form-hint-dot"></div> 10+ SEO checks</div>
             <div class="form-hint"><div class="form-hint-dot"></div> PDF report download</div>
-            <div class="form-hint"><div class="form-hint-dot"></div> AEO + GEO analysis</div>
+            <div class="form-hint"><div class="form-hint-dot"></div> AEO + GEO + Competitor analysis</div>
           </div>
         </div>
       </div>
@@ -300,7 +316,10 @@ async function startAnalysis() {
     const resp = await fetch('/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: urlInput.value }),
+      body: JSON.stringify({
+        url: urlInput.value,
+        competitor_url: document.getElementById('competitor-input').value.trim() || null,
+      }),
     });
 
     if (!resp.ok) {

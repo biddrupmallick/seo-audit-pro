@@ -30,6 +30,7 @@ from analyzers.content import analyze_content
 from analyzers.ai_recommendations import generate_ai_recommendations
 from analyzers.revenue_impact import calculate_revenue_impact
 from analyzers.wayback import analyze_wayback
+from analyzers.competitor import analyze_competitor
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
 
@@ -55,6 +56,7 @@ ws_connections: Dict[str, WebSocket] = {}
 # ====== MODELS ======
 class AnalyzeRequest(BaseModel):
     url: str
+    competitor_url: Optional[str] = None
 
 
 # ====== ROUTES ======
@@ -83,7 +85,11 @@ async def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTa
         "error": None,
     }
 
-    background_tasks.add_task(run_analysis, job_id, url)
+    competitor_url = request.competitor_url or None
+    if competitor_url and not competitor_url.startswith(("http://", "https://")):
+        competitor_url = "https://" + competitor_url
+
+    background_tasks.add_task(run_analysis, job_id, url, competitor_url)
 
     return {"job_id": job_id, "status": "started"}
 
@@ -208,7 +214,7 @@ async def send_progress(job_id: str, percent: int, message: str):
             pass
 
 
-async def run_analysis(job_id: str, url: str):
+async def run_analysis(job_id: str, url: str, competitor_url: Optional[str] = None):
     """Main background task: crawl + analyze + generate report."""
     try:
         jobs[job_id]["status"] = "running"
@@ -264,6 +270,16 @@ async def run_analysis(job_id: str, url: str):
         await send_progress(job_id, 91, "Calculating scores…")
         scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images, local_seo, conversion, content)
 
+        # Competitor analysis (optional)
+        competitor = {}
+        if competitor_url:
+            await send_progress(job_id, 91, f"Crawling competitor {competitor_url}… (this may take a minute)")
+            competitor = await analyze_competitor(
+                competitor_url, parsed_domain,
+                scores, technical, onpage, schema, aeo, geo,
+                performance, images, local_seo, conversion, content,
+            )
+
         await send_progress(job_id, 91, "Checking Wayback Machine history…")
         wayback = await analyze_wayback(parsed_domain)
 
@@ -304,6 +320,7 @@ async def run_analysis(job_id: str, url: str):
             ai_recommendations,
             revenue_impact,
             wayback,
+            competitor,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")
@@ -377,6 +394,7 @@ async def run_analysis(job_id: str, url: str):
             }),
             "revenue_impact": _make_serializable(revenue_impact),
             "wayback": _make_serializable(wayback),
+            "competitor": _make_serializable(competitor),
         }
 
         # Store full data in job
