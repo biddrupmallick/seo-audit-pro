@@ -2234,6 +2234,115 @@
   </div>
 </div>
 
+<!-- ===== GOOGLE BUSINESS PROFILE AUDIT ===== -->
+{% if gbp and gbp.available %}
+{% set cl = gbp.client %}
+<div class="section section-break">
+  <div class="section-header" style="background: linear-gradient(135deg, #14532d, #166534);">
+    <div class="section-title">📍 Google Business Profile Audit</div>
+    <div class="section-icon">🗺️</div>
+  </div>
+  <div class="section-body">
+
+    <!-- Client profile summary -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+
+      <!-- Left: profile card -->
+      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 18px;">
+        <div style="font-size: 13px; font-weight: 800; color: #14532d; margin-bottom: 4px;">{{ cl.name or "Client Business" }}</div>
+        <div style="font-size: 10px; color: #64748b; margin-bottom: 12px;">{{ cl.category or "Category not detected" }}</div>
+
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 14px;">
+          <div style="text-align: center;">
+            <div style="font-size: 32px; font-weight: 800; color: {% if cl.rating and cl.rating >= 4.0 %}#16a34a{% elif cl.rating %}#d97706{% else %}#dc2626{% endif %};">
+              {{ cl.rating or "—" }}
+            </div>
+            <div style="font-size: 9px; color: #94a3b8;">★ Rating</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 32px; font-weight: 800; color: #1e293b;">{{ cl.review_count or 0 }}</div>
+            <div style="font-size: 9px; color: #94a3b8;">Reviews</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="font-size: 32px; font-weight: 800; color: {% if cl.score >= 70 %}#16a34a{% elif cl.score >= 50 %}#d97706{% else %}#dc2626{% endif %};">{{ cl.score }}</div>
+            <div style="font-size: 9px; color: #94a3b8;">Profile Score</div>
+          </div>
+        </div>
+
+        <div style="font-size: 10px; color: #374151; display: grid; gap: 4px;">
+          {% if cl.address %}<div>📍 {{ cl.address }}</div>{% endif %}
+          {% if cl.phone %}<div>📞 {{ cl.phone }}</div>{% endif %}
+          {% if cl.website %}<div>🌐 Website linked ✓</div>{% endif %}
+          <div>🕐 Hours: {% if cl.has_hours %}Listed ✓{% else %}Not found{% endif %}</div>
+          <div>📸 Photos: {% if cl.photo_count %}{{ cl.photo_count }} photos{% elif cl.has_photos %}Present ✓{% else %}Not detected{% endif %}</div>
+          <div>📝 Description: {% if cl.has_description %}Present ✓{% else %}Missing{% endif %}</div>
+          <div>📢 Posts: {% if cl.has_posts %}Active ✓{% else %}None found{% endif %}</div>
+        </div>
+      </div>
+
+      <!-- Right: issues + wins -->
+      <div>
+        {% if cl.wins %}
+        <div style="margin-bottom: 14px;">
+          <div style="font-size: 11px; font-weight: 700; color: #16a34a; margin-bottom: 8px;">✅ What's Working</div>
+          {% for w in cl.wins %}
+          <div style="font-size: 10px; color: #166534; padding: 3px 0; border-bottom: 1px solid #dcfce7;">{{ w }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if cl.issues %}
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: #dc2626; margin-bottom: 8px;">⚠️ Issues to Fix</div>
+          {% for issue in cl.issues %}
+          <div style="font-size: 10px; padding: 4px 8px; margin-bottom: 4px; border-radius: 5px; border-left: 3px solid {% if issue.severity == 'high' %}#dc2626{% elif issue.severity == 'medium' %}#f59e0b{% else %}#94a3b8{% endif %}; background: {% if issue.severity == 'high' %}#fff1f2{% elif issue.severity == 'medium' %}#fffbeb{% else %}#f8fafc{% endif %}; color: #374151;">
+            {{ issue.text }}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Competitor comparison -->
+    {% if gbp.comparison and gbp.comparison.rows %}
+    {% set cmp = gbp.comparison %}
+    <div style="margin-top: 10px;">
+      <div style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 10px;">🆚 Competitor Comparison</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+        <thead>
+          <tr style="background: #f1f5f9;">
+            <th style="padding: 7px 10px; text-align: left; color: #475569; font-weight: 700;">Signal</th>
+            <th style="padding: 7px 10px; text-align: center; color: #1d4ed8; font-weight: 700;">Your Client</th>
+            {% for name in cmp.competitor_names %}
+            <th style="padding: 7px 10px; text-align: center; color: #475569; font-weight: 700;">{{ name[:20] }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in cmp.rows %}
+          <tr style="border-bottom: 1px solid #e2e8f0; {% if loop.index is odd %}background: #f8fafc;{% endif %}">
+            <td style="padding: 7px 10px; font-weight: 600; color: #1e293b;">{{ row.label }}</td>
+            <td style="padding: 7px 10px; text-align: center; font-weight: 700;
+              color: {% if row.client in ['✓',''] %}#16a34a{% elif row.client == '✗' %}#dc2626{% else %}#1e293b{% endif %};">
+              {{ row.client }}
+            </td>
+            {% for cv in row.competitors %}
+            <td style="padding: 7px 10px; text-align: center; color: {% if cv in ['✓'] %}#16a34a{% elif cv == '✗' %}#dc2626{% else %}#64748b{% endif %};">
+              {{ cv }}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endif %}
+
 <!-- ===== KEYWORD OPPORTUNITY FINDER ===== -->
 {% if keywords and keywords.top_keywords %}
 <div class="section section-break">

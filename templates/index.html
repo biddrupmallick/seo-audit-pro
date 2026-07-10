@@ -75,11 +75,40 @@
             </div>
           </div>
 
+          <!-- GBP URLs -->
+          <div style="margin-top: 14px;">
+            <label style="font-size: 11px; font-weight: 600; color: #64748b; display: block; margin-bottom: 6px;">
+              📍 Google Business Profile URL <span style="font-weight: 400; color: #94a3b8;">(optional · paste Maps URL)</span>
+            </label>
+            <input type="url" id="gbp-url" class="url-input" placeholder="https://www.google.com/maps/place/Your+Business+Name/..."
+              autocomplete="off" spellcheck="false" style="font-size: 13px; padding: 10px 14px; width: 100%; box-sizing: border-box;">
+          </div>
+
+          <div style="margin-top: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <label style="font-size: 11px; font-weight: 600; color: #64748b;">
+                🆚 Competitor GBP URLs <span style="font-weight: 400; color: #94a3b8;">(optional · up to 5)</span>
+              </label>
+              <button type="button" onclick="addGbpCompetitor()" id="add-gbp-btn"
+                style="font-size: 10px; font-weight: 600; color: #16a34a; background: none; border: 1px solid #bbf7d0; border-radius: 6px; padding: 3px 10px; cursor: pointer;">
+                + Add
+              </button>
+            </div>
+            <div id="gbp-competitor-list">
+              <div class="gbp-comp-row" style="display: flex; gap: 6px; margin-bottom: 6px;">
+                <input type="url" class="gbp-competitor-input url-input" placeholder="https://www.google.com/maps/place/Competitor+Name/..."
+                  autocomplete="off" spellcheck="false" style="font-size: 13px; padding: 10px 14px; flex: 1;">
+                <button type="button" onclick="removeGbpCompetitor(this)"
+                  style="background: #fee2e2; border: none; border-radius: 8px; color: #dc2626; font-size: 16px; width: 38px; cursor: pointer; flex-shrink: 0;">×</button>
+              </div>
+            </div>
+          </div>
+
           <div class="form-hints">
             <div class="form-hint"><div class="form-hint-dot"></div> Crawls up to 200 pages</div>
             <div class="form-hint"><div class="form-hint-dot"></div> 10+ SEO checks</div>
             <div class="form-hint"><div class="form-hint-dot"></div> PDF report download</div>
-            <div class="form-hint"><div class="form-hint-dot"></div> AEO + GEO + Competitor analysis</div>
+            <div class="form-hint"><div class="form-hint-dot"></div> AEO + GEO + GBP audit</div>
           </div>
         </div>
       </div>
@@ -305,6 +334,29 @@ function removeCompetitor(btn) {
   document.getElementById('add-competitor-btn').textContent = '+ Add Competitor';
 }
 
+function addGbpCompetitor() {
+  const list = document.getElementById('gbp-competitor-list');
+  if (list.children.length >= 5) {
+    document.getElementById('add-gbp-btn').textContent = 'Max 5 reached';
+    return;
+  }
+  const row = document.createElement('div');
+  row.className = 'gbp-comp-row';
+  row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
+  row.innerHTML = `
+    <input type="url" class="gbp-competitor-input url-input" placeholder="https://www.google.com/maps/place/Competitor+Name/..."
+      autocomplete="off" spellcheck="false" style="font-size:13px;padding:10px 14px;flex:1;">
+    <button type="button" onclick="removeGbpCompetitor(this)"
+      style="background:#fee2e2;border:none;border-radius:8px;color:#dc2626;font-size:16px;width:38px;cursor:pointer;flex-shrink:0;">×</button>
+  `;
+  list.appendChild(row);
+}
+
+function removeGbpCompetitor(btn) {
+  btn.closest('.gbp-comp-row').remove();
+  document.getElementById('add-gbp-btn').textContent = '+ Add';
+}
+
 async function startAnalysis() {
   const urlInput = document.getElementById('url-input');
   const url = urlInput.value.trim();
@@ -347,6 +399,9 @@ async function startAnalysis() {
       body: JSON.stringify({
         url: urlInput.value,
         competitor_urls: Array.from(document.querySelectorAll('.competitor-input'))
+          .map(i => i.value.trim()).filter(Boolean),
+        gbp_url: (document.getElementById('gbp-url').value || '').trim() || null,
+        gbp_competitor_urls: Array.from(document.querySelectorAll('.gbp-competitor-input'))
           .map(i => i.value.trim()).filter(Boolean),
       }),
     });

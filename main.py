@@ -33,6 +33,7 @@ from analyzers.wayback import analyze_wayback
 from analyzers.competitor import analyze_competitor
 from analyzers.cold_email import generate_cold_emails
 from analyzers.keyword_opportunities import analyze_keyword_opportunities
+from analyzers.gbp import analyze_gbp
 from analyzers.history import save_audit, get_history, build_progress
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
@@ -60,6 +61,8 @@ ws_connections: Dict[str, WebSocket] = {}
 class AnalyzeRequest(BaseModel):
     url: str
     competitor_urls: Optional[List[str]] = None
+    gbp_url: Optional[str] = None
+    gbp_competitor_urls: Optional[List[str]] = None
 
 
 # ====== ROUTES ======
@@ -97,7 +100,10 @@ async def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTa
                 cu = "https://" + cu
             competitor_urls.append(cu)
 
-    background_tasks.add_task(run_analysis, job_id, url, competitor_urls)
+    gbp_url = (request.gbp_url or "").strip() or None
+    gbp_competitor_urls = [u.strip() for u in (request.gbp_competitor_urls or []) if u.strip()][:5]
+
+    background_tasks.add_task(run_analysis, job_id, url, competitor_urls, gbp_url, gbp_competitor_urls)
 
     return {"job_id": job_id, "status": "started"}
 
@@ -222,7 +228,7 @@ async def send_progress(job_id: str, percent: int, message: str):
             pass
 
 
-async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str]] = None):
+async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str]] = None, gbp_url: Optional[str] = None, gbp_competitor_urls: Optional[List[str]] = None):
     """Main background task: crawl + analyze + generate report."""
     try:
         jobs[job_id]["status"] = "running"
@@ -306,6 +312,12 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
         await send_progress(job_id, 91, "Checking Wayback Machine history…")
         wayback = await analyze_wayback(parsed_domain)
 
+        # Google Business Profile audit (only if URLs provided)
+        gbp = {}
+        if gbp_url:
+            await send_progress(job_id, 91, "Auditing Google Business Profile…")
+            gbp = await asyncio.to_thread(analyze_gbp, gbp_url, gbp_competitor_urls or [])
+
         await send_progress(job_id, 92, "Calculating revenue impact…")
         revenue_impact = await asyncio.to_thread(
             calculate_revenue_impact,
@@ -353,6 +365,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             cold_emails,
             progress_data,
             keywords,
+            gbp,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")
@@ -436,6 +449,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
                 "quick_wins": keywords.get("quick_wins", [])[:10],
                 "top_keywords": keywords.get("top_keywords", [])[:30],
             }),
+            "gbp": _make_serializable(gbp),
         }
 
         # Store full data in job
