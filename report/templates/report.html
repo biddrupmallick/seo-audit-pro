@@ -2234,6 +2234,81 @@
   </div>
 </div>
 
+<!-- ===== MONTHLY PROGRESS TRACKER ===== -->
+{% if progress and progress.has_history %}
+<div class="section section-break">
+  <div class="section-header" style="background: linear-gradient(135deg, #1e40af, #1d4ed8);">
+    <div class="section-title">📈 Progress Tracker — Score History</div>
+    <div class="section-icon">🗓️</div>
+  </div>
+  <div class="section-body">
+
+    <!-- Overall delta banner -->
+    <div style="background: {% if progress.overall_diff >= 0 %}#f0fdf4; border: 1px solid #86efac;{% else %}#fff1f2; border: 1px solid #fca5a5;{% endif %} border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 18px;">
+      <div style="font-size: 38px; font-weight: 800; color: {% if progress.overall_diff >= 0 %}#16a34a{% else %}#dc2626{% endif %};">
+        {{ progress.overall_arrow }} {{ progress.overall_diff | abs }}
+      </div>
+      <div>
+        <div style="font-size: 13px; font-weight: 700; color: #1e293b;">Overall Score Change</div>
+        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+          {{ progress.prev_date }} → {{ progress.curr_date }} &nbsp;|&nbsp;
+          {{ progress.overall_prev }} → <strong>{{ progress.overall_curr }}</strong> out of 100
+        </div>
+        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+          Based on {{ progress.audits_count }} audit{% if progress.audits_count > 1 %}s{% endif %} on record
+        </div>
+      </div>
+    </div>
+
+    <!-- Category diff table -->
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+      <thead>
+        <tr style="background: #f1f5f9;">
+          <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700;">Category</th>
+          <th style="padding: 8px 12px; text-align: center; color: #475569; font-weight: 700;">Previous</th>
+          <th style="padding: 8px 12px; text-align: center; color: #475569; font-weight: 700;">Current</th>
+          <th style="padding: 8px 12px; text-align: center; color: #475569; font-weight: 700;">Change</th>
+          <th style="padding: 8px 12px; text-align: left; color: #475569; font-weight: 700;">Trend</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cat, d in progress.category_diff.items() %}
+        <tr style="border-bottom: 1px solid #e2e8f0; {% if loop.index is odd %}background: #f8fafc;{% endif %}">
+          <td style="padding: 8px 12px; font-weight: 600; color: #1e293b; text-transform: capitalize;">{{ cat.replace('_', ' ') }}</td>
+          <td style="padding: 8px 12px; text-align: center; color: #64748b;">{{ d.prev }}</td>
+          <td style="padding: 8px 12px; text-align: center; font-weight: 700; color: #1e293b;">{{ d.curr }}</td>
+          <td style="padding: 8px 12px; text-align: center; font-weight: 700; color: {% if d.diff > 0 %}#16a34a{% elif d.diff < 0 %}#dc2626{% else %}#64748b{% endif %};">
+            {% if d.diff > 0 %}+{% endif %}{{ d.diff }}
+          </td>
+          <td style="padding: 8px 12px;">
+            <div style="background: #e2e8f0; border-radius: 4px; height: 8px; width: 100%; max-width: 120px; overflow: hidden;">
+              <div style="background: {% if d.diff >= 0 %}#22c55e{% else %}#ef4444{% endif %}; height: 100%; width: {{ [d.curr, 100] | min }}%; border-radius: 4px;"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Full history timeline -->
+    {% if progress.history | length > 2 %}
+    <div style="margin-top: 24px;">
+      <div style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 12px;">📊 Audit History</div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        {% for h in progress.history %}
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; text-align: center; min-width: 80px;">
+          <div style="font-size: 18px; font-weight: 800; color: {% if h.overall >= 70 %}#16a34a{% elif h.overall >= 50 %}#d97706{% else %}#dc2626{% endif %};">{{ h.overall | round | int }}</div>
+          <div style="font-size: 9px; color: #94a3b8; margin-top: 3px;">{{ h.date }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endif %}
+
 <!-- ===== COLD EMAIL GENERATOR ===== -->
 {% if cold_emails and cold_emails.emails %}
 <div class="section section-break">

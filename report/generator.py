@@ -3,7 +3,7 @@ import subprocess
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 from urllib.parse import urlparse
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -96,6 +96,7 @@ def generate_report(
     wayback: Dict[str, Any] = None,
     competitors: List[Dict[str, Any]] = None,
     cold_emails: Dict[str, Any] = None,
+    progress: Dict[str, Any] = None,
 ) -> str:
     """Generate a PDF report using Chrome headless. Falls back to HTML if Chrome unavailable."""
     try:
@@ -125,6 +126,7 @@ def generate_report(
         "wayback":      wayback or {},
         "competitors":  competitors or [],
         "cold_emails":  cold_emails or {},
+        "progress":     progress or {},
     }
 
     html_path = _render_html(job_id, context)

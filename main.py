@@ -5,7 +5,7 @@ import traceback
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
@@ -32,6 +32,7 @@ from analyzers.revenue_impact import calculate_revenue_impact
 from analyzers.wayback import analyze_wayback
 from analyzers.competitor import analyze_competitor
 from analyzers.cold_email import generate_cold_emails
+from analyzers.history import save_audit, get_history, build_progress
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
 
@@ -291,6 +292,13 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             results = await asyncio.gather(*tasks, return_exceptions=True)
             competitors = [r for r in results if isinstance(r, dict) and r.get("available")]
 
+        parsed_domain = url.replace("https://", "").replace("http://", "").split("/")[0]
+
+        # Save audit to history DB
+        await asyncio.to_thread(save_audit, parsed_domain, scores)
+        audit_history = await asyncio.to_thread(get_history, parsed_domain)
+        progress_data = build_progress(audit_history)
+
         await send_progress(job_id, 91, "Checking Wayback Machine history…")
         wayback = await analyze_wayback(parsed_domain)
 
@@ -303,7 +311,6 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
         )
 
         await send_progress(job_id, 93, "Generating AI recommendations & cold emails… (this may take a minute)")
-        parsed_domain = url.replace("https://", "").replace("http://", "").split("/")[0]
         ai_recommendations = await asyncio.to_thread(
             generate_ai_recommendations,
             parsed_domain, total_pages, scores,
@@ -340,6 +347,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             wayback,
             competitors,
             cold_emails,
+            progress_data,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")
@@ -415,6 +423,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             "wayback": _make_serializable(wayback),
             "competitors": _make_serializable(competitors),
             "cold_emails": _make_serializable(cold_emails),
+            "progress": _make_serializable(progress_data),
         }
 
         # Store full data in job
