@@ -32,6 +32,7 @@ from analyzers.revenue_impact import calculate_revenue_impact
 from analyzers.wayback import analyze_wayback
 from analyzers.competitor import analyze_competitor
 from analyzers.cold_email import generate_cold_emails
+from analyzers.keyword_opportunities import analyze_keyword_opportunities
 from analyzers.history import save_audit, get_history, build_progress
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
@@ -274,6 +275,9 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
         await send_progress(job_id, 89, "Analyzing content quality…")
         content = await asyncio.to_thread(analyze_content, crawled_pages)
 
+        await send_progress(job_id, 90, "Finding keyword opportunities…")
+        keywords = await asyncio.to_thread(analyze_keyword_opportunities, crawled_pages)
+
         await send_progress(job_id, 91, "Calculating scores…")
         scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images, local_seo, conversion, content)
 
@@ -348,6 +352,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             competitors,
             cold_emails,
             progress_data,
+            keywords,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")
@@ -424,6 +429,13 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
             "competitors": _make_serializable(competitors),
             "cold_emails": _make_serializable(cold_emails),
             "progress": _make_serializable(progress_data),
+            "keywords": _make_serializable({
+                "score": keywords.get("score", 0),
+                "summary": keywords.get("summary", {}),
+                "opportunities": keywords.get("opportunities", [])[:20],
+                "quick_wins": keywords.get("quick_wins", [])[:10],
+                "top_keywords": keywords.get("top_keywords", [])[:30],
+            }),
         }
 
         # Store full data in job

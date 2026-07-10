@@ -2234,6 +2234,106 @@
   </div>
 </div>
 
+<!-- ===== KEYWORD OPPORTUNITY FINDER ===== -->
+{% if keywords and keywords.top_keywords %}
+<div class="section section-break">
+  <div class="section-header" style="background: linear-gradient(135deg, #4c1d95, #6d28d9);">
+    <div class="section-title">🔍 Keyword Opportunity Finder</div>
+    <div class="section-icon">🎯</div>
+  </div>
+  <div class="section-body">
+
+    <!-- Summary banner -->
+    {% set ks = keywords.summary %}
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px;">
+      <div class="metric-box">
+        <div class="metric-value">{{ ks.total_keywords_found }}</div>
+        <div class="metric-label">Keywords Found</div>
+      </div>
+      <div class="metric-box" style="border-left: 3px solid #f59e0b;">
+        <div class="metric-value" style="color: #d97706;">{{ ks.gap_keywords }}</div>
+        <div class="metric-label">Keyword Gaps</div>
+      </div>
+      <div class="metric-box" style="border-left: 3px solid #10b981;">
+        <div class="metric-value" style="color: #059669;">{{ ks.quick_win_keywords }}</div>
+        <div class="metric-label">Quick Wins</div>
+      </div>
+      <div class="metric-box" style="border-left: 3px solid #ef4444;">
+        <div class="metric-value" style="color: #dc2626;">{{ ks.gap_ratio_pct }}%</div>
+        <div class="metric-label">Gap Ratio</div>
+      </div>
+    </div>
+
+    <!-- Quick Wins -->
+    {% if keywords.quick_wins %}
+    <div style="margin-bottom: 24px;">
+      <div style="font-size: 12px; font-weight: 700; color: #059669; margin-bottom: 10px;">⚡ Quick Wins — In H2 but missing from Title &amp; H1</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        {% for kw in keywords.quick_wins %}
+        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 20px; padding: 5px 12px; font-size: 10px; font-weight: 600; color: #166534;">
+          {{ kw.keyword }} <span style="color: #94a3b8; font-weight: 400;">(×{{ kw.body_count }})</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div style="font-size: 10px; color: #64748b; margin-top: 8px;">
+        💡 Add these to your page titles and H1s for an easy ranking boost — content already exists, you just need to optimize it.
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Keyword Gaps -->
+    {% if keywords.opportunities %}
+    <div style="margin-bottom: 24px;">
+      <div style="font-size: 12px; font-weight: 700; color: #d97706; margin-bottom: 10px;">⚠️ Keyword Gaps — Mentioned in body but NOT in Title or H1</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+        <thead>
+          <tr style="background: #fef3c7;">
+            <th style="padding: 7px 10px; text-align: left; color: #92400e; font-weight: 700;">Keyword</th>
+            <th style="padding: 7px 10px; text-align: center; color: #92400e; font-weight: 700;">Body Mentions</th>
+            <th style="padding: 7px 10px; text-align: center; color: #92400e; font-weight: 700;">Pages</th>
+            <th style="padding: 7px 10px; text-align: center; color: #92400e; font-weight: 700;">In Title</th>
+            <th style="padding: 7px 10px; text-align: center; color: #92400e; font-weight: 700;">In H1</th>
+            <th style="padding: 7px 10px; text-align: center; color: #92400e; font-weight: 700;">In H2</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for kw in keywords.opportunities %}
+          <tr style="border-bottom: 1px solid #fde68a; {% if loop.index is odd %}background: #fffbeb;{% endif %}">
+            <td style="padding: 7px 10px; font-weight: 600; color: #1e293b;">{{ kw.keyword }}</td>
+            <td style="padding: 7px 10px; text-align: center; color: #64748b;">{{ kw.body_count }}</td>
+            <td style="padding: 7px 10px; text-align: center; color: #64748b;">{{ kw.page_count }}</td>
+            <td style="padding: 7px 10px; text-align: center;">{% if kw.in_title %}<span style="color:#16a34a;">✓</span>{% else %}<span style="color:#dc2626;">✗</span>{% endif %}</td>
+            <td style="padding: 7px 10px; text-align: center;">{% if kw.in_h1 %}<span style="color:#16a34a;">✓</span>{% else %}<span style="color:#dc2626;">✗</span>{% endif %}</td>
+            <td style="padding: 7px 10px; text-align: center;">{% if kw.in_h2 %}<span style="color:#16a34a;">✓</span>{% else %}<span style="color:#dc2626;">✗</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Top Keywords by Score -->
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 10px;">📊 Top Keywords by Relevance Score</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        {% for kw in keywords.top_keywords[:20] %}
+        <div style="background: {% if kw.in_title %}#eff6ff{% elif kw.in_h1 %}#f0fdf4{% elif kw.in_h2 %}#fefce8{% else %}#fff1f2{% endif %}; border: 1px solid {% if kw.in_title %}#93c5fd{% elif kw.in_h1 %}#86efac{% elif kw.in_h2 %}#fde047{% else %}#fca5a5{% endif %}; border-radius: 6px; padding: 5px 10px; font-size: 10px;">
+          <span style="font-weight: 600; color: #1e293b;">{{ kw.keyword }}</span>
+          <span style="color: #94a3b8; margin-left: 4px;">×{{ kw.body_count }}</span>
+          {% if kw.in_title %}<span style="font-size: 9px; color: #2563eb; margin-left: 4px;">T</span>{% endif %}
+          {% if kw.in_h1 %}<span style="font-size: 9px; color: #16a34a; margin-left: 2px;">H1</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 10px;">
+        🔵 In Title &nbsp; 🟢 In H1 &nbsp; 🟡 In H2 only &nbsp; 🔴 Body only (gap)
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endif %}
+
 <!-- ===== MONTHLY PROGRESS TRACKER ===== -->
 {% if progress and progress.has_history %}
 <div class="section section-break">

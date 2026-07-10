@@ -97,6 +97,7 @@ def generate_report(
     competitors: List[Dict[str, Any]] = None,
     cold_emails: Dict[str, Any] = None,
     progress: Dict[str, Any] = None,
+    keywords: Dict[str, Any] = None,
 ) -> str:
     """Generate a PDF report using Chrome headless. Falls back to HTML if Chrome unavailable."""
     try:
@@ -127,6 +128,7 @@ def generate_report(
         "competitors":  competitors or [],
         "cold_emails":  cold_emails or {},
         "progress":     progress or {},
+        "keywords":     keywords or {},
     }
 
     html_path = _render_html(job_id, context)
