@@ -7,3 +7,5 @@ weasyprint
 jinja2
 python-multipart
 extruct
+ollama
+openpyxl
