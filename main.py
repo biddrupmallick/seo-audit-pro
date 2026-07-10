@@ -31,6 +31,7 @@ from analyzers.ai_recommendations import generate_ai_recommendations
 from analyzers.revenue_impact import calculate_revenue_impact
 from analyzers.wayback import analyze_wayback
 from analyzers.competitor import analyze_competitor
+from analyzers.cold_email import generate_cold_emails
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
 
@@ -291,13 +292,19 @@ async def run_analysis(job_id: str, url: str, competitor_url: Optional[str] = No
             performance, images, local_seo, conversion, content,
         )
 
-        await send_progress(job_id, 93, "Generating AI recommendations… (this may take a minute)")
+        await send_progress(job_id, 93, "Generating AI recommendations & cold emails… (this may take a minute)")
         parsed_domain = url.replace("https://", "").replace("http://", "").split("/")[0]
         ai_recommendations = await asyncio.to_thread(
             generate_ai_recommendations,
             parsed_domain, total_pages, scores,
             technical, onpage, schema, aeo, geo,
             performance, images, local_seo, conversion, content,
+        )
+
+        await send_progress(job_id, 95, "Generating cold email drafts…")
+        cold_emails = await asyncio.to_thread(
+            generate_cold_emails,
+            parsed_domain, scores, revenue_impact, competitor, wayback, local_seo,
         )
 
         await send_progress(job_id, 96, "Generating PDF report…")
@@ -321,6 +328,7 @@ async def run_analysis(job_id: str, url: str, competitor_url: Optional[str] = No
             revenue_impact,
             wayback,
             competitor,
+            cold_emails,
         )
 
         await send_progress(job_id, 98, "Finalizing report…")
@@ -394,7 +402,8 @@ async def run_analysis(job_id: str, url: str, competitor_url: Optional[str] = No
             }),
             "revenue_impact": _make_serializable(revenue_impact),
             "wayback": _make_serializable(wayback),
-            "competitor": _make_serializable(competitor),
+            "competitor":  _make_serializable(competitor),
+            "cold_emails": _make_serializable(cold_emails),
         }
 
         # Store full data in job
