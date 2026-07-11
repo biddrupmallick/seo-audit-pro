@@ -139,14 +139,34 @@ def _generate_email_for_business(biz: Dict, analysis: Dict) -> Dict[str, str]:
     comp_reviews = comp.get("reviews") or "more"
     my_reviews = biz.get("reviews") or "fewer"
 
+    # Truncate long competitor names for email readability
+    comp_name_short = comp_name.split("|")[0].strip() if "|" in comp_name else comp_name
+    if len(comp_name_short) > 40:
+        comp_name_short = comp_name_short[:37] + "..."
+
     if not subject:
-        subject = f"{biz_name} vs {comp_name} — quick question"
+        subject = f"Quick question about {biz_name}"
+
     if not body:
-        body = (
-            f"{comp_name}, just {comp_distance} miles away, has {comp_reviews} Google reviews "
-            f"vs {biz_name}'s {my_reviews} — that gap is costing you customers every week. "
-            f"I mapped out exactly how to close it in 90 days — want me to send it over, {owner_first}?"
-        )
+        try:
+            gap = int(comp_reviews) - int(my_reviews)
+        except Exception:
+            gap = 0
+
+        if gap > 0:
+            # Competitor has more reviews — client is behind
+            body = (
+                f"{comp_name_short}, just {comp_distance} miles away, already has {gap} more Google reviews "
+                f"than {biz_name} — and that gap sends local customers their way first. "
+                f"I put together a short plan to close it in 60 days — want me to send it over, {owner_first}?"
+            )
+        else:
+            # Client is ahead — frame as protecting their lead
+            body = (
+                f"{biz_name} already leads {comp_name_short} on Google reviews, but the businesses "
+                f"that hold that lead long-term are the ones actively managing their online presence. "
+                f"I spotted a few quick wins on your profile — want me to share them, {owner_first}?"
+            )
 
     body = _enforce_two_sentences(body)
 

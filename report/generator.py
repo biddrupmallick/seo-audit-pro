@@ -1,5 +1,4 @@
 import os
-import subprocess
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -12,23 +11,6 @@ from config import REPORTS_DIR
 from report.branding import load_branding
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
-
-# Locate Chrome/Chromium binary
-CHROME_PATHS = [
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    "/usr/bin/google-chrome",
-    "/usr/bin/chromium-browser",
-    "/usr/bin/chromium",
-]
-
-def _find_chrome() -> str | None:
-    for path in CHROME_PATHS:
-        if os.path.exists(path):
-            return path
-    return shutil.which("google-chrome") or shutil.which("chromium")
-
-CHROME_BIN = _find_chrome()
 
 
 def _render_html(job_id: str, context: dict) -> str:
@@ -50,30 +32,17 @@ def _render_html(job_id: str, context: dict) -> str:
     return html_path
 
 
-def _html_to_pdf_chrome(html_path: str, pdf_path: str) -> bool:
-    """Use Chrome headless to print HTML → PDF. Returns True on success."""
-    if not CHROME_BIN:
-        return False
+def _html_to_pdf_weasyprint(html_path: str, pdf_path: str) -> bool:
+    """Use WeasyPrint to convert HTML → PDF. No headers/footers added."""
     try:
-        result = subprocess.run(
-            [
-                CHROME_BIN,
-                "--headless=new",
-                "--disable-gpu",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-extensions",
-                "--run-all-compositor-stages-before-draw",
-                "--print-to-pdf-no-header",
-                f"--print-to-pdf={pdf_path}",
-                f"file://{html_path}",
-            ],
-            capture_output=True,
-            timeout=60,
+        from weasyprint import HTML, CSS
+        HTML(filename=html_path).write_pdf(
+            pdf_path,
+            stylesheets=[CSS(string="@page { margin: 1cm; size: A4; }")],
         )
-        return result.returncode == 0 and os.path.exists(pdf_path)
+        return os.path.exists(pdf_path)
     except Exception as e:
-        print(f"Chrome PDF generation failed: {e}")
+        print(f"WeasyPrint PDF failed: {e}")
         return False
 
 
@@ -153,14 +122,10 @@ def generate_report(
     }
 
     html_path = _render_html(job_id, context)
-    abs_html_path = str(Path(html_path).resolve())
-
-    if CHROME_BIN:
-        pdf_path = os.path.join(REPORTS_DIR, f"{job_id}.pdf")
-        if _html_to_pdf_chrome(abs_html_path, pdf_path):
-            return pdf_path
-        print("Chrome PDF failed, falling back to HTML.")
-
+    pdf_path = os.path.join(REPORTS_DIR, f"{job_id}.pdf")
+    if _html_to_pdf_weasyprint(html_path, pdf_path):
+        return pdf_path
+    print("WeasyPrint PDF failed, returning HTML.")
     return html_path
 
 
