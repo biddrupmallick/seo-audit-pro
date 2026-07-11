@@ -2,30 +2,13 @@
 Generate full blog posts from niche review analysis using Ollama.
 Three formats: research post, case study, tips post.
 """
-import json
-import urllib.request
 from typing import Dict, Any
+
+from analyzers.ollama_client import ask
 
 
 def _ollama(prompt: str, max_tokens: int = 1500) -> str:
-    try:
-        payload = json.dumps({
-            "model": "llama3.1",
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.6, "num_predict": max_tokens},
-        }).encode()
-        r = urllib.request.urlopen(
-            urllib.request.Request(
-                "http://localhost:11434/api/generate",
-                data=payload,
-                headers={"Content-Type": "application/json"},
-            ),
-            timeout=180,
-        )
-        return json.loads(r.read())["response"].strip()
-    except Exception as e:
-        return f"[Ollama error: {e}]"
+    return ask(prompt, max_tokens=max_tokens, temperature=0.6)
 
 
 def _build_context(category: str, state: str, biz_count: int,

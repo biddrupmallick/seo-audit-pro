@@ -1,5 +1,6 @@
 from typing import Dict, Any, List
-import ollama
+
+from analyzers.ollama_client import chat
 
 OLLAMA_MODEL = "llama3.1"
 
@@ -113,12 +114,7 @@ BODY:
 [full email body, plain text, line breaks between paragraphs]"""
 
     try:
-        resp = ollama.chat(
-            model=OLLAMA_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            options={"num_predict": max_tokens, "temperature": 0.65},
-        )
-        return _parse_email(resp["message"]["content"].strip())
+        return _parse_email(chat([{"role": "user", "content": prompt}], max_tokens=max_tokens, temperature=0.65))
     except Exception:
         return {"subject": "", "body": ""}
 

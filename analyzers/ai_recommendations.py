@@ -1,6 +1,7 @@
 import re
 from typing import Dict, Any, List
-import ollama
+
+from analyzers.ollama_client import chat
 
 OLLAMA_MODEL = "llama3.1"
 
@@ -25,15 +26,14 @@ Output ONLY in the exact format requested. No extra text outside the format."""
 
 def _ask_raw(prompt: str, max_tokens: int = 300) -> str:
     try:
-        response = ollama.chat(
-            model=OLLAMA_MODEL,
-            messages=[
+        return chat(
+            [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
-            options={"num_predict": max_tokens, "temperature": 0.6},
+            max_tokens=max_tokens,
+            temperature=0.6,
         )
-        return response["message"]["content"].strip()
     except Exception as e:
         return ""
 

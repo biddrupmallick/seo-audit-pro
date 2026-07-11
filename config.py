@@ -1,5 +1,10 @@
 import os
 
+# Ollama host — set OLLAMA_HOST env var to point to Colab/remote instance
+# Example: export OLLAMA_HOST=https://xxxx.ngrok-free.app
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
+
 MAX_PAGES = 200
 MAX_CONCURRENT_REQUESTS = 10
 REQUEST_TIMEOUT = 30

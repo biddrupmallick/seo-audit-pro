@@ -929,7 +929,7 @@
     </p>
 
     <!-- Impact Items -->
-    {% for item in revenue_impact.items %}
+    {% for item in revenue_impact['items'] %}
     <div style="border: 1px solid {% if item.severity == 'critical' %}#fca5a5{% elif item.severity == 'warning' %}#fde68a{% else %}#d1d5db{% endif %}; border-left: 5px solid {% if item.severity == 'critical' %}#dc2626{% elif item.severity == 'warning' %}#d97706{% else %}#6b7280{% endif %}; border-radius: 0 10px 10px 0; padding: 16px 18px; margin-bottom: 12px; background: white;">
 
       <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px;">
@@ -1014,8 +1014,12 @@
         {% set categories = ['technical','onpage','schema','aeo','geo','performance','local_seo','conversion','content'] %}
         {% for cat in categories %}
         {% set client_score = scores.category_scores.get(cat, {}).get('score', 0) %}
-        {% set all_scores = [client_score] + [c.comparison.by_category.get(cat, {}).get('competitor', 0) for c in competitors] %}
-        {% set max_score = all_scores | max %}
+        {% set ns = namespace(max_score=client_score) %}
+        {% for c in competitors %}
+          {% set comp_score = c.comparison.by_category.get(cat, {}).get('competitor', 0) %}
+          {% if comp_score > ns.max_score %}{% set ns.max_score = comp_score %}{% endif %}
+        {% endfor %}
+        {% set max_score = ns.max_score %}
         <tr>
           <td style="font-weight: 600;">{{ cat | replace('_',' ') | title }}</td>
           <td style="text-align:center;">

@@ -1,136 +1,183 @@
 """
-Ultra-short 2-sentence cold email generator.
-Uses a single Ollama call to write a template, then fills in
-per-business variables programmatically — fast for 100+ businesses.
+Per-business cold email generator using Ollama.
+One unique email per business — feels hand-written, not spammy.
 """
-import json
-import urllib.request
+import re
 from typing import List, Dict, Any
 
-
-def _ollama(prompt: str, max_tokens: int = 400) -> str:
-    try:
-        payload = json.dumps({
-            "model": "llama3.1",
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.5, "num_predict": max_tokens},
-        }).encode()
-        r = urllib.request.urlopen(
-            urllib.request.Request(
-                "http://localhost:11434/api/generate",
-                data=payload,
-                headers={"Content-Type": "application/json"},
-            ),
-            timeout=60,
-        )
-        return json.loads(r.read())["response"].strip()
-    except Exception as e:
-        return f"[Ollama error: {e}]"
+from analyzers.ollama_client import ask
 
 
-def _generate_template(category: str, state: str, analysis: Dict) -> Dict[str, str]:
-    """Generate one email template with placeholders for the whole niche."""
-    praise = analysis.get("TOP_PRAISE", "quality service")
-    complaint = analysis.get("TOP_COMPLAINTS", "online visibility")
-    differentiator = analysis.get("DIFFERENTIATORS", "review count and online presence")
+def _ollama(prompt: str, max_tokens: int = 300) -> str:
+    return ask(prompt, max_tokens=max_tokens, temperature=0.8)
 
-    raw = _ollama(f"""Write a 2-sentence cold email for a local SEO agency reaching out to {category} business owners{f' in {state}' if state else ''}.
 
-Context about this niche:
-- Customers praise: {praise}
-- Common pain: {complaint}
-- What separates winners: {differentiator}
+def _enforce_two_sentences(text: str) -> str:
+    """Hard-trim to exactly 2 sentences no matter what."""
+    # Collapse all whitespace/newlines into single spaces
+    text = re.sub(r'\s+', ' ', text).strip()
+    # Split on sentence boundaries
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    # Filter out empty fragments
+    sentences = [s.strip() for s in sentences if s.strip()]
+    if not sentences:
+        return text
+    result = " ".join(sentences[:2])
+    if result[-1] not in ".!?":
+        result += "."
+    return result
 
-Use these EXACT placeholders (keep the brackets):
-[OWNER] = owner first name
-[BUSINESS] = business name
-[COMPETITOR] = nearest competitor name
-[DISTANCE] = distance in miles
-[THEIR_REVIEWS] = competitor review count
-[MY_REVIEWS] = client review count
 
-Rules:
-- Sentence 1: Specific local pain using the placeholders (mention competitor + distance + review gap)
-- Sentence 2: One clear low-commitment ask
-- Max 2 sentences total — no exceptions
-- No fluff, no "I hope this finds you well"
-- End with a question
+def _build_prompt(biz: Dict, analysis: Dict) -> str:
+    _parts = (biz.get("owner_name") or "").split()
+    owner_first = _parts[0] if _parts else "there"
+    biz_name = biz.get("name") or "your business"
+    category = biz.get("category") or "local business"
+    rating = biz.get("rating") or ""
+    my_reviews = biz.get("reviews") or 0
 
-Write SUBJECT: on one line, then BODY: on the next line. Nothing else.""",
-        max_tokens=200,
-    )
+    # City from address
+    address = biz.get("address") or ""
+    city = ""
+    if address:
+        parts = address.split(",")
+        if len(parts) >= 2:
+            city = parts[-2].strip()
+
+    # Nearest competitor data
+    competitors = biz.get("nearest_competitors") or []
+    comp = competitors[0] if competitors else {}
+    comp_name = comp.get("name") or ""
+    comp_distance = comp.get("distance_miles") or ""
+    comp_reviews = comp.get("reviews") or ""
+    comp_rating = comp.get("rating") or ""
+
+    # Review analysis insights
+    praise = analysis.get("TOP_PRAISE") or "quality service"
+    pain = analysis.get("TOP_COMPLAINTS") or "online visibility"
+    differentiator = analysis.get("DIFFERENTIATORS") or "review count and online presence"
+    opportunity = analysis.get("OPPORTUNITY") or ""
+
+    # Build context block
+    context_parts = []
+    if city:
+        context_parts.append(f"City: {city}")
+    if rating:
+        context_parts.append(f"Their Google rating: {rating}★ ({my_reviews} reviews)")
+    if comp_name:
+        comp_info = f"Nearest competitor: {comp_name}"
+        if comp_distance:
+            comp_info += f" ({comp_distance} miles away)"
+        if comp_reviews:
+            comp_info += f" with {comp_reviews} reviews"
+        if comp_rating:
+            comp_info += f" and {comp_rating}★"
+        context_parts.append(comp_info)
+    context_parts.append(f"What customers in this niche praise: {praise}")
+    context_parts.append(f"Common pain in this niche: {pain}")
+    context_parts.append(f"What separates winners: {differentiator}")
+    if opportunity:
+        context_parts.append(f"Key opportunity: {opportunity}")
+
+    context = "\n".join(f"- {p}" for p in context_parts)
+
+    review_gap = ""
+    if comp_reviews and my_reviews:
+        try:
+            gap = int(comp_reviews) - int(my_reviews)
+            if gap > 0:
+                review_gap = f"{comp_name} has {gap} more reviews than {biz_name}."
+        except Exception:
+            pass
+
+    return f"""You are a professional cold email copywriter for a local SEO agency.
+
+Write a cold outreach email to {owner_first}, the owner of {biz_name} ({category}).
+
+Business context:
+{context}
+{f"Review gap note: {review_gap}" if review_gap else ""}
+
+Rules (follow strictly — violations will be rejected):
+- EXACTLY 2 sentences in the BODY. Not 1. Not 3. Exactly 2.
+- Sentence 1: One hyper-local observation using real numbers (competitor name, distance, review gap). Do NOT start with "I".
+- Sentence 2: One soft call to action ending with a question mark.
+- No third sentence. Stop after the question mark.
+- Sound like a real human, not a template
+- No buzzwords: no "leverage", "optimize", "synergy", "digital presence"
+- No compliments, no "I hope this finds you well"
+- No mention of being an AI
+
+Output format — two lines only:
+SUBJECT: (one compelling subject line, max 8 words, no clickbait)
+BODY: (exactly 2 sentences)"""
+
+
+def _generate_email_for_business(biz: Dict, analysis: Dict) -> Dict[str, str]:
+    prompt = _build_prompt(biz, analysis)
+    raw = _ollama(prompt, max_tokens=200)
 
     subject = ""
     body = ""
     for line in raw.splitlines():
-        if line.startswith("SUBJECT:"):
-            subject = line.replace("SUBJECT:", "").strip()
-        elif line.startswith("BODY:"):
-            body = line.replace("BODY:", "").strip()
-        elif body and line.strip():
-            body += " " + line.strip()
+        line = line.strip()
+        if line.upper().startswith("SUBJECT:"):
+            subject = line[8:].strip()
+        elif line.upper().startswith("BODY:"):
+            body = line[5:].strip()
+        elif body and line:
+            body += " " + line
+
+    # Fallbacks
+    _parts = (biz.get("owner_name") or "").split()
+    owner_first = _parts[0] if _parts else "there"
+    biz_name = biz.get("name") or "your business"
+    competitors = biz.get("nearest_competitors") or []
+    comp = competitors[0] if competitors else {}
+    comp_name = comp.get("name") or "a nearby competitor"
+    comp_distance = comp.get("distance_miles") or "?"
+    comp_reviews = comp.get("reviews") or "more"
+    my_reviews = biz.get("reviews") or "fewer"
 
     if not subject:
-        subject = "[OWNER], [COMPETITOR] ([DISTANCE] mi away) is outranking [BUSINESS] on Google"
+        subject = f"{biz_name} vs {comp_name} — quick question"
     if not body:
         body = (
-            "[OWNER], [COMPETITOR] just [DISTANCE] miles away has [THEIR_REVIEWS] reviews vs your [MY_REVIEWS] "
-            "— that gap is exactly why they rank above [BUSINESS] when locals search for " + category.lower() + ". "
-            "I put together a free 5-minute audit showing how to close it — want me to send it over?"
+            f"{comp_name}, just {comp_distance} miles away, has {comp_reviews} Google reviews "
+            f"vs {biz_name}'s {my_reviews} — that gap is costing you customers every week. "
+            f"I mapped out exactly how to close it in 90 days — want me to send it over, {owner_first}?"
         )
+
+    body = _enforce_two_sentences(body)
 
     return {"subject": subject, "body": body}
 
 
-def fill_email(template: Dict[str, str], business: Dict) -> Dict[str, str]:
-    """Fill template placeholders with per-business data."""
-    owner = (business.get("owner_name") or "").split()[0] if business.get("owner_name") else "there"
-    biz_name = business.get("name", "your business")
-    my_reviews = str(business.get("reviews") or "few")
-
-    competitors = business.get("nearest_competitors", [])
-    if competitors:
-        comp = competitors[0]
-        comp_name = comp.get("name", "a nearby competitor")
-        distance = str(comp.get("distance_miles", "?"))
-        their_reviews = str(comp.get("reviews") or "more")
-    else:
-        comp_name = "a nearby competitor"
-        distance = "?"
-        their_reviews = "more"
-
-    def replace(text: str) -> str:
-        return (text
-                .replace("[OWNER]", owner)
-                .replace("[BUSINESS]", biz_name)
-                .replace("[COMPETITOR]", comp_name)
-                .replace("[DISTANCE]", distance)
-                .replace("[THEIR_REVIEWS]", their_reviews)
-                .replace("[MY_REVIEWS]", my_reviews))
-
-    return {
-        "subject": replace(template["subject"]),
-        "body": replace(template["body"]),
-    }
-
-
 def generate_ultra_emails(businesses: List[Dict], category: str, state: str, analysis: Dict) -> List[Dict]:
     """
-    Generate 2-sentence emails for all businesses.
-    One Ollama call for the template, then fill per business — fast.
+    Generate one unique cold email per business using Ollama.
+    Each email is written fresh with that business's real data.
     """
-    template = _generate_template(category, state, analysis)
     results = []
     for biz in businesses:
-        email = fill_email(template, biz)
+        email = _generate_email_for_business(biz, analysis)
+
+        owner_email = biz.get("owner_email", "")
+        website_email = biz.get("website_email", "")
+        competitors = biz.get("nearest_competitors") or []
+        comp = competitors[0] if competitors else {}
+
         results.append({
             "name": biz.get("name", ""),
             "owner_name": biz.get("owner_name", ""),
+            "owner_email": owner_email,
+            "website_email": website_email,
+            "contact_email": owner_email or website_email,
             "website": biz.get("website", ""),
             "subject": email["subject"],
             "body": email["body"],
-            "nearest_competitor": biz.get("nearest_competitors", [{}])[0].get("name", "") if biz.get("nearest_competitors") else "",
-            "distance": biz.get("nearest_competitors", [{}])[0].get("distance_miles", "") if biz.get("nearest_competitors") else "",
+            "nearest_competitor": comp.get("name", ""),
+            "distance": comp.get("distance_miles", ""),
         })
+
     return results

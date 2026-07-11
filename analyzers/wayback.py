@@ -3,7 +3,8 @@ import asyncio
 from typing import Dict, Any, List, Optional
 import httpx
 from bs4 import BeautifulSoup
-import ollama
+
+from analyzers.ollama_client import chat
 
 OLLAMA_MODEL      = "llama3.1"
 AVAILABILITY_API  = "https://archive.org/wayback/available"
@@ -219,12 +220,7 @@ OPPORTUNITY: [One specific SEO or content opportunity based on their history]
 TALKING_POINT: [One insightful observation to open a sales conversation with this client]"""
 
     try:
-        resp = ollama.chat(
-            model=OLLAMA_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            options={"num_predict": 220, "temperature": 0.5},
-        )
-        text = resp["message"]["content"].strip()
+        text = chat([{"role": "user", "content": prompt}], max_tokens=220, temperature=0.5)
     except Exception:
         return {}
 

@@ -2,30 +2,13 @@
 Analyze competitor negative reviews to find their weaknesses
 and turn them into client opportunities.
 """
-import json
-import urllib.request
 from typing import List, Dict, Any
+
+from analyzers.ollama_client import ask
 
 
 def _ollama(prompt: str, max_tokens: int = 500) -> str:
-    try:
-        payload = json.dumps({
-            "model": "llama3.1",
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.4, "num_predict": max_tokens},
-        }).encode()
-        r = urllib.request.urlopen(
-            urllib.request.Request(
-                "http://localhost:11434/api/generate",
-                data=payload,
-                headers={"Content-Type": "application/json"},
-            ),
-            timeout=90,
-        )
-        return json.loads(r.read())["response"].strip()
-    except Exception as e:
-        return f"[Ollama error: {e}]"
+    return ask(prompt, max_tokens=max_tokens, temperature=0.4)
 
 
 def analyze_competitor_gap(competitors: List[Dict], category: str) -> Dict[str, Any]:

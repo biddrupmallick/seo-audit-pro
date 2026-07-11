@@ -62,11 +62,19 @@ def analyze_keyword_opportunities(pages: List[Dict[str, Any]]) -> Dict[str, Any]
     })
 
     for page in pages:
-        url = page.get("url", "")
-        title = _clean_text(page.get("title", "") or "")
-        h1s = " ".join(page.get("h1s", []) or [])
-        h2s = " ".join(page.get("h2s", []) or [])
-        body = _clean_text(page.get("text_content", "") or page.get("body_text", "") or "")
+        # Support both CrawledPage dataclass and plain dict
+        if hasattr(page, "url"):
+            url = page.url or ""
+            title = _clean_text(getattr(page, "title", "") or "")
+            h1s = " ".join(getattr(page, "h1s", []) or [])
+            h2s = " ".join(getattr(page, "h2s", []) or [])
+            body = _clean_text(getattr(page, "text_content", "") or getattr(page, "body_text", "") or "")
+        else:
+            url = page.get("url", "")
+            title = _clean_text(page.get("title", "") or "")
+            h1s = " ".join(page.get("h1s", []) or [])
+            h2s = " ".join(page.get("h2s", []) or [])
+            body = _clean_text(page.get("text_content", "") or page.get("body_text", "") or "")
 
         title_tokens = _tokenize(title)
         h1_tokens = _tokenize(_clean_text(h1s))

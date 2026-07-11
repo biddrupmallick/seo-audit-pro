@@ -43,7 +43,10 @@
     /* Progress */
     #progress-view { display: none; }
     .step-list { display: flex; flex-direction: column; gap: 12px; }
-    .step-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 13px; }
+    .step-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 13px; flex-wrap: wrap; }
+    .step-detail { width: 100%; font-size: 11px; color: #2563eb; padding-left: 40px; margin-top: 2px; display: none; font-style: italic; }
+    .step-item.active .step-detail { display: block; }
+    .step-item.active { background: #eff6ff; border-color: #93c5fd; }
     .step-icon { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
     .step-label { flex: 1; font-weight: 600; color: #1e293b; }
     .step-item.active { background: #eff6ff; border-color: #93c5fd; }
@@ -155,7 +158,8 @@
           <tr><td><strong>owner_name</strong></td><td class="opt">Optional</td><td>Owner first + last name</td><td>Sarah Johnson</td></tr>
           <tr><td><strong>address</strong></td><td class="opt">Optional</td><td>Street address</td><td>123 Main St, Los Angeles CA</td></tr>
           <tr><td><strong>phone</strong></td><td class="opt">Optional</td><td>Phone number</td><td>+1 310-555-0100</td></tr>
-          <tr><td><strong>reviews_text</strong></td><td class="opt">Optional</td><td>Copy-pasted customer reviews</td><td>John said: "Great service..."</td></tr>
+          <tr><td><strong>reviews_text</strong></td><td class="opt">Optional</td><td>Copy-pasted customer reviews (used for AI competitor gap &amp; blog content)</td><td>John said: "Great service…"</td></tr>
+          <tr><td><strong>owner_info</strong></td><td class="opt">Optional</td><td>Free-text about the owner — AI extracts name &amp; email automatically</td><td>The owner is Mr. Darren Sides. Email: darren@shop.com</td></tr>
         </tbody>
       </table>
     </div>
@@ -167,14 +171,13 @@
     <p class="subtitle" id="progress-sub">Processing your businesses.</p>
     <div class="card" style="margin-top:20px;">
       <div class="step-list" id="step-list">
-        <div class="step-item pending" id="step-0"><span class="step-icon">📍</span><span class="step-label">Extracting coordinates & matching nearest competitors</span></div>
-        <div class="step-item pending" id="step-1"><span class="step-icon">🔍</span><span class="step-label">Analysing review themes with AI</span></div>
-        <div class="step-item pending" id="step-2"><span class="step-icon">✍️</span><span class="step-label">Writing blog posts (3 formats)</span></div>
-        <div class="step-item pending" id="step-3"><span class="step-icon">✉️</span><span class="step-label">Generating 2-sentence cold emails</span></div>
-        <div class="step-item pending" id="step-4"><span class="step-icon">🕷️</span><span class="step-label" id="step-4-label">Auditing all websites (full SEO audit + PDF reports)</span></div>
-        <div class="step-item pending" id="step-5"><span class="step-icon">✅</span><span class="step-label">Finalising results</span></div>
+        <div class="step-item pending" id="step-0"><span class="step-icon">📍</span><span class="step-label">Extracting coordinates & matching nearest competitors</span><span class="step-detail" id="detail-0"></span></div>
+        <div class="step-item pending" id="step-1"><span class="step-icon">🔍</span><span class="step-label">Analysing review themes with AI</span><span class="step-detail" id="detail-1"></span></div>
+        <div class="step-item pending" id="step-2"><span class="step-icon">✍️</span><span class="step-label">Writing blog posts (3 formats)</span><span class="step-detail" id="detail-2"></span></div>
+        <div class="step-item pending" id="step-3"><span class="step-icon">✉️</span><span class="step-label">Generating cold emails</span><span class="step-detail" id="detail-3"></span></div>
+        <div class="step-item pending" id="step-4"><span class="step-icon">🕷️</span><span class="step-label" id="step-4-label">Auditing all websites (full SEO audit + PDF reports)</span><span class="step-detail" id="detail-4"></span></div>
+        <div class="step-item pending" id="step-5"><span class="step-icon">✅</span><span class="step-label">Finalising results</span><span class="step-detail" id="detail-5"></span></div>
       </div>
-      <div id="audit-live" style="display:none;margin-top:14px;font-size:12px;color:#64748b;text-align:center;"></div>
     </div>
   </div>
 
@@ -209,12 +212,13 @@
     <!-- Cold emails -->
     <div class="card">
       <div class="card-title">✉️ 2-Sentence Cold Emails</div>
-      <div style="margin-bottom:10px;">
+      <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn-export" onclick="exportCSV()">⬇️ Export CSV</button>
+        <button class="btn-export" id="btn-xlsx" onclick="exportExcel()" style="background:#1d6f42;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer;">📊 Export Excel</button>
       </div>
       <div style="overflow-x:auto;">
         <table class="email-table">
-          <thead><tr><th>#</th><th>Business</th><th>Owner</th><th>Subject Line</th><th>Email Body (2 sentences)</th><th>Nearest Comp</th><th>Distance</th></tr></thead>
+          <thead><tr><th>#</th><th>Business</th><th>Owner</th><th>Contact Email</th><th>Subject Line</th><th>Email Body (2 sentences)</th><th>Nearest Comp</th><th>Distance</th></tr></thead>
           <tbody id="email-tbody"></tbody>
         </table>
       </div>
@@ -296,29 +300,47 @@ async function pollStatus() {
       clearInterval(pollTimer);
       alert('Pipeline error: ' + data.error);
     }
-  } catch(e) {}
+  } catch(e) { console.error('Poll error:', e); }
 }
 
 function updateProgress(data) {
-  const stepIdx = (data.step_index || 1) - 1;
+  const stepIdx = Math.max(0, (data.step_index ?? 1) - 1);
+  const liveMsg = data.step || '';
+  const ap = data.audit_progress || {};
+
   for (let i = 0; i < 6; i++) {
     const el = document.getElementById(`step-${i}`);
+    const detail = document.getElementById(`detail-${i}`);
     if (!el) continue;
+
     el.className = 'step-item ' + (i < stepIdx ? 'done' : i === stepIdx ? 'active' : 'pending');
     if (i < stepIdx) el.querySelector('.step-icon').textContent = '✅';
     else if (i === stepIdx) el.querySelector('.step-icon').textContent = '⏳';
+
+    // Show live message under active step
+    if (detail) {
+      if (i === stepIdx) {
+        if (i === 4 && ap.total > 0) {
+          // Website audit — show business name + progress bar
+          const pct = Math.round((ap.current / ap.total) * 100);
+          detail.innerHTML = `
+            <span>${ap.current_name || ''} — ${ap.current} of ${ap.total} websites</span>
+            <div style="margin-top:4px;background:#dbeafe;border-radius:4px;height:4px;width:100%;max-width:300px;">
+              <div style="background:#2563eb;height:4px;border-radius:4px;width:${pct}%;transition:width 0.4s;"></div>
+            </div>`;
+        } else {
+          detail.textContent = liveMsg;
+        }
+      } else {
+        detail.textContent = '';
+      }
+    }
   }
 
-  // Show per-business audit progress in step 4
-  const ap = data.audit_progress || {};
-  const liveEl = document.getElementById('audit-live');
+  // Update step-4 label with count
   if (stepIdx === 4 && ap.total > 0) {
-    liveEl.style.display = 'block';
-    liveEl.textContent = `${ap.current_name} — ${ap.current} of ${ap.total} websites audited`;
     const label = document.getElementById('step-4-label');
     if (label) label.textContent = `Auditing websites (${ap.current}/${ap.total})…`;
-  } else {
-    liveEl.style.display = 'none';
   }
 }
 
@@ -361,12 +383,15 @@ async function loadResults() {
       const tier = ls.tier || '—';
       const icon = ls.tier_icon || '📊';
       const color = ls.tier_color || '#64748b';
+      const contactEmail = r.contact_email || '';
+      const emailSrc = r.owner_email ? '👤 owner' : r.website_email ? '🌐 website' : '';
       return `<div class="audit-row">
         <div class="audit-rank">#${i+1}</div>
         <div class="audit-tier">${icon}</div>
         <div class="audit-info">
-          <div class="audit-name">${r.business_name || '—'}</div>
+          <div class="audit-name">${r.business_name || '—'}${r.owner_name ? ` <span style="font-size:10px;color:#64748b;">· ${r.owner_name}</span>` : ''}</div>
           <div class="audit-site">${r.website}</div>
+          ${contactEmail ? `<div style="font-size:10px;margin-top:2px;"><a href="mailto:${contactEmail}" style="color:#2563eb;">${escHtml(contactEmail)}</a> <span style="color:#94a3b8;">${emailSrc}</span></div>` : ''}
         </div>
         <div class="audit-score">
           <div class="audit-score-num" style="color:${color};">${score}</div>
@@ -420,17 +445,20 @@ async function loadResults() {
   // Emails table
   const emailTbody = document.getElementById('email-tbody');
   const emails2 = allData.emails || [];
-  emailTbody.innerHTML = emails2.map((e, i) => `
-    <tr>
+  emailTbody.innerHTML = emails2.map((e, i) => {
+    const contactEmail = e.contact_email || e.owner_email || e.website_email || '';
+    const emailSrc = e.owner_email ? '👤 owner' : e.website_email ? '🌐 website' : '';
+    return `<tr>
       <td style="color:#94a3b8;">${i+1}</td>
       <td><strong>${e.name || '—'}</strong></td>
       <td>${e.owner_name || '—'}</td>
+      <td>${contactEmail ? `<a href="mailto:${contactEmail}" style="color:#2563eb;">${escHtml(contactEmail)}</a><br><span style="font-size:9px;color:#94a3b8;">${emailSrc}</span>` : '<span style="color:#cbd5e1;">—</span>'}</td>
       <td class="email-subject-cell">${escHtml(e.subject || '')}</td>
       <td class="email-body-cell">${escHtml(e.body || '')}</td>
       <td><span class="competitor-badge">${e.nearest_competitor || '—'}</span></td>
       <td>${e.distance ? e.distance + ' mi' : '—'}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 function switchTab(key, fmt, btn) {
@@ -452,10 +480,25 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+function exportExcel() {
+  if (!uploadId) return;
+  const btn = document.getElementById('btn-xlsx');
+  btn.textContent = '⏳ Generating…';
+  btn.disabled = true;
+  const a = document.createElement('a');
+  a.href = `/upload/export-excel/${uploadId}`;
+  a.download = '';
+  a.click();
+  setTimeout(() => { btn.textContent = '📊 Export Excel'; btn.disabled = false; }, 3000);
+}
+
 function exportCSV() {
   const emails = allData?.emails || [];
-  const rows = [['Business','Owner','Website','Subject','Body','Nearest Competitor','Distance (mi)']];
-  emails.forEach(e => rows.push([e.name, e.owner_name, e.website, e.subject, e.body, e.nearest_competitor, e.distance]));
+  const rows = [['Business','Owner','Contact Email','Email Source','Website','Subject','Body','Nearest Competitor','Distance (mi)']];
+  emails.forEach(e => {
+    const src = e.owner_email ? 'owner' : e.website_email ? 'website' : '';
+    rows.push([e.name, e.owner_name, e.contact_email||'', src, e.website, e.subject, e.body, e.nearest_competitor, e.distance]);
+  });
   const csv = rows.map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);

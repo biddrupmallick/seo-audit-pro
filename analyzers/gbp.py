@@ -6,10 +6,10 @@ User provides the Google Maps URL for client + competitors.
 import re
 import subprocess
 import shutil
-import json
 from typing import Dict, Any, List, Optional
 
 from bs4 import BeautifulSoup
+from analyzers.ollama_client import ask
 
 CHROME_PATHS = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -400,7 +400,6 @@ def _estimate_distribution(rating: float, count: int) -> Dict[str, int]:
 def _ollama_review_insights(name, category, rating, count, dist, comp_avg) -> Dict[str, str]:
     """Ask Ollama for specific review improvement recommendations."""
     try:
-        import urllib.request as req
         star_breakdown = ", ".join([f"{k}★: ~{v} reviews" for k, v in dist.items()]) if dist else "unknown"
         prompt = f"""You are an expert in Google Business Profile reputation management.
 
@@ -417,19 +416,7 @@ TOP_ACTION: [single most impactful thing to do right now to improve reviews]
 RESPONSE_SCRIPT: [one-sentence template for responding to negative reviews]
 REVIEW_ASK: [one short sentence to ask happy customers for a review]"""
 
-        payload = json.dumps({
-            "model": "llama3.1",
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.4, "num_predict": 300}
-        }).encode()
-
-        r = req.urlopen(req.Request(
-            "http://localhost:11434/api/generate",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-        ), timeout=45)
-        text = json.loads(r.read())["response"].strip()
+        text = ask(prompt, max_tokens=300, temperature=0.4)
 
         result = {}
         for line in text.splitlines():

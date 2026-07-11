@@ -13,7 +13,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Back
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 from fastapi.requests import Request
 from pydantic import BaseModel, HttpUrl
 
@@ -38,7 +37,7 @@ from analyzers.keyword_opportunities import analyze_keyword_opportunities
 from analyzers.gbp import analyze_gbp
 from analyzers.lead_score import calculate_lead_score
 from analyzers.history import save_audit, get_history, build_progress
-from analyzers.excel_parser import parse_excel
+from analyzers.excel_parser import parse_excel, enrich_owner_info, extract_owner_info_single
 from analyzers.trust_signals import analyze_trust_signals
 from analyzers.mobile_screenshot import capture_mobile_screenshots
 from analyzers.competitor_gap import analyze_competitor_gap
@@ -46,6 +45,7 @@ from analyzers.meta_rewrite import generate_meta_rewrites
 from analyzers.roadmap import generate_roadmap
 from analyzers.geo_match import find_nearest_competitors
 from analyzers.review_analyzer import analyze_reviews_batch
+from analyzers.website_email import enrich_businesses_with_website_emails
 from analyzers.niche_blog import generate_blog_posts
 from analyzers.ultra_email import generate_ultra_emails
 from report.branding import load_branding, save_branding
@@ -73,11 +73,8 @@ BASE_DIR = Path(__file__).parent
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-templates.env = Environment(
-    loader=FileSystemLoader(str(BASE_DIR / "templates")),
-    autoescape=select_autoescape(["html"]),
-    cache_size=0,
-)
+templates.env.globals["enumerate"] = enumerate
+templates.env.globals["len"] = len
 
 # ====== IN-MEMORY JOB STORE ======
 # Structure: {job_id: {"status": str, "data": dict, "progress": int, "message": str, "ws": WebSocket}}
@@ -112,13 +109,12 @@ class BulkRequest(BaseModel):
 # ====== ROUTES ======
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html", {})
 
 
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request):
-    return templates.TemplateResponse("settings.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "settings.html", {
         "branding": load_branding(),
     })
 
@@ -128,8 +124,7 @@ async def save_settings(request: Request):
     form = await request.form()
     data = {k: v for k, v in form.items()}
     save_branding(data)
-    return templates.TemplateResponse("settings.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "settings.html", {
         "branding": load_branding(),
         "saved": True,
     })
@@ -277,7 +272,7 @@ async def get_job_status(job_id: str):
 # ====== BULK AUDIT ROUTES ======
 @app.get("/bulk", response_class=HTMLResponse)
 async def bulk_page(request: Request):
-    return templates.TemplateResponse("bulk.html", {"request": request})
+    return templates.TemplateResponse(request, "bulk.html", {})
 
 
 @app.post("/bulk/start")
@@ -408,7 +403,7 @@ async def run_bulk(bulk_id: str):
 # ====== UPLOAD PIPELINE ROUTES ======
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_page(request: Request):
-    return templates.TemplateResponse("upload.html", {"request": request})
+    return templates.TemplateResponse(request, "upload.html", {})
 
 
 @app.post("/upload/start")
@@ -466,6 +461,100 @@ async def upload_results(upload_id: str):
     if job["status"] != "complete":
         raise HTTPException(status_code=400, detail="Pipeline not complete yet")
     return JSONResponse(content=_make_serializable(job["result"]))
+
+
+@app.get("/upload/export-excel/{upload_id}")
+async def export_excel(upload_id: str):
+    """Export all cold emails + contact info to a formatted Excel file."""
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+
+    if upload_id not in upload_jobs:
+        raise HTTPException(status_code=404, detail="Upload job not found")
+    job = upload_jobs[upload_id]
+    if job["status"] != "complete":
+        raise HTTPException(status_code=400, detail="Pipeline not complete yet")
+
+    result = job["result"]
+    emails = result.get("emails", [])
+    audit_results = {r["website"]: r for r in result.get("audit_results", [])}
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Cold Emails"
+
+    # Styles
+    header_fill = PatternFill("solid", fgColor="1E3A5F")
+    header_font = Font(color="FFFFFF", bold=True, size=11)
+    alt_fill = PatternFill("solid", fgColor="F0F4FF")
+    border = Border(
+        bottom=Side(style="thin", color="E2E8F0"),
+        right=Side(style="thin", color="E2E8F0"),
+    )
+    wrap = Alignment(wrap_text=True, vertical="top")
+
+    headers = [
+        "#", "Business Name", "Owner Name", "Contact Email", "Email Source",
+        "Website", "Subject Line", "Email Body (2 sentences)",
+        "Nearest Competitor", "Distance (mi)", "Lead Score", "Lead Tier",
+    ]
+    col_widths = [4, 28, 20, 32, 12, 30, 40, 70, 28, 13, 11, 14]
+
+    for col, (h, w) in enumerate(zip(headers, col_widths), 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        ws.column_dimensions[get_column_letter(col)].width = w
+
+    ws.row_dimensions[1].height = 28
+    ws.freeze_panes = "A2"
+
+    for i, e in enumerate(emails, 1):
+        row = i + 1
+        fill = alt_fill if i % 2 == 0 else None
+        audit = audit_results.get(e.get("website", ""), {})
+        ls = audit.get("lead_score", {})
+
+        src = "owner" if e.get("owner_email") else ("website" if e.get("website_email") else "")
+        values = [
+            i,
+            e.get("name", ""),
+            e.get("owner_name", ""),
+            e.get("contact_email", ""),
+            src,
+            e.get("website", ""),
+            e.get("subject", ""),
+            e.get("body", ""),
+            e.get("nearest_competitor", ""),
+            e.get("distance", ""),
+            ls.get("score", ""),
+            ls.get("tier", ""),
+        ]
+        for col, val in enumerate(values, 1):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.alignment = wrap
+            cell.border = border
+            if fill:
+                cell.fill = fill
+
+        ws.row_dimensions[row].height = 55
+
+    # Auto-filter
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=cold_emails_{upload_id[:8]}.xlsx"},
+    )
 
 
 def _estimate_dist(rating: float, count: int) -> dict:
@@ -575,21 +664,47 @@ async def run_upload_pipeline(upload_id: str):
     businesses = job["businesses"]
 
     try:
+        # Step 0b: Per-business owner info extraction with live progress
+        needs_enrichment = [b for b in businesses if b.get("owner_info")]
+        for ei, biz in enumerate(needs_enrichment):
+            biz_name = biz.get("name") or biz.get("website") or f"Business {ei+1}"
+            job["step"] = f"Reading owner info for {biz_name}… ({ei+1}/{len(needs_enrichment)})"
+            extracted = await asyncio.to_thread(extract_owner_info_single, biz)
+            if not biz.get("owner_name"):
+                biz["owner_name"] = extracted["owner_name"]
+            if not biz.get("owner_email"):
+                biz["owner_email"] = extracted["owner_email"]
+            # Show what was found
+            found_name = biz.get("owner_name", "")
+            found_email = biz.get("owner_email", "")
+            parts = []
+            if found_name:
+                parts.append(f"👤 {found_name}")
+            if found_email:
+                parts.append(f"✉️ {found_email}")
+            job["step"] = f"{biz_name} → {' · '.join(parts) if parts else 'no info found'}"
+
         # Step 1: Geo-match
         job["step"] = "Extracting coordinates & matching nearest competitors…"
         job["step_index"] = 1
         enriched = await asyncio.to_thread(find_nearest_competitors, businesses)
 
+        # Step 1b: Scrape website emails (still under step 1 / geo-match)
+        job["step"] = "Scraping contact emails from business websites…"
+        enriched = await asyncio.to_thread(enrich_businesses_with_website_emails, enriched)
+
         # Step 2: Review analysis
-        job["step"] = "Analysing review themes with AI…"
         job["step_index"] = 2
+        job["step"] = "Analysing review themes with AI…"
         review_analysis = await asyncio.to_thread(analyze_reviews_batch, enriched)
 
         # Step 3: Blog posts (per niche group)
-        job["step"] = "Writing blog posts…"
         job["step_index"] = 3
+        job["step"] = "Preparing blog posts…"
         blog_posts = {}
-        for key, grp in review_analysis.items():
+        groups = list(review_analysis.items())
+        for gi, (key, grp) in enumerate(groups):
+            job["step"] = f"Writing blog post for {grp['category']} | {grp['state']} ({gi+1}/{len(groups)})…"
             if grp.get("has_review_text") or grp.get("avg_rating"):
                 posts = await asyncio.to_thread(
                     generate_blog_posts,
@@ -599,18 +714,44 @@ async def run_upload_pipeline(upload_id: str):
                 )
                 blog_posts[key] = posts
 
-        # Step 4: Ultra-short emails (one template per niche group)
-        job["step"] = "Generating 2-sentence cold emails…"
+        # Step 4: Ultra-short emails (one per business)
         job["step_index"] = 4
+        job["step"] = "Preparing to write cold emails…"
         all_emails = []
+        total_biz = sum(len([b for b in enriched if (b.get("category") or "").strip() == grp["category"] and (b.get("state") or "").strip() == grp["state"]]) for _, grp in review_analysis.items())
+        email_count = [0]
         for key, grp in review_analysis.items():
             group_businesses = [
                 b for b in enriched
                 if (b.get("category") or "").strip() == grp["category"]
                 and (b.get("state") or "").strip() == grp["state"]
             ]
+            def _gen_with_progress(businesses, category, state, analysis):
+                results = []
+                for i, biz in enumerate(businesses):
+                    email_count[0] += 1
+                    job["step"] = f"Writing email for {biz.get('name', biz.get('website', '?'))} ({email_count[0]}/{total_biz})…"
+                    from analyzers.ultra_email import _generate_email_for_business
+                    owner_email = biz.get("owner_email", "")
+                    website_email = biz.get("website_email", "")
+                    comp = (biz.get("nearest_competitors") or [{}])[0]
+                    email = _generate_email_for_business(biz, analysis)
+                    results.append({
+                        "name": biz.get("name", ""),
+                        "owner_name": biz.get("owner_name", ""),
+                        "owner_email": owner_email,
+                        "website_email": website_email,
+                        "contact_email": owner_email or website_email,
+                        "website": biz.get("website", ""),
+                        "subject": email["subject"],
+                        "body": email["body"],
+                        "nearest_competitor": comp.get("name", ""),
+                        "distance": comp.get("distance_miles", ""),
+                    })
+                return results
+
             emails = await asyncio.to_thread(
-                generate_ultra_emails,
+                _gen_with_progress,
                 group_businesses,
                 grp["category"], grp["state"], grp["analysis"],
             )
@@ -658,10 +799,16 @@ async def run_upload_pipeline(upload_id: str):
             try:
                 await run_analysis(audit_job_id, website, comp_websites, biz_data=biz)
                 aj = jobs[audit_job_id]
+                owner_email = biz.get("owner_email", "")
+                website_email = biz.get("website_email", "")
+                contact_email = owner_email or website_email
                 if aj["status"] == "complete" and aj.get("data"):
                     audit_results.append({
                         "business_name": biz.get("name", ""),
                         "owner_name": biz.get("owner_name", ""),
+                        "owner_email": owner_email,
+                        "website_email": website_email,
+                        "contact_email": contact_email,
                         "category": biz.get("category", ""),
                         "website": website,
                         "job_id": audit_job_id,
@@ -671,6 +818,10 @@ async def run_upload_pipeline(upload_id: str):
                 else:
                     audit_results.append({
                         "business_name": biz.get("name", ""),
+                        "owner_name": biz.get("owner_name", ""),
+                        "owner_email": owner_email,
+                        "website_email": website_email,
+                        "contact_email": contact_email,
                         "website": website,
                         "job_id": audit_job_id,
                         "error": aj.get("error", "Unknown error"),

@@ -1,7 +1,8 @@
 import asyncio
 from typing import Dict, Any, List, Optional
 from urllib.parse import urlparse
-import ollama
+
+from analyzers.ollama_client import chat
 
 OLLAMA_MODEL = "llama3.1"
 COMPETITOR_MAX_PAGES = 40   # keep competitor crawl fast
@@ -101,12 +102,7 @@ YOUR_EDGE: [What the client is doing better — if nothing, say what they COULD 
 STEAL: [The single quickest thing to copy from the competitor this week]"""
 
     try:
-        resp = ollama.chat(
-            model=OLLAMA_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            options={"num_predict": 200, "temperature": 0.5},
-        )
-        text = resp["message"]["content"].strip()
+        text = chat([{"role": "user", "content": prompt}], max_tokens=200, temperature=0.5)
     except Exception:
         return {}
 
