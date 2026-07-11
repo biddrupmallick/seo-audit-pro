@@ -114,9 +114,14 @@ def generate_report(
     except Exception:
         domain = root_url
 
+    # Use business name from GBP data if available, else clean up domain
+    _gbp_name = (gbp or {}).get("name", "") or (local_seo or {}).get("business_name", "")
+    business_name = _gbp_name or domain.replace("www.", "").split(".")[0].replace("-", " ").replace("_", " ").title()
+
     context = {
         "domain": domain,
         "root_url": root_url,
+        "business_name": business_name,
         "report_date": datetime.now().strftime("%B %d, %Y"),
         "total_pages": total_pages,
         "scores": scores,
