@@ -16,6 +16,16 @@ DEFAULTS = {
 }
 
 
+PLACEHOLDER_VALUES = {'Your Agency Name', 'Your Name', 'hello@youragency.com', '+1 (555) 000-0000', 'https://youragency.com', ''}
+
+
+def validate_branding(b):
+    for f in ['agency_name', 'contact_name', 'email']:
+        if not b.get(f) or b.get(f, '').strip() in PLACEHOLDER_VALUES:
+            return False, f
+    return True, None
+
+
 def load_branding() -> dict:
     try:
         data = json.loads(BRANDING_FILE.read_text())

@@ -39,6 +39,7 @@ def calculate_scores(
     local_seo: Dict[str, Any] = None,
     conversion: Dict[str, Any] = None,
     content: Dict[str, Any] = None,
+    total_pages: int = 0,
 ) -> Dict[str, Any]:
     """Calculate weighted overall score and category scores."""
 
@@ -49,7 +50,10 @@ def calculate_scores(
     if content is None:
         content = {}
 
-    category_scores = {
+    WEBSITE_DERIVED = {"technical", "onpage", "schema", "aeo", "geo", "performance", "local_seo", "conversion", "content"}
+    crawl_failed = total_pages < 2
+
+    raw_scores = {
         "technical": technical.get("score", 0),
         "onpage": onpage.get("score", 0),
         "schema": schema.get("score", 0),
@@ -61,19 +65,37 @@ def calculate_scores(
         "content": content.get("score", 0),
     }
 
-    # Image score influences onpage slightly
-    image_score = images.get("score", 100)
-    category_scores["onpage"] = round(
-        category_scores["onpage"] * 0.8 + image_score * 0.2, 1
-    )
+    if crawl_failed:
+        category_scores = {cat: None for cat in WEBSITE_DERIVED}
+    else:
+        category_scores = dict(raw_scores)
 
-    # Weighted overall score
-    overall = sum(
-        category_scores[cat] * weight
+    # Image score influences onpage slightly (only when crawl succeeded)
+    image_score = images.get("score", 100)
+    if not crawl_failed:
+        category_scores["onpage"] = round(
+            category_scores["onpage"] * 0.8 + image_score * 0.2, 1
+        )
+
+    # Weighted overall score — exclude None scores, renormalize weights
+    overall_parts = [
+        (cat, weight)
         for cat, weight in SCORING_WEIGHTS.items()
-    )
-    overall = round(overall, 1)
-    overall = max(0.0, min(100.0, overall))
+        if category_scores.get(cat) is not None
+    ]
+    if overall_parts:
+        weight_sum = sum(w for _, w in overall_parts)
+        if weight_sum:
+            overall = sum(
+                category_scores[cat] * weight
+                for cat, weight in overall_parts
+            ) / weight_sum
+        else:
+            overall = 0.0
+        overall = round(overall, 1)
+        overall = max(0.0, min(100.0, overall))
+    else:
+        overall = 0.0
 
     grade = get_grade(overall)
 
@@ -254,13 +276,18 @@ def calculate_scores(
         "overall_score": overall,
         "grade": grade,
         "grade_color": get_grade_color(grade),
+        "crawl_failed": crawl_failed,
         "category_scores": {
-            cat: {
-                "score": score,
-                "grade": get_grade(score),
-                "grade_color": get_grade_color(get_grade(score)),
-                "weight": SCORING_WEIGHTS.get(cat, 0),
-            }
+            cat: (
+                {
+                    "score": score,
+                    "grade": get_grade(score),
+                    "grade_color": get_grade_color(get_grade(score)),
+                    "weight": SCORING_WEIGHTS.get(cat, 0),
+                }
+                if score is not None
+                else None
+            )
             for cat, score in category_scores.items()
         },
         "critical_issues": critical_issues[:10],

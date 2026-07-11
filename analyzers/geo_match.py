@@ -81,8 +81,9 @@ def find_nearest_competitors(businesses: List[Dict], n: int = 3) -> List[Dict]:
                 "same_category": cat == other_cat,
             })
 
+        competitors = [c for c in distances if (c.get('distance_miles') or 999) <= 30]
         # Sort: same category first, then by distance
-        distances.sort(key=lambda x: (not x["same_category"], x["distance_miles"]))
-        biz["nearest_competitors"] = distances[:n]
+        competitors.sort(key=lambda x: (not x["same_category"], x["distance_miles"]))
+        biz["nearest_competitors"] = competitors[:n]
 
     return businesses

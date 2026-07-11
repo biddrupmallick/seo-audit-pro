@@ -8,9 +8,15 @@ from urllib.parse import urlparse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from config import REPORTS_DIR
-from report.branding import load_branding
+from report.branding import load_branding, validate_branding
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+
+def _pluralize(count, singular, plural=None):
+    if plural is None:
+        plural = singular + 's'
+    return f"{count} {singular if count == 1 else plural}"
 
 
 def _render_html(job_id: str, context: dict) -> str:
@@ -21,6 +27,7 @@ def _render_html(job_id: str, context: dict) -> str:
     )
     env.globals["enumerate"] = enumerate
     env.globals["len"] = len
+    env.globals["pluralize"] = _pluralize
 
     template = env.get_template("report.html")
     html_content = template.render(**context)
@@ -83,9 +90,31 @@ def generate_report(
     except Exception:
         domain = root_url
 
+    branding = load_branding()
+    ok, bad_field = validate_branding(branding)
+    if not ok:
+        print(f"WARNING: Branding field '{bad_field}' is missing or placeholder. Fill in /settings before sharing reports.")
+
     # Use business name from GBP data if available, else clean up domain
     _gbp_name = (gbp or {}).get("name", "") or (local_seo or {}).get("business_name", "")
     business_name = _gbp_name or domain.replace("www.", "").split(".")[0].replace("-", " ").replace("_", " ").title()
+
+    crawl_failed = bool((scores or {}).get('crawl_failed', False) or total_pages < 2)
+    _items = (revenue_impact or {}).get('items', [])
+    revenue_low = sum(item.get('monthly_low', 0) for item in _items)
+    revenue_high = sum(item.get('monthly_high', 0) for item in _items)
+
+    gbp_score = (gbp or {}).get('profile_score', 0) or 0
+    gbp_reviews = (gbp or {}).get('reviews', 0) or 0
+    overall_score = (scores or {}).get('overall_score', 0) or 0
+    if gbp_score >= 80 and gbp_reviews >= 100 and (crawl_failed or overall_score < 50):
+        narrative = 'strong_gbp_weak_site'
+    elif gbp_score >= 80 and gbp_reviews >= 100:
+        narrative = 'strong_all'
+    elif gbp_reviews < 20 or gbp_score < 40:
+        narrative = 'weak_gbp'
+    else:
+        narrative = 'average'
 
     context = {
         "domain": domain,
@@ -118,7 +147,11 @@ def generate_report(
         "competitor_gap":    competitor_gap or {},
         "roadmap":           roadmap or {},
         "meta_rewrites":     meta_rewrites or {},
-        "branding":          load_branding(),
+        "branding":          branding,
+        "crawl_failed":      crawl_failed,
+        "revenue_low":       revenue_low,
+        "revenue_high":      revenue_high,
+        "narrative":         narrative,
     }
 
     html_path = _render_html(job_id, context)

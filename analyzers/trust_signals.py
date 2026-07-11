@@ -80,7 +80,7 @@ def analyze_trust_signals(pages: List[CrawledPage], domain: str) -> Dict[str, An
             pass
 
     sig: Dict[str, Any] = {}
-    sig["ssl"] = any(u.startswith("https") for u in urls[:5])
+    sig["ssl"] = any(p.url.startswith("https://") for p in html_pages[:5])
     sig["privacy_policy"] = (
         any("/privacy" in u for u in urls)
         or "privacy policy" in all_text

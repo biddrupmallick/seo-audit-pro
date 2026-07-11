@@ -109,7 +109,8 @@ class BulkRequest(BaseModel):
 # ====== ROUTES ======
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse(request, "index.html", {})
+    is_local = request.url.hostname in ('localhost', '127.0.0.1')
+    return templates.TemplateResponse(request, "index.html", {"is_local": is_local})
 
 
 @app.get("/settings", response_class=HTMLResponse)
@@ -272,7 +273,8 @@ async def get_job_status(job_id: str):
 # ====== BULK AUDIT ROUTES ======
 @app.get("/bulk", response_class=HTMLResponse)
 async def bulk_page(request: Request):
-    return templates.TemplateResponse(request, "bulk.html", {})
+    is_local = request.url.hostname in ('localhost', '127.0.0.1')
+    return templates.TemplateResponse(request, "bulk.html", {"is_local": is_local})
 
 
 @app.post("/bulk/start")
@@ -403,7 +405,8 @@ async def run_bulk(bulk_id: str):
 # ====== UPLOAD PIPELINE ROUTES ======
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_page(request: Request):
-    return templates.TemplateResponse(request, "upload.html", {})
+    is_local = request.url.hostname in ('localhost', '127.0.0.1')
+    return templates.TemplateResponse(request, "upload.html", {"is_local": is_local})
 
 
 @app.post("/upload/start")
@@ -954,7 +957,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
         mobile_screenshots = await asyncio.to_thread(capture_mobile_screenshots, url, comp_url_for_screenshot, job_id)
 
         await send_progress(job_id, 91, "Calculating scores…")
-        scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images, local_seo, conversion, content)
+        scores = calculate_scores(technical, onpage, schema, aeo, geo, performance, images, local_seo, conversion, content, total_pages)
 
         # Competitor analysis (optional — run all concurrently)
         competitors = []

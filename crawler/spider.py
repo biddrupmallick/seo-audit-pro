@@ -196,6 +196,8 @@ class Spider:
                 unique.append(norm)
         return unique
 
+    RETRY_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
     async def fetch_page(self, client: httpx.AsyncClient, url: str) -> CrawledPage:
         """Fetch a single page and return CrawledPage."""
         page = CrawledPage(url=url)
@@ -204,6 +206,14 @@ class Spider:
 
         try:
             response = await client.get(url, follow_redirects=True)
+
+            if 400 <= response.status_code < 500:
+                retry_headers = {**BROWSER_HEADERS, "User-Agent": self.RETRY_USER_AGENT}
+                try:
+                    response = await client.get(url, headers=retry_headers, follow_redirects=True)
+                except Exception:
+                    pass
+
             elapsed = time.monotonic() - start_time
 
             for r in response.history:
