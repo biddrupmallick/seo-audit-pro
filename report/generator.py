@@ -45,7 +45,7 @@ def _html_to_pdf_weasyprint(html_path: str, pdf_path: str) -> bool:
         from weasyprint import HTML, CSS
         HTML(filename=html_path).write_pdf(
             pdf_path,
-            stylesheets=[CSS(string="@page { margin: 1cm; size: A4; }")],
+            stylesheets=[CSS(string="@page { margin: 1.5cm; size: A4; }")],
         )
         return os.path.exists(pdf_path)
     except Exception as e:

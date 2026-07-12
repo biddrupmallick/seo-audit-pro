@@ -623,16 +623,16 @@ def _gbp_from_excel(biz: Dict) -> Dict:
     avg_comp = round(sum(comp_counts) / max(len(comp_counts), 1)) if comp_counts else 0
     review_gap = max(0, top_comp - reviews)
 
-    # Map group-level review analysis to per-business GBP insights format
-    insights = {}
-    if group_analysis:
-        insights = {
-            "PRAISE_THEMES": group_analysis.get("TOP_PRAISE", ""),
-            "COMPLAINT_THEMES": group_analysis.get("TOP_COMPLAINTS", ""),
-            "TOP_ACTION": group_analysis.get("KEY_INSIGHT", ""),
-            "REVIEW_ASK": f"Would you mind leaving us a quick Google review? It helps other {biz.get('category', 'customers')} find us.",
-            "RESPONSE_SCRIPT": "Thank you for your feedback. We take all reviews seriously and will use this to improve our service.",
-        }
+    # Per-business review insight from the business's own reviews_text
+    own_insight = _quick_review_insight(biz.get("name", ""), biz.get("reviews_text", "") or "")
+    # Fall back to group-level analysis if per-business reviews_text is empty
+    insights = {
+        "PRAISE_THEMES": own_insight.get("praise", "") or group_analysis.get("TOP_PRAISE", ""),
+        "COMPLAINT_THEMES": own_insight.get("complaint", "") or group_analysis.get("TOP_COMPLAINTS", ""),
+        "TOP_ACTION": group_analysis.get("KEY_INSIGHT", ""),
+        "REVIEW_ASK": f"Would you mind leaving us a quick Google review? It helps other {biz.get('category', 'customers')} find us.",
+        "RESPONSE_SCRIPT": "Thank you for your feedback. We take all reviews seriously and will use this to improve our service.",
+    }
 
     # Build comparison table from nearest competitors
     comparison = {}
