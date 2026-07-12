@@ -388,11 +388,11 @@ function updateProgress(data) {
     // Show live message under active step
     if (detail) {
       if (i === stepIdx) {
-        if (i === 4 && ap.total > 0) {
-          // Website audit — show business name + progress bar
+        if (i === 3 && ap.total > 0) {
+          // Audit step — show business name + progress bar
           const pct = Math.round((ap.current / ap.total) * 100);
           detail.innerHTML = `
-            <span>${ap.current_name || ''} — ${ap.current} of ${ap.total} websites</span>
+            <span>${ap.current_name || ''} — ${ap.current} of ${ap.total} businesses</span>
             <div style="margin-top:4px;background:#dbeafe;border-radius:4px;height:4px;width:100%;max-width:300px;">
               <div style="background:#2563eb;height:4px;border-radius:4px;width:${pct}%;transition:width 0.4s;"></div>
             </div>`;

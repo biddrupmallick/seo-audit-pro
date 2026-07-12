@@ -789,7 +789,9 @@ async def run_upload_pipeline(upload_id: str):
                 biz["_group_analysis"] = review_analysis[biz_key].get("analysis", {})
 
         businesses_with_sites = [b for b in enriched if (b.get("website") or "").strip()]
-        job["audit_progress"] = {"current": 0, "total": len(businesses_with_sites), "current_name": ""}
+        businesses_without_sites = [b for b in enriched if not (b.get("website") or "").strip()]
+        total_audits = len(businesses_with_sites) + len(businesses_without_sites)
+        job["audit_progress"] = {"current": 0, "total": total_audits, "current_name": ""}
         job["partial_results"] = []   # grows as each business finishes
         audit_results = []
 
@@ -799,8 +801,8 @@ async def run_upload_pipeline(upload_id: str):
                 website = "https://" + website
 
             biz_name = biz.get("name", website)
-            job["step"] = f"Auditing {biz_name} ({i+1}/{len(businesses_with_sites)})…"
-            job["audit_progress"] = {"current": i + 1, "total": len(businesses_with_sites), "current_name": biz_name}
+            job["step"] = f"Auditing {biz_name} ({i+1}/{total_audits})…"
+            job["audit_progress"] = {"current": i + 1, "total": total_audits, "current_name": biz_name}
 
             audit_job_id = str(uuid.uuid4())
             jobs[audit_job_id] = {
@@ -859,6 +861,61 @@ async def run_upload_pipeline(upload_id: str):
                 }
                 audit_results.append(row)
                 job["partial_results"].append(row)
+
+        # Generate reports for businesses WITHOUT websites (website-build pitch)
+        offset = len(businesses_with_sites)
+        for j, biz in enumerate(businesses_without_sites):
+            biz_name = biz.get("name", f"Business {j+1}")
+            job["step"] = f"Generating report for {biz_name} — no website ({j+1}/{len(businesses_without_sites)})…"
+            job["audit_progress"] = {"current": offset + j + 1, "total": total_audits, "current_name": biz_name}
+
+            audit_job_id = str(uuid.uuid4())
+            gbp_data = _gbp_from_excel(biz)
+            owner_email = biz.get("owner_email", "")
+            website_email = biz.get("website_email", "")
+
+            try:
+                report_path = await asyncio.to_thread(
+                    generate_report,
+                    job_id=audit_job_id,
+                    root_url="",
+                    total_pages=0,
+                    scores={},
+                    technical={},
+                    onpage={},
+                    schema={},
+                    aeo={},
+                    geo={},
+                    performance={},
+                    images={},
+                    gbp=gbp_data,
+                )
+                # Register stub so /report/{job_id} download endpoint works
+                jobs[audit_job_id] = {"status": "complete", "url": "", "data": {"report_path": report_path}, "error": None}
+                row = {
+                    "business_name": biz_name,
+                    "owner_name": biz.get("owner_name", ""),
+                    "owner_email": owner_email,
+                    "website_email": website_email,
+                    "contact_email": owner_email or website_email,
+                    "category": biz.get("category", ""),
+                    "website": "",
+                    "job_id": audit_job_id,
+                    "lead_score": {},
+                    "report_path": report_path,
+                    "no_website": True,
+                }
+            except Exception as e:
+                jobs[audit_job_id] = {"status": "error", "url": "", "data": None, "error": str(e)}
+                row = {
+                    "business_name": biz_name,
+                    "website": "",
+                    "job_id": audit_job_id,
+                    "error": str(e),
+                    "no_website": True,
+                }
+            audit_results.append(row)
+            job["partial_results"].append(row)
 
         audit_results.sort(
             key=lambda x: (x.get("lead_score") or {}).get("score", 0),
