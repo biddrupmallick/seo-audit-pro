@@ -1014,6 +1014,16 @@
       {% if c.reviews and c.reviews | int > ns.max_r %}{% set ns.max_r = c.reviews | int %}{% endif %}
     {% endfor %}
 
+    {# Macro: compute threat level from rating + reviews #}
+    {# Strong: rating≥4.5 AND reviews≥100 | Moderate: rating≥4.0 OR reviews≥50 | Weak: else #}
+
+    {# Client threat zone #}
+    {% set cl_r = gbp.rating | float if gbp.rating else 0 %}
+    {% set cl_rv = gbp.reviews | int if gbp.reviews else 0 %}
+    {% if cl_r >= 4.5 and cl_rv >= 100 %}{% set cl_zone = 'Strong' %}{% set cl_zone_cls = 'badge-green' %}
+    {% elif cl_r >= 4.0 or cl_rv >= 50 %}{% set cl_zone = 'Moderate' %}{% set cl_zone_cls = 'badge-amber' %}
+    {% else %}{% set cl_zone = 'Weak' %}{% set cl_zone_cls = 'badge-red' %}{% endif %}
+
     <table class="report-table" style="margin-bottom:16px;">
       <thead>
         <tr>
@@ -1022,6 +1032,7 @@
           <th>Rating</th>
           <th>Reviews</th>
           <th>Website</th>
+          <th>Zone</th>
         </tr>
       </thead>
       <tbody>
@@ -1035,7 +1046,7 @@
           <td>
             <strong>{{ gbp.reviews or '—' }}</strong>
             {% if gbp.reviews %}
-            <div style="height:4px; background:#dbeafe; border-radius:2px; margin-top:4px; width:120px;">
+            <div style="height:4px; background:#dbeafe; border-radius:2px; margin-top:4px; width:100px;">
               <div style="height:4px; background:var(--accent); border-radius:2px; width:{{ [(gbp.reviews | int / ns.max_r * 100), 100] | min | int }}%;"></div>
             </div>
             {% endif %}
@@ -1043,9 +1054,15 @@
           <td>
             {% if domain %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-red">No</span>{% endif %}
           </td>
+          <td><span class="badge {{ cl_zone_cls }}">{{ cl_zone }}</span></td>
         </tr>
         {# Competitor rows #}
         {% for c in comp_list[:8] %}
+        {% set cr = c.reviews | int if c.reviews else 0 %}
+        {% set crat = c.rating | float if c.rating else 0 %}
+        {% if crat >= 4.5 and cr >= 100 %}{% set zone = 'Strong' %}{% set zone_cls = 'badge-red' %}
+        {% elif crat >= 4.0 or cr >= 50 %}{% set zone = 'Moderate' %}{% set zone_cls = 'badge-amber' %}
+        {% else %}{% set zone = 'Weak' %}{% set zone_cls = 'badge-green' %}{% endif %}
         <tr>
           <td>{{ c.name or '—' }}</td>
           <td>
@@ -1055,11 +1072,10 @@
             {% if c.rating %}{{ c.rating }}★{% else %}—{% endif %}
           </td>
           <td>
-            {% set cr = c.reviews | int if c.reviews else 0 %}
             <strong>{{ cr or '—' }}</strong>
             {% if cr %}
-            <div style="height:4px; background:#f1f5f9; border-radius:2px; margin-top:4px; width:120px;">
-              {% if cr > (gbp.reviews or 0) %}
+            <div style="height:4px; background:#f1f5f9; border-radius:2px; margin-top:4px; width:100px;">
+              {% if cr > (gbp.reviews or 0) | int %}
               <div style="height:4px; background:var(--red); border-radius:2px; width:{{ [cr / ns.max_r * 100, 100] | min | int }}%;"></div>
               {% else %}
               <div style="height:4px; background:var(--green); border-radius:2px; width:{{ [cr / ns.max_r * 100, 100] | min | int }}%;"></div>
@@ -1070,6 +1086,7 @@
           <td>
             {% if c.website %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-gray">No</span>{% endif %}
           </td>
+          <td><span class="badge {{ zone_cls }}">{{ zone }}</span></td>
         </tr>
         {% endfor %}
       </tbody>
