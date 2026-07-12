@@ -174,9 +174,9 @@
       <div class="step-list" id="step-list">
         <div class="step-item pending" id="step-0"><span class="step-icon">📍</span><span class="step-label">Extracting coordinates & matching nearest competitors</span><span class="step-detail" id="detail-0"></span></div>
         <div class="step-item pending" id="step-1"><span class="step-icon">🔍</span><span class="step-label">Analysing review themes with AI</span><span class="step-detail" id="detail-1"></span></div>
-        <div class="step-item pending" id="step-2"><span class="step-icon">✍️</span><span class="step-label">Writing blog posts (3 formats)</span><span class="step-detail" id="detail-2"></span></div>
-        <div class="step-item pending" id="step-3"><span class="step-icon">✉️</span><span class="step-label">Generating cold emails</span><span class="step-detail" id="detail-3"></span></div>
-        <div class="step-item pending" id="step-4"><span class="step-icon">🕷️</span><span class="step-label" id="step-4-label">Auditing all websites (full SEO audit + PDF reports)</span><span class="step-detail" id="detail-4"></span></div>
+        <div class="step-item pending" id="step-2"><span class="step-icon">✉️</span><span class="step-label">Generating cold emails</span><span class="step-detail" id="detail-2"></span></div>
+        <div class="step-item pending" id="step-3"><span class="step-icon">🕷️</span><span class="step-label" id="step-3-label">Auditing all websites (full SEO audit + PDF reports)</span><span class="step-detail" id="detail-3"></span></div>
+        <div class="step-item pending" id="step-4"><span class="step-icon">✍️</span><span class="step-label">Writing blog posts (3 formats)</span><span class="step-detail" id="detail-4"></span></div>
         <div class="step-item pending" id="step-5"><span class="step-icon">✅</span><span class="step-label">Finalising results</span><span class="step-detail" id="detail-5"></span></div>
       </div>
     </div>
@@ -405,9 +405,9 @@ function updateProgress(data) {
     }
   }
 
-  // Update step-4 label with count
-  if (stepIdx === 4 && ap.total > 0) {
-    const label = document.getElementById('step-4-label');
+  // Update step-3 label with count
+  if (stepIdx === 3 && ap.total > 0) {
+    const label = document.getElementById('step-3-label');
     if (label) label.textContent = `Auditing websites (${ap.current}/${ap.total})…`;
   }
 }
