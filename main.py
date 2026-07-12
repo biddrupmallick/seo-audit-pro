@@ -572,6 +572,32 @@ def _estimate_dist(rating: float, count: int) -> dict:
     return {"5": five, "4": four, "3": three, "2": two, "1": one}
 
 
+def _quick_review_insight(name: str, reviews_text: str) -> Dict[str, str]:
+    """Run a fast Ollama call to extract praise/complaint from a competitor's reviews."""
+    if not reviews_text or len(reviews_text.strip()) < 30:
+        return {"praise": "", "complaint": ""}
+    try:
+        from analyzers.ollama_client import ask
+        prompt = (
+            f"Analyse these customer reviews for '{name}'.\n\n"
+            f"REVIEWS:\n{reviews_text[:2000]}\n\n"
+            "Output EXACTLY 2 lines:\n"
+            "GOOD_AT: [one short phrase — what customers consistently praise]\n"
+            "BAD_AT: [one short phrase — what customers consistently complain about, or 'nothing notable']"
+        )
+        raw = ask(prompt, max_tokens=60, temperature=0.3)
+        result = {"praise": "", "complaint": ""}
+        for line in raw.splitlines():
+            line = line.strip()
+            if line.startswith("GOOD_AT:"):
+                result["praise"] = line[8:].strip()
+            elif line.startswith("BAD_AT:"):
+                result["complaint"] = line[7:].strip()
+        return result
+    except Exception:
+        return {"praise": "", "complaint": ""}
+
+
 def _gbp_from_excel(biz: Dict) -> Dict:
     """Build GBP-compatible dict from Excel row data."""
     competitors = biz.get("nearest_competitors") or []
@@ -644,9 +670,15 @@ def _gbp_from_excel(biz: Dict) -> Dict:
             "wins": [],
         },
         "competitors": [
-            {"name": c.get("name", ""), "rating": c.get("rating"),
-             "review_count": c.get("reviews"), "reviews": c.get("reviews"),
-             "distance_miles": c.get("distance_miles"), "website": c.get("website", "")}
+            {
+                "name": c.get("name", ""),
+                "rating": c.get("rating"),
+                "review_count": c.get("reviews"),
+                "reviews": c.get("reviews"),
+                "distance_miles": c.get("distance_miles"),
+                "website": c.get("website", ""),
+                **_quick_review_insight(c.get("name", ""), c.get("reviews_text", "")),
+            }
             for c in competitors
         ],
         "comparison": comparison,

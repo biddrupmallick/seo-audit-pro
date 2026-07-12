@@ -1024,37 +1024,42 @@
     {% elif cl_r >= 4.0 or cl_rv >= 50 %}{% set cl_zone = 'Moderate' %}{% set cl_zone_cls = 'badge-amber' %}
     {% else %}{% set cl_zone = 'Weak' %}{% set cl_zone_cls = 'badge-red' %}{% endif %}
 
-    <table class="report-table" style="margin-bottom:16px;">
+    {# Track whether any row has no website (for footnote) #}
+    {% set ns_foot = namespace(has_no_site=false) %}
+    {% for c in comp_list[:8] %}{% if not c.website %}{% set ns_foot.has_no_site = true %}{% endif %}{% endfor %}
+
+    <table class="report-table" style="margin-bottom:4px;">
       <thead>
         <tr>
           <th>Business</th>
           <th>Distance</th>
           <th>Rating</th>
           <th>Reviews</th>
-          <th>Website</th>
           <th>Zone</th>
+          <th>Good At</th>
+          <th>Watch Out For</th>
         </tr>
       </thead>
       <tbody>
         {# Client row first #}
         <tr class="you-row">
-          <td><strong>{{ business_name }}</strong> <span class="badge badge-blue">You</span></td>
-          <td>—</td>
           <td>
-            {% if gbp.rating %}{{ gbp.rating }}★{% else %}—{% endif %}
+            {% if domain %}<a href="{{ root_url }}" style="color:var(--accent-d); font-weight:700; text-decoration:none;">{{ business_name }}</a>{% else %}<strong>{{ business_name }}</strong>{% endif %}
+            <span class="badge badge-blue" style="margin-left:4px;">You</span>
           </td>
+          <td>—</td>
+          <td>{% if gbp.rating %}{{ gbp.rating }}★{% else %}—{% endif %}</td>
           <td>
             <strong>{{ gbp.reviews or '—' }}</strong>
             {% if gbp.reviews %}
-            <div style="height:4px; background:#dbeafe; border-radius:2px; margin-top:4px; width:100px;">
+            <div style="height:4px; background:#dbeafe; border-radius:2px; margin-top:4px; width:80px;">
               <div style="height:4px; background:var(--accent); border-radius:2px; width:{{ [(gbp.reviews | int / ns.max_r * 100), 100] | min | int }}%;"></div>
             </div>
             {% endif %}
           </td>
-          <td>
-            {% if domain %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-red">No</span>{% endif %}
-          </td>
           <td><span class="badge {{ cl_zone_cls }}">{{ cl_zone }}</span></td>
+          <td style="color:var(--green); font-size:10px;">{{ gbp.top_praise or '—' }}</td>
+          <td style="color:var(--amber); font-size:10px;">{{ gbp.top_complaints or '—' }}</td>
         </tr>
         {# Competitor rows #}
         {% for c in comp_list[:8] %}
@@ -1064,17 +1069,19 @@
         {% elif crat >= 4.0 or cr >= 50 %}{% set zone = 'Moderate' %}{% set zone_cls = 'badge-amber' %}
         {% else %}{% set zone = 'Weak' %}{% set zone_cls = 'badge-green' %}{% endif %}
         <tr>
-          <td>{{ c.name or '—' }}</td>
           <td>
-            {% if c.distance_miles %}{{ c.distance_miles }} mi{% else %}—{% endif %}
+            {% if c.website %}
+              <a href="{{ c.website if c.website.startswith('http') else 'https://' + c.website }}" style="color:var(--ink); text-decoration:none; font-weight:500;">{{ c.name or '—' }}</a>
+            {% else %}
+              {{ c.name or '—' }}<sup style="color:var(--muted); font-size:9px;">*</sup>
+            {% endif %}
           </td>
-          <td>
-            {% if c.rating %}{{ c.rating }}★{% else %}—{% endif %}
-          </td>
+          <td>{% if c.distance_miles %}{{ c.distance_miles }} mi{% else %}—{% endif %}</td>
+          <td>{% if c.rating %}{{ c.rating }}★{% else %}—{% endif %}</td>
           <td>
             <strong>{{ cr or '—' }}</strong>
             {% if cr %}
-            <div style="height:4px; background:#f1f5f9; border-radius:2px; margin-top:4px; width:100px;">
+            <div style="height:4px; background:#f1f5f9; border-radius:2px; margin-top:4px; width:80px;">
               {% if cr > (gbp.reviews or 0) | int %}
               <div style="height:4px; background:var(--red); border-radius:2px; width:{{ [cr / ns.max_r * 100, 100] | min | int }}%;"></div>
               {% else %}
@@ -1083,14 +1090,20 @@
             </div>
             {% endif %}
           </td>
-          <td>
-            {% if c.website %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-gray">No</span>{% endif %}
-          </td>
           <td><span class="badge {{ zone_cls }}">{{ zone }}</span></td>
+          <td style="font-size:10px; color:var(--green);">{{ c.praise or '—' }}</td>
+          <td style="font-size:10px; color:var(--red);">{{ c.complaint or '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+
+    {# Footnote for businesses without a website #}
+    {% if ns_foot.has_no_site %}
+    <div style="font-size:9px; color:var(--muted); padding:4px 2px 12px; font-style:italic;">
+      * This business does not have a website.
+    </div>
+    {% endif %}
 
     {# Gap insight #}
     {% set ns2 = namespace(top_comp=none, top_reviews=0) %}

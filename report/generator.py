@@ -117,6 +117,8 @@ def generate_report(
                 'reviews':       c.get('reviews') or c.get('review_count'),
                 'distance_miles':c.get('distance_miles'),
                 'website':       c.get('website', ''),
+                'praise':        c.get('praise', ''),
+                'complaint':     c.get('complaint', ''),
             }
             for c in (_gbp_raw.get('competitors') or [])
         ],

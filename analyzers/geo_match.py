@@ -78,6 +78,7 @@ def find_nearest_competitors(businesses: List[Dict], n: int = 3) -> List[Dict]:
                 "distance_miles": round(dist, 2),
                 "rating": other.get("rating"),
                 "reviews": other.get("reviews"),
+                "reviews_text": other.get("reviews_text", ""),
                 "same_category": cat == other_cat,
             })
 
