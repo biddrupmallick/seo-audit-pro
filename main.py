@@ -696,12 +696,29 @@ def _gbp_from_excel(biz: Dict) -> Dict:
 
 
 async def run_upload_pipeline(upload_id: str):
-    """Full pipeline: parse → geo-match → review analysis → emails → audits → blog."""
+    """Full pipeline: prep → per-business (email+PDF) → blog → finalise."""
     job = upload_jobs[upload_id]
     businesses = job["businesses"]
 
+    # Cache: survive Colab disconnects — already-completed businesses are skipped on restart
+    cache_path = os.path.join("data", f"{upload_id}_cache.json")
+    os.makedirs("data", exist_ok=True)
     try:
-        # Step 0b: Per-business owner info extraction with live progress
+        with open(cache_path) as f:
+            cache = json.load(f)
+    except Exception:
+        cache = {}
+
+    def _save_cache():
+        try:
+            with open(cache_path, "w") as f:
+                json.dump(cache, f)
+        except Exception:
+            pass
+
+    try:
+        # Step 1: Owner info extraction + geo-match (fast, no AI)
+        job["step_index"] = 1
         needs_enrichment = [b for b in businesses if b.get("owner_info")]
         for ei, biz in enumerate(needs_enrichment):
             biz_name = biz.get("name") or biz.get("website") or f"Business {ei+1}"
@@ -711,209 +728,194 @@ async def run_upload_pipeline(upload_id: str):
                 biz["owner_name"] = extracted["owner_name"]
             if not biz.get("owner_email"):
                 biz["owner_email"] = extracted["owner_email"]
-            # Show what was found
-            found_name = biz.get("owner_name", "")
-            found_email = biz.get("owner_email", "")
-            parts = []
-            if found_name:
-                parts.append(f"👤 {found_name}")
-            if found_email:
-                parts.append(f"✉️ {found_email}")
-            job["step"] = f"{biz_name} → {' · '.join(parts) if parts else 'no info found'}"
 
-        # Step 1: Geo-match
         job["step"] = "Extracting coordinates & matching nearest competitors…"
-        job["step_index"] = 1
         enriched = await asyncio.to_thread(find_nearest_competitors, businesses)
 
-        # Step 1b: Scrape website emails (still under step 1 / geo-match)
-        job["step"] = "Scraping contact emails from business websites…"
-        enriched = await asyncio.to_thread(enrich_businesses_with_website_emails, enriched)
-
-        # Step 2: Review analysis
+        # Step 2: Per-business loop — email + PDF one at a time
         job["step_index"] = 2
-        job["step"] = "Analysing review themes with AI…"
-        review_analysis = await asyncio.to_thread(analyze_reviews_batch, enriched)
-
-        # Step 3: Ultra-short emails (one per business)
-        job["step_index"] = 3
-        job["step"] = "Preparing to write cold emails…"
+        job["partial_results"] = []
+        job["audit_progress"] = {"current": 0, "total": len(enriched), "current_name": ""}
+        audit_results = []
         all_emails = []
-        total_biz = sum(len([b for b in enriched if (b.get("category") or "").strip() == grp["category"] and (b.get("state") or "").strip() == grp["state"]]) for _, grp in review_analysis.items())
-        email_count = [0]
-        for key, grp in review_analysis.items():
-            group_businesses = [
-                b for b in enriched
-                if (b.get("category") or "").strip() == grp["category"]
-                and (b.get("state") or "").strip() == grp["state"]
-            ]
-            def _gen_with_progress(businesses, category, state, analysis):
-                results = []
-                for i, biz in enumerate(businesses):
-                    email_count[0] += 1
-                    job["step"] = f"Writing email for {biz.get('name', biz.get('website', '?'))} ({email_count[0]}/{total_biz})…"
-                    from analyzers.ultra_email import _generate_email_for_business
-                    owner_email = biz.get("owner_email", "")
-                    website_email = biz.get("website_email", "")
-                    comp = (biz.get("nearest_competitors") or [{}])[0]
-                    email = _generate_email_for_business(biz, analysis)
-                    results.append({
-                        "name": biz.get("name", ""),
+        niche_groups = {}  # accumulate data for blog posts
+
+        from analyzers.ultra_email import _generate_email_for_business
+        from analyzers.website_email import get_best_contact_email
+
+        for i, biz in enumerate(enriched):
+            biz_name = biz.get("name", f"Business {i+1}")
+            cache_key = biz_name or str(i)
+
+            job["step"] = f"Processing {biz_name} ({i+1}/{len(enriched)})…"
+            job["audit_progress"] = {"current": i + 1, "total": len(enriched), "current_name": biz_name}
+
+            # Restore from cache if this business was already completed
+            if cache_key in cache:
+                row = cache[cache_key]
+                if row.get("job_id") and row.get("report_path"):
+                    jobs[row["job_id"]] = {
+                        "status": "complete", "url": row.get("website", ""),
+                        "data": {"report_path": row["report_path"]}, "error": None,
+                    }
+                audit_results.append(row)
+                job["partial_results"].append(row)
+                if row.get("subject"):
+                    all_emails.append({k: row.get(k, "") for k in [
+                        "name", "owner_name", "owner_email", "website_email",
+                        "contact_email", "website", "subject", "body",
+                        "nearest_competitor", "distance",
+                    ]})
+                continue
+
+            # Scrape website email (fast HTTP, no AI)
+            website = (biz.get("website") or "").strip()
+            if website:
+                if not website.startswith(("http://", "https://")):
+                    website = "https://" + website
+                try:
+                    biz["website_email"] = await asyncio.to_thread(get_best_contact_email, website)
+                except Exception:
+                    biz["website_email"] = ""
+            else:
+                biz["website_email"] = ""
+
+            owner_email = biz.get("owner_email", "")
+            website_email = biz.get("website_email", "")
+            comp = (biz.get("nearest_competitors") or [{}])[0]
+
+            # Cold email (uses competitor data already available — no extra Ollama call)
+            email_result = await asyncio.to_thread(_generate_email_for_business, biz, {})
+            email_row = {
+                "name": biz_name,
+                "owner_name": biz.get("owner_name", ""),
+                "owner_email": owner_email,
+                "website_email": website_email,
+                "contact_email": owner_email or website_email,
+                "website": website,
+                "subject": email_result["subject"],
+                "body": email_result["body"],
+                "nearest_competitor": comp.get("name", ""),
+                "distance": comp.get("distance_miles", ""),
+            }
+            all_emails.append(email_row)
+
+            # Accumulate niche data for blog posts
+            niche_key = f"{(biz.get('category') or '').strip()} | {(biz.get('state') or '').strip()}"
+            if niche_key not in niche_groups:
+                niche_groups[niche_key] = {
+                    "category": (biz.get("category") or "").strip(),
+                    "state": (biz.get("state") or "").strip(),
+                    "count": 0, "ratings": [], "reviews": [],
+                }
+            niche_groups[niche_key]["count"] += 1
+            if biz.get("rating"):
+                try: niche_groups[niche_key]["ratings"].append(float(biz["rating"]))
+                except Exception: pass
+            if biz.get("reviews"):
+                try: niche_groups[niche_key]["reviews"].append(int(biz["reviews"]))
+                except Exception: pass
+
+            # PDF: full website audit OR no-website pitch
+            audit_job_id = str(uuid.uuid4())
+
+            if website:
+                jobs[audit_job_id] = {
+                    "status": "pending", "url": website,
+                    "created_at": datetime.now().isoformat(),
+                    "progress": 0, "message": "Queued", "data": None, "error": None,
+                }
+                comp_websites = []
+                for c in biz.get("nearest_competitors") or []:
+                    cw = (c.get("website") or "").strip()
+                    if cw and cw != biz.get("website", "").strip():
+                        if not cw.startswith(("http://", "https://")):
+                            cw = "https://" + cw
+                        comp_websites.append(cw)
+
+                try:
+                    await run_analysis(audit_job_id, website, comp_websites[:3], biz_data=biz)
+                    aj = jobs[audit_job_id]
+                    if aj["status"] == "complete" and aj.get("data"):
+                        row = {
+                            "business_name": biz_name,
+                            "owner_name": biz.get("owner_name", ""),
+                            "owner_email": owner_email,
+                            "website_email": website_email,
+                            "contact_email": owner_email or website_email,
+                            "category": biz.get("category", ""),
+                            "website": website,
+                            "job_id": audit_job_id,
+                            "lead_score": aj["data"].get("lead_score", {}),
+                            "report_path": aj["data"].get("report_path", ""),
+                            "subject": email_result["subject"],
+                            "body": email_result["body"],
+                        }
+                    else:
+                        row = {
+                            "business_name": biz_name,
+                            "owner_name": biz.get("owner_name", ""),
+                            "owner_email": owner_email,
+                            "website_email": website_email,
+                            "contact_email": owner_email or website_email,
+                            "website": website,
+                            "job_id": audit_job_id,
+                            "error": aj.get("error", "Unknown error"),
+                            "subject": email_result["subject"],
+                            "body": email_result["body"],
+                        }
+                except Exception as e:
+                    row = {
+                        "business_name": biz_name,
+                        "website": website,
+                        "job_id": audit_job_id,
+                        "error": str(e),
+                        "subject": email_result["subject"],
+                        "body": email_result["body"],
+                    }
+            else:
+                # No website — generate pitch PDF directly
+                gbp_data = await asyncio.to_thread(_gbp_from_excel, biz)
+                try:
+                    report_path = await asyncio.to_thread(
+                        generate_report,
+                        job_id=audit_job_id,
+                        root_url="",
+                        total_pages=0,
+                        scores={}, technical={}, onpage={}, schema={},
+                        aeo={}, geo={}, performance={}, images={},
+                        gbp=gbp_data,
+                    )
+                    jobs[audit_job_id] = {"status": "complete", "url": "", "data": {"report_path": report_path}, "error": None}
+                    row = {
+                        "business_name": biz_name,
                         "owner_name": biz.get("owner_name", ""),
                         "owner_email": owner_email,
                         "website_email": website_email,
                         "contact_email": owner_email or website_email,
-                        "website": biz.get("website", ""),
-                        "subject": email["subject"],
-                        "body": email["body"],
-                        "nearest_competitor": comp.get("name", ""),
-                        "distance": comp.get("distance_miles", ""),
-                    })
-                return results
-
-            emails = await asyncio.to_thread(
-                _gen_with_progress,
-                group_businesses,
-                grp["category"], grp["state"], grp["analysis"],
-            )
-            all_emails.extend(emails)
-
-        # Step 4: Website audits — full single-audit quality for every business with a website
-        job["step"] = "Auditing websites…"
-        job["step_index"] = 4
-
-        # Pre-populate group analysis into each business for GBP report enrichment
-        for biz in enriched:
-            biz_key = f"{(biz.get('category') or '').strip()} | {(biz.get('state') or '').strip()}"
-            if biz_key in review_analysis:
-                biz["_group_analysis"] = review_analysis[biz_key].get("analysis", {})
-
-        businesses_with_sites = [b for b in enriched if (b.get("website") or "").strip()]
-        businesses_without_sites = [b for b in enriched if not (b.get("website") or "").strip()]
-        total_audits = len(businesses_with_sites) + len(businesses_without_sites)
-        job["audit_progress"] = {"current": 0, "total": total_audits, "current_name": ""}
-        job["partial_results"] = []   # grows as each business finishes
-        audit_results = []
-
-        for i, biz in enumerate(businesses_with_sites):
-            website = biz["website"].strip()
-            if not website.startswith(("http://", "https://")):
-                website = "https://" + website
-
-            biz_name = biz.get("name", website)
-            job["step"] = f"Auditing {biz_name} ({i+1}/{total_audits})…"
-            job["audit_progress"] = {"current": i + 1, "total": total_audits, "current_name": biz_name}
-
-            audit_job_id = str(uuid.uuid4())
-            jobs[audit_job_id] = {
-                "status": "pending", "url": website,
-                "created_at": datetime.now().isoformat(),
-                "progress": 0, "message": "Queued", "data": None, "error": None,
-            }
-
-            comp_websites = []
-            for c in biz.get("nearest_competitors") or []:
-                cw = (c.get("website") or "").strip()
-                if cw and cw != biz.get("website", "").strip():
-                    if not cw.startswith(("http://", "https://")):
-                        cw = "https://" + cw
-                    comp_websites.append(cw)
-            comp_websites = comp_websites[:3]
-
-            try:
-                await run_analysis(audit_job_id, website, comp_websites, biz_data=biz)
-                aj = jobs[audit_job_id]
-                owner_email = biz.get("owner_email", "")
-                website_email = biz.get("website_email", "")
-                contact_email = owner_email or website_email
-                if aj["status"] == "complete" and aj.get("data"):
-                    row = {
-                        "business_name": biz.get("name", ""),
-                        "owner_name": biz.get("owner_name", ""),
-                        "owner_email": owner_email,
-                        "website_email": website_email,
-                        "contact_email": contact_email,
                         "category": biz.get("category", ""),
-                        "website": website,
+                        "website": "",
                         "job_id": audit_job_id,
-                        "lead_score": aj["data"].get("lead_score", {}),
-                        "report_path": aj["data"].get("report_path", ""),
+                        "lead_score": {},
+                        "report_path": report_path,
+                        "no_website": True,
+                        "subject": email_result["subject"],
+                        "body": email_result["body"],
                     }
-                else:
+                except Exception as e:
+                    jobs[audit_job_id] = {"status": "error", "url": "", "data": None, "error": str(e)}
                     row = {
-                        "business_name": biz.get("name", ""),
-                        "owner_name": biz.get("owner_name", ""),
-                        "owner_email": owner_email,
-                        "website_email": website_email,
-                        "contact_email": contact_email,
-                        "website": website,
+                        "business_name": biz_name,
+                        "website": "",
                         "job_id": audit_job_id,
-                        "error": aj.get("error", "Unknown error"),
+                        "error": str(e),
+                        "no_website": True,
+                        "subject": email_result["subject"],
+                        "body": email_result["body"],
                     }
-                audit_results.append(row)
-                job["partial_results"].append(row)   # available immediately
-            except Exception as e:
-                row = {
-                    "business_name": biz.get("name", ""),
-                    "website": website,
-                    "job_id": audit_job_id,
-                    "error": str(e),
-                }
-                audit_results.append(row)
-                job["partial_results"].append(row)
 
-        # Generate reports for businesses WITHOUT websites (website-build pitch)
-        offset = len(businesses_with_sites)
-        for j, biz in enumerate(businesses_without_sites):
-            biz_name = biz.get("name", f"Business {j+1}")
-            job["step"] = f"Generating report for {biz_name} — no website ({j+1}/{len(businesses_without_sites)})…"
-            job["audit_progress"] = {"current": offset + j + 1, "total": total_audits, "current_name": biz_name}
-
-            audit_job_id = str(uuid.uuid4())
-            gbp_data = _gbp_from_excel(biz)
-            owner_email = biz.get("owner_email", "")
-            website_email = biz.get("website_email", "")
-
-            try:
-                report_path = await asyncio.to_thread(
-                    generate_report,
-                    job_id=audit_job_id,
-                    root_url="",
-                    total_pages=0,
-                    scores={},
-                    technical={},
-                    onpage={},
-                    schema={},
-                    aeo={},
-                    geo={},
-                    performance={},
-                    images={},
-                    gbp=gbp_data,
-                )
-                # Register stub so /report/{job_id} download endpoint works
-                jobs[audit_job_id] = {"status": "complete", "url": "", "data": {"report_path": report_path}, "error": None}
-                row = {
-                    "business_name": biz_name,
-                    "owner_name": biz.get("owner_name", ""),
-                    "owner_email": owner_email,
-                    "website_email": website_email,
-                    "contact_email": owner_email or website_email,
-                    "category": biz.get("category", ""),
-                    "website": "",
-                    "job_id": audit_job_id,
-                    "lead_score": {},
-                    "report_path": report_path,
-                    "no_website": True,
-                }
-            except Exception as e:
-                jobs[audit_job_id] = {"status": "error", "url": "", "data": None, "error": str(e)}
-                row = {
-                    "business_name": biz_name,
-                    "website": "",
-                    "job_id": audit_job_id,
-                    "error": str(e),
-                    "no_website": True,
-                }
+            cache[cache_key] = row
+            _save_cache()
             audit_results.append(row)
             job["partial_results"].append(row)
 
@@ -922,34 +924,36 @@ async def run_upload_pipeline(upload_id: str):
             reverse=True,
         )
 
-        # Step 5: Blog posts (per niche group) — runs last so PDFs are available sooner
-        job["step_index"] = 5
-        job["step"] = "Writing blog posts…"
+        # Step 3: Blog posts (per niche, uses data collected during loop)
+        job["step_index"] = 3
         blog_posts = {}
-        groups = list(review_analysis.items())
-        for gi, (key, grp) in enumerate(groups):
-            job["step"] = f"Writing blog post for {grp['category']} | {grp['state']} ({gi+1}/{len(groups)})…"
-            if grp.get("has_review_text") or grp.get("avg_rating"):
-                posts = await asyncio.to_thread(
-                    generate_blog_posts,
-                    grp["category"], grp["state"],
-                    grp["business_count"], grp["avg_rating"] or 0,
-                    grp["avg_reviews"] or 0, grp["analysis"],
-                )
-                blog_posts[key] = posts
+        niche_list = list(niche_groups.items())
+        for gi, (key, grp) in enumerate(niche_list):
+            job["step"] = f"Writing blog post for {grp['category']} | {grp['state']} ({gi+1}/{len(niche_list)})…"
+            avg_rating = round(sum(grp["ratings"]) / len(grp["ratings"]), 1) if grp["ratings"] else 0
+            avg_reviews = int(sum(grp["reviews"]) / len(grp["reviews"])) if grp["reviews"] else 0
+            if avg_rating or grp["count"] > 0:
+                try:
+                    posts = await asyncio.to_thread(
+                        generate_blog_posts,
+                        grp["category"], grp["state"],
+                        grp["count"], avg_rating, avg_reviews, {},
+                    )
+                    blog_posts[key] = posts
+                except Exception:
+                    pass
 
-        # Step 6: Finalise
+        # Step 4: Finalise
+        job["step_index"] = 4
         job["step"] = "Finalising results…"
-        job["step_index"] = 6
 
         located = [b for b in enriched if b.get("latlon")]
-
         job["result"] = {
             "total": len(enriched),
             "located": len(located),
             "audited": len([r for r in audit_results if not r.get("error")]),
             "businesses": enriched,
-            "review_analysis": review_analysis,
+            "review_analysis": {},
             "blog_posts": blog_posts,
             "emails": all_emails,
             "audit_results": audit_results,
@@ -958,7 +962,6 @@ async def run_upload_pipeline(upload_id: str):
         job["step"] = "Complete!"
 
     except Exception as e:
-        import traceback
         job["status"] = "error"
         job["error"] = str(e)
         job["step"] = f"Error: {e}"

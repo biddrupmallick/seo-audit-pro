@@ -172,12 +172,10 @@
     <p class="subtitle" id="progress-sub">Processing your businesses.</p>
     <div class="card" style="margin-top:20px;">
       <div class="step-list" id="step-list">
-        <div class="step-item pending" id="step-0"><span class="step-icon">📍</span><span class="step-label">Extracting coordinates & matching nearest competitors</span><span class="step-detail" id="detail-0"></span></div>
-        <div class="step-item pending" id="step-1"><span class="step-icon">🔍</span><span class="step-label">Analysing review themes with AI</span><span class="step-detail" id="detail-1"></span></div>
-        <div class="step-item pending" id="step-2"><span class="step-icon">✉️</span><span class="step-label">Generating cold emails</span><span class="step-detail" id="detail-2"></span></div>
-        <div class="step-item pending" id="step-3"><span class="step-icon">🕷️</span><span class="step-label" id="step-3-label">Auditing all websites (full SEO audit + PDF reports)</span><span class="step-detail" id="detail-3"></span></div>
-        <div class="step-item pending" id="step-4"><span class="step-icon">✍️</span><span class="step-label">Writing blog posts (3 formats)</span><span class="step-detail" id="detail-4"></span></div>
-        <div class="step-item pending" id="step-5"><span class="step-icon">✅</span><span class="step-label">Finalising results</span><span class="step-detail" id="detail-5"></span></div>
+        <div class="step-item pending" id="step-0"><span class="step-icon">📍</span><span class="step-label">Reading owner info & matching nearest competitors</span><span class="step-detail" id="detail-0"></span></div>
+        <div class="step-item pending" id="step-1"><span class="step-icon">🚀</span><span class="step-label" id="step-1-label">Processing each business (email + PDF report)</span><span class="step-detail" id="detail-1"></span></div>
+        <div class="step-item pending" id="step-2"><span class="step-icon">✍️</span><span class="step-label">Writing blog posts</span><span class="step-detail" id="detail-2"></span></div>
+        <div class="step-item pending" id="step-3"><span class="step-icon">✅</span><span class="step-label">Finalising results</span><span class="step-detail" id="detail-3"></span></div>
       </div>
     </div>
 
@@ -376,7 +374,7 @@ function updateProgress(data) {
   const liveMsg = data.step || '';
   const ap = data.audit_progress || {};
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 4; i++) {
     const el = document.getElementById(`step-${i}`);
     const detail = document.getElementById(`detail-${i}`);
     if (!el) continue;
@@ -388,8 +386,8 @@ function updateProgress(data) {
     // Show live message under active step
     if (detail) {
       if (i === stepIdx) {
-        if (i === 3 && ap.total > 0) {
-          // Audit step — show business name + progress bar
+        if (i === 1 && ap.total > 0) {
+          // Per-business processing — show name + progress bar
           const pct = Math.round((ap.current / ap.total) * 100);
           detail.innerHTML = `
             <span>${ap.current_name || ''} — ${ap.current} of ${ap.total} businesses</span>
@@ -405,10 +403,10 @@ function updateProgress(data) {
     }
   }
 
-  // Update step-3 label with count
-  if (stepIdx === 3 && ap.total > 0) {
-    const label = document.getElementById('step-3-label');
-    if (label) label.textContent = `Auditing websites (${ap.current}/${ap.total})…`;
+  // Update step-1 label with count
+  if (stepIdx === 1 && ap.total > 0) {
+    const label = document.getElementById('step-1-label');
+    if (label) label.textContent = `Processing businesses (${ap.current}/${ap.total})…`;
   }
 }
 
