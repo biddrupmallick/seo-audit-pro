@@ -696,7 +696,7 @@ def _gbp_from_excel(biz: Dict) -> Dict:
 
 
 async def run_upload_pipeline(upload_id: str):
-    """Full pipeline: parse → geo-match → review analysis → blog → emails."""
+    """Full pipeline: parse → geo-match → review analysis → emails → audits → blog."""
     job = upload_jobs[upload_id]
     businesses = job["businesses"]
 
@@ -735,24 +735,8 @@ async def run_upload_pipeline(upload_id: str):
         job["step"] = "Analysing review themes with AI…"
         review_analysis = await asyncio.to_thread(analyze_reviews_batch, enriched)
 
-        # Step 3: Blog posts (per niche group)
+        # Step 3: Ultra-short emails (one per business)
         job["step_index"] = 3
-        job["step"] = "Preparing blog posts…"
-        blog_posts = {}
-        groups = list(review_analysis.items())
-        for gi, (key, grp) in enumerate(groups):
-            job["step"] = f"Writing blog post for {grp['category']} | {grp['state']} ({gi+1}/{len(groups)})…"
-            if grp.get("has_review_text") or grp.get("avg_rating"):
-                posts = await asyncio.to_thread(
-                    generate_blog_posts,
-                    grp["category"], grp["state"],
-                    grp["business_count"], grp["avg_rating"] or 0,
-                    grp["avg_reviews"] or 0, grp["analysis"],
-                )
-                blog_posts[key] = posts
-
-        # Step 4: Ultra-short emails (one per business)
-        job["step_index"] = 4
         job["step"] = "Preparing to write cold emails…"
         all_emails = []
         total_biz = sum(len([b for b in enriched if (b.get("category") or "").strip() == grp["category"] and (b.get("state") or "").strip() == grp["state"]]) for _, grp in review_analysis.items())
@@ -794,9 +778,9 @@ async def run_upload_pipeline(upload_id: str):
             )
             all_emails.extend(emails)
 
-        # Step 5: Website audits — full single-audit quality for every business with a website
+        # Step 4: Website audits — full single-audit quality for every business with a website
         job["step"] = "Auditing websites…"
-        job["step_index"] = 5
+        job["step_index"] = 4
 
         # Pre-populate group analysis into each business for GBP report enrichment
         for biz in enriched:
@@ -880,6 +864,22 @@ async def run_upload_pipeline(upload_id: str):
             key=lambda x: (x.get("lead_score") or {}).get("score", 0),
             reverse=True,
         )
+
+        # Step 5: Blog posts (per niche group) — runs last so PDFs are available sooner
+        job["step_index"] = 5
+        job["step"] = "Writing blog posts…"
+        blog_posts = {}
+        groups = list(review_analysis.items())
+        for gi, (key, grp) in enumerate(groups):
+            job["step"] = f"Writing blog post for {grp['category']} | {grp['state']} ({gi+1}/{len(groups)})…"
+            if grp.get("has_review_text") or grp.get("avg_rating"):
+                posts = await asyncio.to_thread(
+                    generate_blog_posts,
+                    grp["category"], grp["state"],
+                    grp["business_count"], grp["avg_rating"] or 0,
+                    grp["avg_reviews"] or 0, grp["analysis"],
+                )
+                blog_posts[key] = posts
 
         # Step 6: Finalise
         job["step"] = "Finalising results…"
