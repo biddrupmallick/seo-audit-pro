@@ -95,17 +95,44 @@ def generate_report(
     if not ok:
         print(f"WARNING: Branding field '{bad_field}' is missing or placeholder. Fill in /settings before sharing reports.")
 
+    # Normalize GBP nested structure → flat dict for template use
+    _gbp_raw = gbp or {}
+    _gbp_client = _gbp_raw.get('client') or {}
+    _gbp_intel = _gbp_raw.get('review_intel') or {}
+    _gbp_insights = _gbp_intel.get('insights') or {}
+    gbp_flat = {
+        'name':          _gbp_client.get('name', '') or _gbp_raw.get('name', ''),
+        'rating':        _gbp_client.get('rating') or _gbp_raw.get('rating'),
+        'reviews':       _gbp_client.get('review_count') or _gbp_raw.get('reviews') or _gbp_intel.get('count', 0),
+        'profile_score': _gbp_client.get('score') or _gbp_raw.get('profile_score', 0) or 0,
+        'review_gap':    _gbp_intel.get('review_gap', 0),
+        'top_praise':    _gbp_insights.get('PRAISE_THEMES', '') or _gbp_insights.get('TOP_PRAISE', ''),
+        'top_complaints':_gbp_insights.get('COMPLAINT_THEMES', '') or _gbp_insights.get('TOP_COMPLAINTS', ''),
+        'key_insight':   _gbp_insights.get('TOP_ACTION', '') or _gbp_insights.get('KEY_INSIGHT', ''),
+        'available':     _gbp_raw.get('available', False),
+        'competitors':   [
+            {
+                'name':          c.get('name', ''),
+                'rating':        c.get('rating'),
+                'reviews':       c.get('reviews') or c.get('review_count'),
+                'distance_miles':c.get('distance_miles'),
+                'website':       c.get('website', ''),
+            }
+            for c in (_gbp_raw.get('competitors') or [])
+        ],
+    }
+
     # Use business name from GBP data if available, else clean up domain
-    _gbp_name = (gbp or {}).get("name", "") or (local_seo or {}).get("business_name", "")
+    _gbp_name = gbp_flat.get("name", "") or (local_seo or {}).get("business_name", "")
     business_name = _gbp_name or domain.replace("www.", "").split(".")[0].replace("-", " ").replace("_", " ").title()
 
     crawl_failed = bool((scores or {}).get('crawl_failed', False) or total_pages < 2)
     _items = (revenue_impact or {}).get('items', [])
-    revenue_low = sum(item.get('monthly_low', 0) for item in _items)
-    revenue_high = sum(item.get('monthly_high', 0) for item in _items)
+    revenue_low = sum(item.get('monthly_impact_low', item.get('monthly_low', 0)) for item in _items)
+    revenue_high = sum(item.get('monthly_impact_high', item.get('monthly_high', 0)) for item in _items)
 
-    gbp_score = (gbp or {}).get('profile_score', 0) or 0
-    gbp_reviews = (gbp or {}).get('reviews', 0) or 0
+    gbp_score = gbp_flat.get('profile_score', 0) or 0
+    gbp_reviews = gbp_flat.get('reviews', 0) or 0
     overall_score = (scores or {}).get('overall_score', 0) or 0
     if gbp_score >= 80 and gbp_reviews >= 100 and (crawl_failed or overall_score < 50):
         narrative = 'strong_gbp_weak_site'
@@ -140,7 +167,7 @@ def generate_report(
         "cold_emails":  cold_emails or {},
         "progress":     progress or {},
         "keywords":     keywords or {},
-        "gbp":               gbp or {},
+        "gbp":               gbp_flat,
         "lead_score":        lead_score or {},
         "trust_signals":     trust_signals or {},
         "mobile_screenshots": mobile_screenshots or {},

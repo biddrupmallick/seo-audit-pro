@@ -645,7 +645,8 @@ def _gbp_from_excel(biz: Dict) -> Dict:
         },
         "competitors": [
             {"name": c.get("name", ""), "rating": c.get("rating"),
-             "review_count": c.get("reviews"), "distance_miles": c.get("distance_miles")}
+             "review_count": c.get("reviews"), "reviews": c.get("reviews"),
+             "distance_miles": c.get("distance_miles"), "website": c.get("website", "")}
             for c in competitors
         ],
         "comparison": comparison,
