@@ -453,6 +453,7 @@ async def upload_status(upload_id: str):
         "error": job.get("error"),
         "has_result": job.get("result") is not None,
         "audit_progress": job.get("audit_progress", {}),
+        "partial_results": _make_serializable(job.get("partial_results", [])),
     }
 
 
@@ -805,6 +806,7 @@ async def run_upload_pipeline(upload_id: str):
 
         businesses_with_sites = [b for b in enriched if (b.get("website") or "").strip()]
         job["audit_progress"] = {"current": 0, "total": len(businesses_with_sites), "current_name": ""}
+        job["partial_results"] = []   # grows as each business finishes
         audit_results = []
 
         for i, biz in enumerate(businesses_with_sites):
@@ -839,7 +841,7 @@ async def run_upload_pipeline(upload_id: str):
                 website_email = biz.get("website_email", "")
                 contact_email = owner_email or website_email
                 if aj["status"] == "complete" and aj.get("data"):
-                    audit_results.append({
+                    row = {
                         "business_name": biz.get("name", ""),
                         "owner_name": biz.get("owner_name", ""),
                         "owner_email": owner_email,
@@ -850,9 +852,9 @@ async def run_upload_pipeline(upload_id: str):
                         "job_id": audit_job_id,
                         "lead_score": aj["data"].get("lead_score", {}),
                         "report_path": aj["data"].get("report_path", ""),
-                    })
+                    }
                 else:
-                    audit_results.append({
+                    row = {
                         "business_name": biz.get("name", ""),
                         "owner_name": biz.get("owner_name", ""),
                         "owner_email": owner_email,
@@ -861,14 +863,18 @@ async def run_upload_pipeline(upload_id: str):
                         "website": website,
                         "job_id": audit_job_id,
                         "error": aj.get("error", "Unknown error"),
-                    })
+                    }
+                audit_results.append(row)
+                job["partial_results"].append(row)   # available immediately
             except Exception as e:
-                audit_results.append({
+                row = {
                     "business_name": biz.get("name", ""),
                     "website": website,
                     "job_id": audit_job_id,
                     "error": str(e),
-                })
+                }
+                audit_results.append(row)
+                job["partial_results"].append(row)
 
         audit_results.sort(
             key=lambda x: (x.get("lead_score") or {}).get("score", 0),

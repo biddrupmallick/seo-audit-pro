@@ -108,6 +108,7 @@
     .btn-report { background:#2563eb; color:#fff; border:none; border-radius:7px; padding:7px 14px; font-size:11px; font-weight:700; text-decoration:none; flex-shrink:0; }
     .btn-report:hover { background:#1d4ed8; }
     .audit-error { font-size:11px; color:#dc2626; flex:1; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
   </style>
 </head>
 <body>
@@ -178,6 +179,15 @@
         <div class="step-item pending" id="step-4"><span class="step-icon">🕷️</span><span class="step-label" id="step-4-label">Auditing all websites (full SEO audit + PDF reports)</span><span class="step-detail" id="detail-4"></span></div>
         <div class="step-item pending" id="step-5"><span class="step-icon">✅</span><span class="step-label">Finalising results</span><span class="step-detail" id="detail-5"></span></div>
       </div>
+    </div>
+
+    <!-- Live results — appear as each audit finishes -->
+    <div id="live-results-card" style="display:none; margin-top:20px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <div style="font-size:13px; font-weight:700; color:#1e293b;">📥 Reports Ready to Download</div>
+        <div id="live-count" style="font-size:11px; color:#64748b;"></div>
+      </div>
+      <div id="live-list"></div>
     </div>
   </div>
 
@@ -287,12 +297,15 @@ async function startUpload() {
   pollStatus();
 }
 
+let renderedJobIds = new Set();
+
 async function pollStatus() {
   if (!uploadId) return;
   try {
     const resp = await fetch(`/upload/status/${uploadId}`);
     const data = await resp.json();
     updateProgress(data);
+    renderPartialResults(data.partial_results || []);
     if (data.status === 'complete') {
       clearInterval(pollTimer);
       await loadResults();
@@ -301,6 +314,61 @@ async function pollStatus() {
       alert('Pipeline error: ' + data.error);
     }
   } catch(e) { console.error('Poll error:', e); }
+}
+
+function renderPartialResults(results) {
+  if (!results.length) return;
+  const card = document.getElementById('live-results-card');
+  const list = document.getElementById('live-list');
+  const count = document.getElementById('live-count');
+  card.style.display = 'block';
+
+  let added = false;
+  results.forEach(r => {
+    if (renderedJobIds.has(r.job_id)) return;
+    renderedJobIds.add(r.job_id);
+    added = true;
+
+    const ls = r.lead_score || {};
+    const score = ls.score || 0;
+    const tier = ls.tier || '';
+    const icon = ls.tier_icon || '📊';
+    const color = ls.tier_color || '#64748b';
+    const contactEmail = r.contact_email || '';
+
+    const div = document.createElement('div');
+    div.className = 'audit-row';
+    div.style.animation = 'fadeIn 0.3s ease';
+    if (r.error) {
+      div.innerHTML = `
+        <div class="audit-tier">⚠️</div>
+        <div class="audit-info">
+          <div class="audit-name">${escHtml(r.business_name || '—')}</div>
+          <div class="audit-site">${escHtml(r.website || '')}</div>
+        </div>
+        <div class="audit-error">${escHtml(r.error)}</div>`;
+    } else {
+      div.innerHTML = `
+        <div class="audit-tier">${icon}</div>
+        <div class="audit-info">
+          <div class="audit-name">${escHtml(r.business_name || '—')}${r.owner_name ? ` <span style="font-size:10px;color:#64748b;">· ${escHtml(r.owner_name)}</span>` : ''}</div>
+          <div class="audit-site">${escHtml(r.website || '')}</div>
+          ${contactEmail ? `<div style="font-size:10px;margin-top:2px;"><a href="mailto:${contactEmail}" style="color:#2563eb;">${escHtml(contactEmail)}</a></div>` : ''}
+        </div>
+        <div class="audit-score">
+          <div class="audit-score-num" style="color:${color};">${score}</div>
+          <div class="audit-score-lbl">Lead Score</div>
+        </div>
+        <div class="audit-tier-label" style="background:${color}22;color:${color};">${tier}</div>
+        ${r.report_path ? `<a class="btn-report" href="/report/${r.job_id}" target="_blank">📥 Download</a>` : '<span style="font-size:11px;color:#94a3b8;">No report</span>'}`;
+    }
+    list.appendChild(div);
+  });
+
+  if (added) {
+    const ready = results.filter(r => r.report_path).length;
+    count.textContent = `${renderedJobIds.size} completed · ${ready} report${ready !== 1 ? 's' : ''} ready`;
+  }
 }
 
 function updateProgress(data) {
