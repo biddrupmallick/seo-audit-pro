@@ -73,13 +73,39 @@ CUSTOMER_LANGUAGE: [3-5 exact words/phrases customers use repeatedly, in quotes]
 KEY_INSIGHT: [single most surprising or actionable finding from these reviews, one sentence]"""
 
             raw = _ollama(prompt, max_tokens=500)
-            parsed = {}
-            for line in raw.splitlines():
-                if ":" in line:
-                    k, _, v = line.partition(":")
-                    parsed[k.strip()] = v.strip()
         else:
-            parsed = {}
+            # No review text — infer from rating, review count, and category
+            rating_label = (
+                "very high (4.5+)" if (avg_rating or 0) >= 4.5
+                else "good (4.0–4.4)" if (avg_rating or 0) >= 4.0
+                else "average (3.5–3.9)" if (avg_rating or 0) >= 3.5
+                else "below average (under 3.5)"
+            )
+            prompt = f"""You are a market research analyst specialising in local business SEO.
+
+I have {biz_count} {cat} businesses{f' in {state}' if state else ''} with no review text available.
+Average rating: {avg_rating}★ ({rating_label})  |  Average review count: {avg_reviews}
+
+Based on your knowledge of {cat} businesses with a {rating_label} rating, infer likely customer sentiment.
+
+Respond in EXACTLY this format:
+
+TOP_PRAISE: [3 most likely things customers praise for a {cat} business with this rating, comma-separated]
+TOP_COMPLAINTS: [3 most likely complaints for a {cat} business with this rating, comma-separated]
+STAFF_PATTERNS: [typical staff behaviours mentioned for {cat} businesses at this rating level, comma-separated]
+SERVICE_KEYWORDS: [top 5 services customers typically mention for {cat} businesses, comma-separated]
+DIFFERENTIATORS: [what typically separates 5-star from 3-star {cat} businesses, one sentence]
+RESPONSE_RATE: [typical owner response rate for {cat} businesses at this rating: yes/no/partial]
+CUSTOMER_LANGUAGE: [3-5 words/phrases customers commonly use for {cat} businesses, in quotes]
+KEY_INSIGHT: [single most actionable insight for a {cat} business at {avg_rating}★ to improve, one sentence]"""
+
+            raw = _ollama(prompt, max_tokens=500)
+
+        parsed = {}
+        for line in raw.splitlines():
+            if ":" in line:
+                k, _, v = line.partition(":")
+                parsed[k.strip()] = v.strip()
 
         results[key] = {
             "category": cat,
@@ -88,6 +114,7 @@ KEY_INSIGHT: [single most surprising or actionable finding from these reviews, o
             "avg_rating": avg_rating,
             "avg_reviews": avg_reviews,
             "has_review_text": bool(combined_text),
+            "inferred": not bool(combined_text),
             "analysis": parsed,
         }
 

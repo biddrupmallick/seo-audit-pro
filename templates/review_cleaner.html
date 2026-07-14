@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review Cleaner — SEO Audit Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+
+    .topbar { background: #0f172a; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-logo { color: #fff; font-size: 16px; font-weight: 800; }
+    .topbar-logo span { color: #3b82f6; }
+    .topbar-nav a { color: #94a3b8; font-size: 13px; text-decoration: none; margin-left: 20px; }
+    .topbar-nav a:hover { color: #fff; }
+    .topbar-nav a.active { color: #3b82f6; font-weight: 600; }
+
+    .page { max-width: 1100px; margin: 36px auto; padding: 0 20px 60px; }
+    h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+    .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 720px) { .columns { grid-template-columns: 1fr; } }
+
+    .panel { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .panel-title { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    textarea {
+      width: 100%; height: 380px; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 12px; font-size: 12px; line-height: 1.6; color: #334155;
+      resize: vertical; outline: none; font-family: inherit;
+    }
+    textarea:focus { border-color: #3b82f6; }
+    textarea[readonly] { background: #f8fafc; }
+
+    .btn {
+      border: none; border-radius: 8px; padding: 10px 20px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-primary { background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; width: 100%; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-green:hover { opacity: 0.9; }
+    .btn-purple { background: #7c3aed; color: #fff; }
+    .btn-purple:hover { opacity: 0.9; }
+
+    .btn-row { display: flex; gap: 8px; }
+
+    .stats-bar {
+      display: none; background: #eff6ff; border: 1px solid #bfdbfe;
+      border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #1d4ed8;
+      display: flex; gap: 16px; flex-wrap: wrap;
+    }
+    .stats-bar span { font-weight: 700; }
+
+    .analysis-box {
+      display: none; background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 8px; padding: 14px; font-size: 12px; line-height: 1.8;
+    }
+    .analysis-box.visible { display: block; }
+    .analysis-row { margin-bottom: 8px; }
+    .analysis-key { font-weight: 700; color: #475569; }
+    .analysis-val { color: #1e293b; }
+    .badge-good { display: inline-block; background: #dcfce7; color: #16a34a; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; margin-right: 4px; }
+    .badge-bad  { display: inline-block; background: #fee2e2; color: #dc2626; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; margin-right: 4px; }
+
+    .spinner { display: none; font-size: 12px; color: #64748b; }
+    .spinner.visible { display: block; }
+
+    .tip { font-size: 11px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">SEO Audit <span>Pro</span></div>
+  <div class="topbar-nav">
+    <a href="/">Single Audit</a>
+    <a href="/bulk">Bulk Audit</a>
+    <a href="/upload">📂 Niche Upload</a>
+    <a href="/review-cleaner" class="active">🧹 Review Cleaner</a>
+    <a href="/settings">⚙️ Branding</a>
+  </div>
+</div>
+
+<div class="page">
+  <h1>Review Cleaner</h1>
+  <p class="subtitle">Paste raw Google Maps review text → get clean text ready for Excel + instant Ollama analysis.</p>
+
+  <div class="columns">
+
+    <!-- LEFT: Input -->
+    <div class="panel">
+      <div class="panel-title">Paste Raw Google Reviews</div>
+      <textarea id="raw-input" placeholder="Paste the raw text copied from Google Maps here — names, dates, Like/Share buttons and all. We'll clean it up."></textarea>
+      <p class="tip">Copy everything from the Google Maps review section and paste it as-is.</p>
+      <button class="btn btn-primary" onclick="cleanText()">🧹 Clean Text</button>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div class="panel">
+      <div class="panel-title">Clean Output</div>
+
+      <div class="stats-bar" id="stats-bar">
+        <div>Reviews found: <span id="stat-reviews">—</span></div>
+        <div>Characters saved: <span id="stat-saved">—</span></div>
+        <div>Topics: <span id="stat-topics">—</span></div>
+      </div>
+
+      <textarea id="clean-output" readonly placeholder="Cleaned text will appear here…"></textarea>
+
+      <div class="btn-row">
+        <button class="btn btn-green" onclick="copyText()" id="btn-copy" disabled>📋 Copy</button>
+        <button class="btn btn-secondary" onclick="downloadText()" id="btn-download" disabled>⬇️ Download .txt</button>
+        <button class="btn btn-purple" onclick="analyseText()" id="btn-analyse" disabled>🤖 Analyse with Ollama</button>
+      </div>
+
+      <div class="spinner" id="spinner">⏳ Ollama is analysing reviews…</div>
+
+      <!-- Ollama analysis result -->
+      <div class="analysis-box" id="analysis-box">
+        <div class="analysis-row"><span class="analysis-key">👍 Top Praise: </span><span class="analysis-val" id="an-praise"></span></div>
+        <div class="analysis-row"><span class="analysis-key">👎 Top Complaints: </span><span class="analysis-val" id="an-complaints"></span></div>
+        <div class="analysis-row"><span class="analysis-key">👥 Staff Patterns: </span><span class="analysis-val" id="an-staff"></span></div>
+        <div class="analysis-row"><span class="analysis-key">🔑 Service Keywords: </span><span class="analysis-val" id="an-keywords"></span></div>
+        <div class="analysis-row"><span class="analysis-key">⭐ Differentiators: </span><span class="analysis-val" id="an-diff"></span></div>
+        <div class="analysis-row"><span class="analysis-key">💬 Customer Language: </span><span class="analysis-val" id="an-lang"></span></div>
+        <div class="analysis-row"><span class="analysis-key">💡 Key Insight: </span><span class="analysis-val" id="an-insight"></span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+async function cleanText() {
+  const raw = document.getElementById('raw-input').value.trim();
+  if (!raw) { alert('Paste some review text first.'); return; }
+
+  const resp = await fetch('/api/review-cleaner/clean', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: raw }),
+  });
+  const data = await resp.json();
+
+  document.getElementById('clean-output').value = data.cleaned;
+
+  // Stats
+  document.getElementById('stat-reviews').textContent = data.stats.reviews_found;
+  document.getElementById('stat-saved').textContent = data.stats.chars_saved.toLocaleString() + ' chars';
+  document.getElementById('stat-topics').textContent = data.stats.topics.length > 0 ? data.stats.topics.join(', ') : 'none';
+  document.getElementById('stats-bar').style.display = 'flex';
+
+  // Enable buttons
+  document.getElementById('btn-copy').disabled = false;
+  document.getElementById('btn-download').disabled = false;
+  document.getElementById('btn-analyse').disabled = false;
+
+  // Hide previous analysis
+  document.getElementById('analysis-box').classList.remove('visible');
+  document.getElementById('spinner').classList.remove('visible');
+}
+
+async function analyseText() {
+  const cleaned = document.getElementById('clean-output').value.trim();
+  if (!cleaned) return;
+
+  document.getElementById('spinner').classList.add('visible');
+  document.getElementById('analysis-box').classList.remove('visible');
+  document.getElementById('btn-analyse').disabled = true;
+
+  const resp = await fetch('/api/review-cleaner/analyse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: cleaned }),
+  });
+  const data = await resp.json();
+
+  document.getElementById('spinner').classList.remove('visible');
+  document.getElementById('btn-analyse').disabled = false;
+
+  if (data.analysis) {
+    const a = data.analysis;
+    document.getElementById('an-praise').textContent = a.TOP_PRAISE || '—';
+    document.getElementById('an-complaints').textContent = a.TOP_COMPLAINTS || '—';
+    document.getElementById('an-staff').textContent = a.STAFF_PATTERNS || '—';
+    document.getElementById('an-keywords').textContent = a.SERVICE_KEYWORDS || '—';
+    document.getElementById('an-diff').textContent = a.DIFFERENTIATORS || '—';
+    document.getElementById('an-lang').textContent = a.CUSTOMER_LANGUAGE || '—';
+    document.getElementById('an-insight').textContent = a.KEY_INSIGHT || '—';
+    document.getElementById('analysis-box').classList.add('visible');
+  }
+}
+
+function copyText() {
+  const output = document.getElementById('clean-output');
+  output.select();
+  document.execCommand('copy');
+  const btn = document.getElementById('btn-copy');
+  btn.textContent = '✅ Copied!';
+  setTimeout(() => btn.textContent = '📋 Copy', 2000);
+}
+
+function downloadText() {
+  const text = document.getElementById('clean-output').value;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'clean_reviews.txt';
+  a.click();
+}
+</script>
+</body>
+</html>

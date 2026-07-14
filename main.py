@@ -49,6 +49,7 @@ from analyzers.review_analyzer import analyze_reviews_batch
 from analyzers.website_email import enrich_businesses_with_website_emails
 from analyzers.niche_blog import generate_blog_posts
 from analyzers.ultra_email import generate_ultra_emails
+from analyzers.text_cleaner import clean_review_text
 from report.branding import load_branding, save_branding
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
@@ -119,6 +120,52 @@ async def settings_page(request: Request):
     return templates.TemplateResponse(request, "settings.html", {
         "branding": load_branding(),
     })
+
+
+# ====== REVIEW CLEANER ======
+@app.get("/review-cleaner", response_class=HTMLResponse)
+async def review_cleaner_page(request: Request):
+    return templates.TemplateResponse(request, "review_cleaner.html", {})
+
+
+@app.post("/api/review-cleaner/clean")
+async def review_cleaner_clean(request: Request):
+    body = await request.json()
+    raw = body.get("text", "")
+    cleaned, stats = clean_review_text(raw)
+    return {"cleaned": cleaned, "stats": stats}
+
+
+@app.post("/api/review-cleaner/analyse")
+async def review_cleaner_analyse(request: Request):
+    from analyzers.ollama_client import ask
+    body = await request.json()
+    text = body.get("text", "").strip()
+    if not text:
+        return {"analysis": {}}
+
+    prompt = f"""You are a market research analyst specialising in local business reviews.
+
+REVIEW TEXT:
+{text[:6000]}
+
+Analyse these reviews and respond in EXACTLY this format:
+
+TOP_PRAISE: [3 most common things customers praise, comma-separated]
+TOP_COMPLAINTS: [3 most common complaints, comma-separated]
+STAFF_PATTERNS: [behaviours or traits mentioned about staff, comma-separated]
+SERVICE_KEYWORDS: [top 5 services customers actually mention, comma-separated]
+DIFFERENTIATORS: [what separates positive from negative experiences, one sentence]
+CUSTOMER_LANGUAGE: [3-5 exact words/phrases customers use repeatedly, in quotes]
+KEY_INSIGHT: [single most actionable finding from these reviews, one sentence]"""
+
+    raw = await asyncio.to_thread(ask, prompt, 500, 0.4)
+    parsed = {}
+    for line in raw.splitlines():
+        if ":" in line:
+            k, _, v = line.partition(":")
+            parsed[k.strip()] = v.strip()
+    return {"analysis": parsed}
 
 
 @app.post("/settings")
