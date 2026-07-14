@@ -252,6 +252,7 @@ function initQueueUI(items) {
       <div class="qi-main">
         <div class="qi-url">${it.url}</div>
         <div class="qi-msg" id="qi-msg-${i}">Waiting…</div>
+        <div class="qi-eta" id="qi-eta-${i}" style="font-size:10px;color:#94a3b8;margin-top:2px;"></div>
         <div class="qi-mini-bar" id="qi-bar-${i}">
           <div class="qi-mini-fill" id="qi-fill-${i}"></div>
         </div>
@@ -278,6 +279,13 @@ async function pollStatus() {
 const TIER_COLORS = { 'Hot Lead': '#dc2626', 'Warm Lead': '#d97706', 'Nurture': '#16a34a' };
 const TIER_ICONS = { 'Hot Lead': '🔥', 'Warm Lead': '⚡', 'Nurture': '🌱' };
 
+function formatEta(seconds) {
+  if (seconds == null || seconds <= 0) return '';
+  if (seconds < 60) return `~${seconds}s remaining`;
+  const m = Math.floor(seconds / 60), s = seconds % 60;
+  return s > 0 ? `~${m}m ${s}s remaining` : `~${m}m remaining`;
+}
+
 function updateQueueUI(data) {
   const total = data.total;
   const done = data.items.filter(i => i.status === 'complete' || i.status === 'error').length;
@@ -287,6 +295,7 @@ function updateQueueUI(data) {
   data.items.forEach((item, i) => {
     const statusEl = document.getElementById(`qi-status-${i}`);
     const msgEl    = document.getElementById(`qi-msg-${i}`);
+    const etaEl    = document.getElementById(`qi-eta-${i}`);
     const barEl    = document.getElementById(`qi-bar-${i}`);
     const fillEl   = document.getElementById(`qi-fill-${i}`);
     const pctEl    = document.getElementById(`qi-pct-${i}`);
@@ -299,6 +308,7 @@ function updateQueueUI(data) {
     if (item.status === 'complete') {
       statusEl.textContent = '✅';
       msgEl.textContent = 'Complete';
+      if (etaEl) etaEl.textContent = '';
       barEl.style.display = 'block';
       fillEl.style.width = '100%';
       fillEl.style.background = '#22c55e';
@@ -314,6 +324,7 @@ function updateQueueUI(data) {
     } else if (item.status === 'running') {
       statusEl.textContent = '⏳';
       msgEl.textContent = item.message || 'Running…';
+      if (etaEl) etaEl.textContent = formatEta(item.eta_seconds);
       barEl.style.display = 'block';
       fillEl.style.width = pct + '%';
       fillEl.style.background = 'linear-gradient(90deg,#2563eb,#6366f1)';
@@ -325,6 +336,7 @@ function updateQueueUI(data) {
     } else if (item.status === 'error') {
       statusEl.textContent = '❌';
       msgEl.textContent = item.error || 'Failed';
+      if (etaEl) etaEl.textContent = '';
       barEl.style.display = 'block';
       fillEl.style.width = '100%';
       fillEl.style.background = '#ef4444';
@@ -335,6 +347,7 @@ function updateQueueUI(data) {
     } else {
       statusEl.textContent = '○';
       msgEl.textContent = 'Waiting…';
+      if (etaEl) etaEl.textContent = '';
       barEl.style.display = 'none';
       pctEl.style.display = 'none';
       badgeEl.innerHTML = '';

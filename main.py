@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import time
 import traceback
 import uuid
 from contextlib import asynccontextmanager
@@ -326,12 +327,19 @@ async def bulk_status(bulk_id: str):
     # Return status without heavy data
     items_summary = []
     for it in bj["items"]:
+        pct = it.get("progress", 0)
+        eta_seconds = None
+        started_at = it.get("started_at")
+        if started_at and pct > 2 and it["status"] == "running":
+            elapsed = time.time() - started_at
+            eta_seconds = int(elapsed / pct * (100 - pct))
         items_summary.append({
             "url": it["url"],
             "job_id": it["job_id"],
             "status": it["status"],
-            "progress": it.get("progress", 0),
+            "progress": pct,
             "message": it.get("message", ""),
+            "eta_seconds": eta_seconds,
             "error": it.get("error"),
             "lead_score": it.get("lead_score"),
             "report_path": it.get("report_path"),
@@ -355,6 +363,7 @@ async def run_bulk(bulk_id: str):
         item["status"] = "running"
         item["progress"] = 2
         item["message"] = "Starting…"
+        item["started_at"] = time.time()
 
         job_id = item["job_id"]
         # Register in the main jobs store so run_analysis works
@@ -974,15 +983,21 @@ async def send_progress(job_id: str, percent: int, message: str):
     jobs[job_id]["progress"] = percent
     jobs[job_id]["message"] = message
 
+    eta_seconds = None
+    started_at = jobs[job_id].get("started_at")
+    if started_at and percent > 2:
+        elapsed = time.time() - started_at
+        eta_seconds = int(elapsed / percent * (100 - percent))
+
     if job_id in ws_connections:
         try:
             await ws_connections[job_id].send_json({
                 "type": "progress",
                 "percent": percent,
                 "message": message,
+                "eta_seconds": eta_seconds,
             })
         except Exception:
-            # WebSocket may have closed
             pass
 
 
@@ -990,6 +1005,7 @@ async def run_analysis(job_id: str, url: str, competitor_urls: Optional[List[str
     """Main background task: crawl + analyze + generate report."""
     try:
         jobs[job_id]["status"] = "running"
+        jobs[job_id]["started_at"] = time.time()
         parsed_domain = url.replace("https://", "").replace("http://", "").split("/")[0]
         await send_progress(job_id, 2, f"Starting crawl of {url}…")
 

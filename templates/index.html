@@ -149,6 +149,8 @@
           <div class="progress-pct" id="progress-pct">0%</div>
         </div>
 
+        <div class="progress-eta" id="progress-eta" style="font-size:0.82rem;color:#888;margin-bottom:4px;min-height:1.2em;"></div>
+
         <div class="progress-message" id="progress-message">
           Initializing crawler…
         </div>
@@ -324,6 +326,7 @@ function resetUI() {
   document.getElementById('progress-bar').style.width = '0%';
   document.getElementById('progress-pct').textContent = '0%';
   document.getElementById('progress-log').innerHTML = '';
+  document.getElementById('progress-eta').textContent = '';
   if (ws) { ws.close(); ws = null; }
   currentJobId = null;
 }
@@ -469,10 +472,10 @@ function connectWebSocket(jobId) {
 
 function handleProgressMessage(msg) {
   if (msg.type === 'progress') {
-    updateProgress(msg.percent || 0, msg.message || '');
+    updateProgress(msg.percent || 0, msg.message || '', msg.eta_seconds);
     addProgressLog(msg.message);
   } else if (msg.type === 'complete') {
-    updateProgress(100, 'Analysis complete!');
+    updateProgress(100, 'Analysis complete!', 0);
     addProgressLog('Analysis complete! Loading results…');
     setTimeout(() => showResults(msg.data), 800);
   } else if (msg.type === 'error') {
@@ -480,16 +483,26 @@ function handleProgressMessage(msg) {
   }
 }
 
-function updateProgress(percent, message) {
+function formatEta(seconds) {
+  if (seconds == null || seconds <= 0) return '';
+  if (seconds < 60) return `~${seconds}s remaining`;
+  const m = Math.floor(seconds / 60), s = seconds % 60;
+  return s > 0 ? `~${m}m ${s}s remaining` : `~${m}m remaining`;
+}
+
+function updateProgress(percent, message, etaSeconds) {
   document.getElementById('progress-bar').style.width = percent + '%';
   document.getElementById('progress-pct').textContent = Math.round(percent) + '%';
   if (message) {
     document.getElementById('progress-message').textContent = message;
   }
+  const etaEl = document.getElementById('progress-eta');
+  if (etaEl) etaEl.textContent = formatEta(etaSeconds);
 
   if (percent >= 100) {
     document.getElementById('progress-spinner').style.display = 'none';
     document.getElementById('progress-title').textContent = 'Complete!';
+    if (etaEl) etaEl.textContent = '';
   }
 }
 
