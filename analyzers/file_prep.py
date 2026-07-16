@@ -132,7 +132,12 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
         if not val_str:
             continue
 
-        if not result["website"] and val_str.startswith(("http://", "https://")) and "google.com" not in val_str:
+        if (not result["website"]
+                and val_str.startswith(("http://", "https://"))
+                and "google.com" not in val_str
+                and "gstatic.com" not in val_str
+                and "googleapis.com" not in val_str
+                and not val_str.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"))):
             result["website"] = val_str; skip.add(i); continue
 
         if not result["gmb_url"] and _GMB_RE.search(val_str):
