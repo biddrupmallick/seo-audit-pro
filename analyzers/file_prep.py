@@ -26,6 +26,17 @@ _LON_RE          = re.compile(r'!4d(-?\d+\.\d+)')
 _OWNER_KEYWORDS  = re.compile(r'\b(owner|principal|contact|email|reach|manager)\b', re.I)
 _EMAIL_RE        = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-z]{2,}')
 
+_US_STATES = {
+    "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
+    "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+    "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+    "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada",
+    "New Hampshire","New Jersey","New Mexico","New York","North Carolina",
+    "North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island",
+    "South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont",
+    "Virginia","Washington","West Virginia","Wisconsin","Wyoming",
+}
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -87,9 +98,9 @@ Text: \"\"\"{owner_info[:800]}\"\"\""""
         if line.startswith("OWNER_NAME:"):
             owner_name = line.partition(":")[2].strip()
         elif line.startswith("EMAIL:"):
-            email = line.partition(":")[2].strip()
-            if "@" not in email:
-                email = ""
+            raw_email = line.partition(":")[2].strip()
+            m = _EMAIL_RE.search(raw_email)
+            email = m.group(0) if m else ""
     return owner_name, email
 
 
@@ -156,7 +167,7 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
         val_str = str(val).strip()
         if not val_str:
             continue
-        if not result["category"] and 1 <= len(val_str.split()) <= 5 and not _is_phone(val_str):
+        if not result["category"] and 1 <= len(val_str.split()) <= 5 and not _is_phone(val_str) and val_str not in _US_STATES:
             result["category"] = val_str
             break
 
@@ -203,7 +214,10 @@ def process_file(
 
     for idx, row_vals in enumerate(rows, 1):
         parsed = _parse_row(row_vals, gmb_idx, name_idx)
-        name = parsed["name"] or f"Row {idx}"
+        name = parsed["name"]
+        if not name:
+            total -= 1
+            continue
 
         # Clean reviews_text
         if parsed["reviews_text"]:
