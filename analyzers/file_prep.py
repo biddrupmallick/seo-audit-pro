@@ -23,7 +23,11 @@ _ADDRESS_RE      = re.compile(r'^\d+\s+\w')
 _PHONE_DIGITS_RE = re.compile(r'\d')
 _LAT_RE          = re.compile(r'!3d(-?\d+\.\d+)')
 _LON_RE          = re.compile(r'!4d(-?\d+\.\d+)')
-_OWNER_KEYWORDS  = re.compile(r'\b(owner|principal|contact|email|reach|manager)\b', re.I)
+_OWNER_STRUCTURED = re.compile(r'\b(principal|business management|additional contact)\b', re.I)
+_OWNER_WITH_CONTACT = re.compile(
+    r'\b(owner|manager)\b.{0,200}\b(email|calling|call us|reach us|reach the|contact us|@)\b',
+    re.I | re.S
+)
 _EMAIL_RE        = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-z]{2,}')
 
 _US_STATES = {
@@ -103,7 +107,15 @@ def _is_phone(val: str) -> bool:
 
 
 def _is_owner_info(val: str) -> bool:
-    return len(val.split()) >= 10 and bool(_OWNER_KEYWORDS.search(val))
+    if len(val.split()) < 10:
+        return False
+    # Structured business contact block (e.g. "Principal Contact", "Business Management")
+    if _OWNER_STRUCTURED.search(val):
+        return True
+    # Owner/manager mentioned alongside contact info (email, phone, reach)
+    if _OWNER_WITH_CONTACT.search(val):
+        return True
+    return False
 
 
 def _ollama_extract(owner_info: str) -> Tuple[str, str]:
