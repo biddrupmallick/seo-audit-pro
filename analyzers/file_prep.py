@@ -124,12 +124,14 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
 
     skip  = {gmb_col, name_col}
     texts = []
+    _JUNK_CELLS = {"website", "phone", "email", "address", "name", "category",
+                   "closed", "open", "directions", "n/a"}
 
     for i, val in enumerate(row_vals):
         if i in skip or val is None:
             continue
         val_str = str(val).strip()
-        if not val_str:
+        if not val_str or val_str.lower() in _JUNK_CELLS or val_str.startswith("#"):
             continue
 
         if (not result["website"]
