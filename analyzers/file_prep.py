@@ -37,6 +37,22 @@ _US_STATES = {
     "Virginia","Washington","West Virginia","Wisconsin","Wyoming",
 }
 
+_STATE_ABBR = {
+    "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California",
+    "CO":"Colorado","CT":"Connecticut","DE":"Delaware","FL":"Florida","GA":"Georgia",
+    "HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa",
+    "KS":"Kansas","KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland",
+    "MA":"Massachusetts","MI":"Michigan","MN":"Minnesota","MS":"Mississippi",
+    "MO":"Missouri","MT":"Montana","NE":"Nebraska","NV":"Nevada","NH":"New Hampshire",
+    "NJ":"New Jersey","NM":"New Mexico","NY":"New York","NC":"North Carolina",
+    "ND":"North Dakota","OH":"Ohio","OK":"Oklahoma","OR":"Oregon","PA":"Pennsylvania",
+    "RI":"Rhode Island","SC":"South Carolina","SD":"South Dakota","TN":"Tennessee",
+    "TX":"Texas","UT":"Utah","VT":"Vermont","VA":"Virginia","WA":"Washington",
+    "WV":"West Virginia","WI":"Wisconsin","WY":"Wyoming",
+}
+
+_STATE_FROM_ADDR_RE = re.compile(r',\s*([A-Z]{2})\s+\d{5}')
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -111,7 +127,7 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
         "gmb_url": "", "name": "", "category": "", "address": "",
         "phone": "", "website": "", "rating": None, "reviews": None,
         "reviews_text": "", "owner_info": "", "lat": None, "lon": None,
-        "state": "Alabama",
+        "state": "",
     }
 
     gmb_val  = str(row_vals[gmb_col]  or "").strip()
@@ -159,8 +175,18 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
         if not result["phone"] and _is_phone(val_str):
             result["phone"] = _clean_phone(val_str); skip.add(i); continue
 
+        # Standalone state name cell (e.g. "Alabama")
+        if not result["state"] and val_str in _US_STATES:
+            result["state"] = val_str; skip.add(i); continue
+
         if len(val_str.split()) >= 10:
             texts.append((i, val_str))
+
+    # Extract state from address if not found as standalone cell
+    if not result["state"] and result["address"]:
+        m = _STATE_FROM_ADDR_RE.search(result["address"])
+        if m:
+            result["state"] = _STATE_ABBR.get(m.group(1), m.group(1))
 
     # Owner info: first text with owner keywords
     # Reviews text: longest remaining text (big reviews block beats short quotes)
@@ -264,14 +290,14 @@ def process_file(
             except Exception:
                 site_info = {}
 
-        # Website email takes priority over Ollama (Ollama can hallucinate)
+        # Email priority: Ollama (from owner info) → Website → Facebook
         email, email_source = "", "not_found"
-        if site_info.get("email"):
-            email = site_info["email"]
-            email_source = "website"
-        elif ollama_email:
+        if ollama_email:
             email = ollama_email
             email_source = "ollama"
+        elif site_info.get("email"):
+            email = site_info["email"]
+            email_source = "website"
 
         social_cols = ["facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok", "pinterest", "yelp"]
         socials_found = [p for p in social_cols if site_info.get(p)]
