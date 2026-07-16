@@ -139,6 +139,36 @@ Text: \"\"\"{owner_info[:800]}\"\"\""""
 
 # ── Row parser ────────────────────────────────────────────────────────────────
 
+_JUNK_CELLS = {"website", "phone", "email", "address", "name", "category",
+               "closed", "open", "directions", "n/a"}
+
+_IMAGE_EXTS  = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
+_SKIP_HOSTS  = ("google.com", "gstatic.com", "googleapis.com")
+
+
+def _is_website(val: str) -> bool:
+    if not val.startswith(("http://", "https://")):
+        return False
+    if any(h in val for h in _SKIP_HOSTS):
+        return False
+    if val.lower().endswith(_IMAGE_EXTS):
+        return False
+    return True
+
+
+def _candidates(row_vals: List[Any], fixed_cols: set) -> List[Tuple[int, str]]:
+    """Return (index, str_value) for every usable cell in the row."""
+    result = []
+    for i, val in enumerate(row_vals):
+        if i in fixed_cols or val is None:
+            continue
+        s = str(val).strip()
+        if not s or s.lower() in _JUNK_CELLS or s.startswith("#"):
+            continue
+        result.append((i, s))
+    return result
+
+
 def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, Any]:
     result: Dict[str, Any] = {
         "gmb_url": "", "name": "", "category": "", "address": "",
@@ -147,65 +177,88 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
         "state": "",
     }
 
-    gmb_val  = str(row_vals[gmb_col]  or "").strip()
-    name_val = str(row_vals[name_col] or "").strip()
-    result["gmb_url"] = gmb_val
-    result["name"]    = name_val
+    # ── Fixed columns (user-specified) ───────────────────────────────────
+    result["name"]    = str(row_vals[name_col] or "").strip()
+    result["gmb_url"] = str(row_vals[gmb_col]  or "").strip()
+    if result["gmb_url"]:
+        result["lat"], result["lon"] = _extract_lat_lon(result["gmb_url"])
 
-    if gmb_val:
-        result["lat"], result["lon"] = _extract_lat_lon(gmb_val)
+    cells = _candidates(row_vals, {gmb_col, name_col})
 
-    skip  = {gmb_col, name_col}
-    texts = []
-    _JUNK_CELLS = {"website", "phone", "email", "address", "name", "category",
-                   "closed", "open", "directions", "n/a"}
+    # ── GMB URL (if not in the designated column) ─────────────────────────
+    if not result["gmb_url"]:
+        for _, s in cells:
+            if _GMB_RE.search(s):
+                result["gmb_url"] = s
+                result["lat"], result["lon"] = _extract_lat_lon(s)
+                break
 
-    for i, val in enumerate(row_vals):
-        if i in skip or val is None:
-            continue
-        val_str = str(val).strip()
-        if not val_str or val_str.lower() in _JUNK_CELLS or val_str.startswith("#"):
-            continue
+    # ── Rating: X.X between 1.0–5.0 ──────────────────────────────────────
+    for _, s in cells:
+        if _is_rating(s):
+            result["rating"] = float(s)
+            break
 
-        if (not result["website"]
-                and val_str.startswith(("http://", "https://"))
-                and "google.com" not in val_str
-                and "gstatic.com" not in val_str
-                and "googleapis.com" not in val_str
-                and not val_str.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"))):
-            result["website"] = val_str; skip.add(i); continue
+    # ── Review Count: integer number ──────────────────────────────────────
+    for _, s in cells:
+        if _is_reviews(s, result["rating"] is not None):
+            result["reviews"] = abs(int(float(s)))
+            break
 
-        if not result["gmb_url"] and _GMB_RE.search(val_str):
-            result["gmb_url"] = val_str
-            result["lat"], result["lon"] = _extract_lat_lon(val_str)
-            skip.add(i); continue
+    # ── Address: starts with digit + street text ──────────────────────────
+    for _, s in cells:
+        if _is_address(s):
+            result["address"] = s
+            break
 
-        if result["rating"] is None and _is_rating(val_str):
-            result["rating"] = float(val_str); skip.add(i); continue
+    # ── Phone: 7–15 digits (handles =+1205... formula cells) ─────────────
+    for _, s in cells:
+        if _is_phone(s):
+            result["phone"] = _clean_phone(s)
+            break
 
-        if result["reviews"] is None and _is_reviews(val_str, result["rating"] is not None):
-            result["reviews"] = abs(int(float(val_str))); skip.add(i); continue
+    # ── Website: https:// URL, not image or Google domain ─────────────────
+    for _, s in cells:
+        if _is_website(s):
+            result["website"] = s
+            break
 
-        if not result["address"] and _is_address(val_str):
-            result["address"] = val_str; skip.add(i); continue
+    # ── State: standalone state name cell ────────────────────────────────
+    for _, s in cells:
+        if s in _US_STATES:
+            result["state"] = s
+            break
 
-        if not result["phone"] and _is_phone(val_str):
-            result["phone"] = _clean_phone(val_str); skip.add(i); continue
+    # ── Category: 1–5 words, not a phone/state/URL/rating/address/number ──
+    for _, s in cells:
+        if (1 <= len(s.split()) <= 5
+                and not _is_phone(s)
+                and not _is_rating(s)
+                and not _is_address(s)
+                and not _is_website(s)
+                and not _is_reviews(s, True)
+                and s not in _US_STATES):
+            result["category"] = s
+            break
 
-        # Standalone state name cell (e.g. "Alabama")
-        if not result["state"] and val_str in _US_STATES:
-            result["state"] = val_str; skip.add(i); continue
+    # ── Large text blocks → Owner Info + Customer Reviews ────────────────
+    large_texts = [(i, s) for i, s in cells if len(s.split()) >= 10]
+    review_candidates = []
+    for _, s in large_texts:
+        if not result["owner_info"] and _is_owner_info(s):
+            result["owner_info"] = s
+        else:
+            review_candidates.append(s)
 
-        if len(val_str.split()) >= 10:
-            texts.append((i, val_str))
+    if review_candidates:
+        result["reviews_text"] = max(review_candidates, key=len)
 
-    # Extract state from address abbreviation (e.g. ', AL 36203')
+    # ── State fallbacks ───────────────────────────────────────────────────
     if not result["state"] and result["address"]:
         m = _STATE_FROM_ADDR_RE.search(result["address"])
         if m:
             result["state"] = _STATE_ABBR.get(m.group(1), m.group(1))
 
-    # Extract state from owner info or reviews text as last resort
     if not result["state"]:
         for text in [result["owner_info"], result["reviews_text"]]:
             if not text:
@@ -214,30 +267,6 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
             if m:
                 result["state"] = m.group(1)
                 break
-
-    # Owner info: first text with owner keywords
-    # Reviews text: longest remaining text (big reviews block beats short quotes)
-    review_candidates = []
-    for i, val_str in texts:
-        if not result["owner_info"] and _is_owner_info(val_str):
-            result["owner_info"] = val_str; skip.add(i)
-        else:
-            review_candidates.append((i, val_str))
-
-    if review_candidates:
-        best_i, best_text = max(review_candidates, key=lambda x: len(x[1]))
-        result["reviews_text"] = best_text
-        skip.add(best_i)
-
-    for i, val in enumerate(row_vals):
-        if i in skip or val is None:
-            continue
-        val_str = str(val).strip()
-        if not val_str:
-            continue
-        if not result["category"] and 1 <= len(val_str.split()) <= 5 and not _is_phone(val_str) and val_str not in _US_STATES:
-            result["category"] = val_str
-            break
 
     return result
 
