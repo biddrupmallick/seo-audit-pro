@@ -300,6 +300,7 @@
                 <th>Owner</th>
                 <th>Email</th>
                 <th>Source</th>
+                <th>Socials</th>
               </tr>
             </thead>
             <tbody id="results-tbody"></tbody>
@@ -485,12 +486,15 @@ function addTableRow(r) {
   const srcBadge = r.email_source === 'ollama'   ? '<span class="badge ollama">Ollama</span>'
                  : r.email_source === 'website'  ? '<span class="badge website">Website</span>'
                  : '<span class="badge none">Not found</span>';
+  const socialIcons = { facebook:'🔵', instagram:'📸', twitter:'🐦', linkedin:'💼', youtube:'▶️', tiktok:'🎵', pinterest:'📌', yelp:'⭐' };
+  const socialsHtml = (r.socials || []).map(s => `<span title="${s}" style="margin-right:3px;">${socialIcons[s]||s}</span>`).join('') || '<span style="color:#374151">—</span>';
   tr.innerHTML = `
     <td style="color:#475569;font-size:11px;">${rowIndex + 1}</td>
     <td><div class="name-cell" title="${r.name}">${r.name}</div><div style="font-size:10px;color:#475569;">${r.category||''}</div></td>
     <td style="color:#94a3b8;font-size:12px;">${r.owner_name || '<span style="color:#374151">—</span>'}</td>
     <td><div class="email-cell" title="${r.email}">${r.email || '<span style="color:#374151">—</span>'}</div></td>
     <td>${srcBadge}</td>
+    <td style="font-size:14px;">${socialsHtml}</td>
   `;
   tbody.appendChild(tr);
   tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

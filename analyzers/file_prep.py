@@ -11,7 +11,7 @@ from openpyxl import Workbook
 
 from analyzers.ollama_client import ask
 from analyzers.text_cleaner import clean_review_text
-from analyzers.website_email import get_best_contact_email
+from analyzers.website_email import scrape_website_contact_info
 
 # ── Patterns ──────────────────────────────────────────────────────────────────
 
@@ -195,6 +195,8 @@ def process_file(
     ws_out.append([
         "name", "category", "address", "phone", "website",
         "rating", "reviews", "reviews_text", "owner_name", "email",
+        "facebook", "instagram", "twitter", "linkedin",
+        "youtube", "tiktok", "pinterest", "yelp",
         "lat", "lon", "state", "gmb_url", "owner_info",
     ])
 
@@ -214,27 +216,34 @@ def process_file(
             if email:
                 email_source = "ollama"
 
-        # Website fallback
-        if not email and parsed["website"]:
+        # Scrape website for email fallback + social media profiles
+        site_info: Dict[str, str] = {}
+        if parsed["website"]:
             try:
-                email = get_best_contact_email(parsed["website"])
-                if email:
-                    email_source = "website"
+                site_info = scrape_website_contact_info(parsed["website"])
             except Exception:
-                pass
+                site_info = {}
+
+        if not email and site_info.get("email"):
+            email = site_info["email"]
+            email_source = "website"
+
+        social_cols = ["facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok", "pinterest", "yelp"]
+        socials_found = [p for p in social_cols if site_info.get(p)]
 
         # Build log line
+        social_note = f" · {len(socials_found)} social{'s' if len(socials_found) != 1 else ''}" if socials_found else ""
         if email_source == "ollama":
-            log_line  = f"✅ {name} — {owner_name} — email via Ollama"
-            log_type  = "success"
+            log_line = f"✅ {name} — {owner_name} — email via Ollama{social_note}"
+            log_type = "success"
         elif email_source == "website":
-            log_line  = f"🌐 {name} — {owner_name or '—'} — email from website"
-            log_type  = "website"
+            log_line = f"🌐 {name} — {owner_name or '—'} — email from website{social_note}"
+            log_type = "website"
         else:
-            log_line  = f"⚠️ {name} — no email found"
-            log_type  = "warning"
+            log_line = f"⚠️ {name} — no email found{social_note}"
+            log_type = "warning"
             if not owner_name:
-                log_line = f"❌ {name} — owner & email not found"
+                log_line = f"❌ {name} — owner & email not found{social_note}"
                 log_type = "error"
 
         row_result = {
@@ -244,6 +253,7 @@ def process_file(
             "email_source": email_source,
             "rating":       parsed["rating"],
             "category":     parsed["category"],
+            "socials":      socials_found,
             "log_line":     log_line,
             "log_type":     log_type,
         }
@@ -256,6 +266,14 @@ def process_file(
             parsed["phone"], parsed["website"], parsed["rating"],
             parsed["reviews"], parsed["reviews_text"],
             owner_name, email,
+            site_info.get("facebook",  ""),
+            site_info.get("instagram", ""),
+            site_info.get("twitter",   ""),
+            site_info.get("linkedin",  ""),
+            site_info.get("youtube",   ""),
+            site_info.get("tiktok",    ""),
+            site_info.get("pinterest", ""),
+            site_info.get("yelp",      ""),
             parsed["lat"], parsed["lon"], parsed["state"],
             parsed["gmb_url"], parsed["owner_info"],
         ])
