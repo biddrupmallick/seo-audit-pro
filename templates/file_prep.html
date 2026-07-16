@@ -440,13 +440,15 @@ async function poll() {
   animateNum('s-website',   s.email_website || 0);
   animateNum('s-missing',   s.no_email   || 0);
 
-  // New rows → add to log + table
+  // New rows → add to log + table + enable download
   const rows = data.rows || [];
   for (let i = lastRowCount; i < rows.length; i++) {
     const r = rows[i];
     addLog(r.log_line, r.log_type);
     addTableRow(r);
     rowIndex++;
+    // Enable download as soon as first row is ready
+    if (rowIndex === 1) showDownload(false);
   }
   lastRowCount = rows.length;
 
@@ -455,11 +457,11 @@ async function poll() {
     document.getElementById('progress-fill').style.width = '100%';
     document.getElementById('progress-pct').textContent = '100%';
     document.getElementById('progress-label').textContent = 'Complete!';
-    addLog('✅ All businesses processed. File is ready.', 'success');
-    showDone(data);
+    addLog('All businesses processed. File is ready.', 'success');
+    showDownload(true);
   } else if (data.status === 'error') {
     clearInterval(pollTimer);
-    addLog('❌ Error: ' + data.message, 'error');
+    addLog('Error: ' + data.message, 'error');
   }
 }
 
@@ -499,14 +501,15 @@ function addTableRow(r) {
   tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function showDone(data) {
-  const s = data.stats || {};
-  const total = data.total || 0;
-  const found = (s.email_ollama || 0) + (s.email_website || 0);
-  document.getElementById('done-sub').textContent =
-    `${total} businesses processed · ${found} emails found · ${s.no_email || 0} missing`;
-  document.getElementById('download-link').href = `/api/file-prep/download/${jobId}`;
-  document.getElementById('done-card').classList.add('visible');
+function showDownload(isComplete) {
+  const card = document.getElementById('done-card');
+  const sub  = document.getElementById('done-sub');
+  const link = document.getElementById('download-link');
+  link.href = `/api/file-prep/download/${jobId}`;
+  sub.textContent = isComplete
+    ? `All ${rowIndex} businesses processed — download includes full results`
+    : `${rowIndex} of ${document.getElementById('progress-label').textContent.split('/')[1] || '?'} processed — partial download available`;
+  card.classList.add('visible');
 }
 
 function formatEta(s) {

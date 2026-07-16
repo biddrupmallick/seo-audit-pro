@@ -273,16 +273,39 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
 
 # ── Main processor ────────────────────────────────────────────────────────────
 
+OUTPUT_HEADERS = [
+    "Business Name", "Category", "Address", "Phone", "Website",
+    "Rating", "Review Count", "Customer Reviews", "Owner Name", "Email",
+    "Facebook", "Instagram", "Twitter", "LinkedIn",
+    "YouTube", "TikTok", "Pinterest", "Yelp",
+    "Latitude", "Longitude", "State", "GMB URL",
+]
+
+
+def build_excel(rows: list) -> bytes:
+    """Build output Excel from a list of row_result dicts."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Clean Data"
+    ws.append(OUTPUT_HEADERS)
+    for r in rows:
+        ws.append(r["excel_row"])
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
 def process_file(
     file_bytes: bytes,
     gmb_col: int,
     name_col: int,
     progress_callback: Optional[Callable] = None,
-) -> bytes:
+) -> None:
     """
-    Read raw Excel, process each row, return clean Excel bytes.
-    progress_callback(current, total, message, row_result) called per row.
-    row_result = {name, owner_name, email, email_source, rating, category, log_line}
+    Read raw Excel and process each row.
+    Calls progress_callback(current, total, message, row_result) per row.
+    row_result includes excel_row — the full output row values.
+    Excel is built by the caller via build_excel(job['rows']).
     """
     wb_in      = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
     wb_formula = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=False)
@@ -309,17 +332,6 @@ def process_file(
             rows.append(vals)
 
     total = len(rows)
-
-    wb_out = Workbook()
-    ws_out = wb_out.active
-    ws_out.title = "Clean Data"
-    ws_out.append([
-        "Business Name", "Category", "Address", "Phone", "Website",
-        "Rating", "Review Count", "Customer Reviews", "Owner Name", "Email",
-        "Facebook", "Instagram", "Twitter", "LinkedIn",
-        "YouTube", "TikTok", "Pinterest", "Yelp",
-        "Latitude", "Longitude", "State", "GMB URL",
-    ])
 
     for idx, row_vals in enumerate(rows, 1):
         parsed = _parse_row(row_vals, gmb_idx, name_idx)
@@ -384,23 +396,7 @@ def process_file(
                 log_line = f"{name} — owner and email not found{social_note}"
                 log_type = "error"
 
-        row_result = {
-            "name":                name,
-            "owner_name":          owner_name,
-            "email":               email,
-            "email_source":        email_source,
-            "screenshot_platform": screenshot_platform,
-            "rating":              parsed["rating"],
-            "category":            parsed["category"],
-            "socials":             socials_found,
-            "log_line":            log_line,
-            "log_type":            log_type,
-        }
-
-        if progress_callback:
-            progress_callback(idx, total, f"Processing {idx}/{total}: {name}", row_result)
-
-        ws_out.append([
+        excel_row = [
             parsed["name"], parsed["category"], parsed["address"],
             parsed["phone"], parsed["website"], parsed["rating"],
             parsed["reviews"], parsed["reviews_text"],
@@ -415,8 +411,21 @@ def process_file(
             site_info.get("yelp",      ""),
             parsed["lat"], parsed["lon"], parsed["state"],
             parsed["gmb_url"],
-        ])
+        ]
 
-    out = io.BytesIO()
-    wb_out.save(out)
-    return out.getvalue()
+        row_result = {
+            "name":                name,
+            "owner_name":          owner_name,
+            "email":               email,
+            "email_source":        email_source,
+            "screenshot_platform": screenshot_platform,
+            "rating":              parsed["rating"],
+            "category":            parsed["category"],
+            "socials":             socials_found,
+            "log_line":            log_line,
+            "log_type":            log_type,
+            "excel_row":           excel_row,
+        }
+
+        if progress_callback:
+            progress_callback(idx, total, f"Processing {idx}/{total}: {name}", row_result)

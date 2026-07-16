@@ -50,7 +50,7 @@ from analyzers.website_email import enrich_businesses_with_website_emails
 from analyzers.niche_blog import generate_blog_posts
 from analyzers.ultra_email import generate_ultra_emails
 from analyzers.text_cleaner import clean_review_text
-from analyzers.file_prep import process_file as prep_process_file
+from analyzers.file_prep import process_file as prep_process_file, build_excel
 from report.branding import load_branding, save_branding
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
@@ -275,9 +275,8 @@ async def file_prep_start(
                 elapsed = time.time() - started
                 job["eta_seconds"] = int(elapsed / current * (total - current))
         try:
-            result = prep_process_file(data, gc, nc, progress_callback=cb)
+            prep_process_file(data, gc, nc, progress_callback=cb)
             file_prep_jobs[jid]["status"] = "complete"
-            file_prep_jobs[jid]["result"] = result
             file_prep_jobs[jid]["eta_seconds"] = 0
         except Exception as e:
             file_prep_jobs[jid]["status"] = "error"
@@ -308,10 +307,11 @@ async def file_prep_download(job_id: str):
     if job_id not in file_prep_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     job = file_prep_jobs[job_id]
-    if job["status"] != "complete" or not job["result"]:
-        raise HTTPException(status_code=400, detail="File not ready")
+    if not job["rows"]:
+        raise HTTPException(status_code=400, detail="No rows processed yet")
+    excel_bytes = build_excel(job["rows"])
     return Response(
-        content=job["result"],
+        content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=clean_data.xlsx"},
     )
