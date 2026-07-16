@@ -162,11 +162,19 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
         if len(val_str.split()) >= 10:
             texts.append((i, val_str))
 
+    # Owner info: first text with owner keywords
+    # Reviews text: longest remaining text (big reviews block beats short quotes)
+    review_candidates = []
     for i, val_str in texts:
         if not result["owner_info"] and _is_owner_info(val_str):
             result["owner_info"] = val_str; skip.add(i)
-        elif not result["reviews_text"]:
-            result["reviews_text"] = val_str; skip.add(i)
+        else:
+            review_candidates.append((i, val_str))
+
+    if review_candidates:
+        best_i, best_text = max(review_candidates, key=lambda x: len(x[1]))
+        result["reviews_text"] = best_text
+        skip.add(best_i)
 
     for i, val in enumerate(row_vals):
         if i in skip or val is None:
