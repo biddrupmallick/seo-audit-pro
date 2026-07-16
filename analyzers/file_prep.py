@@ -1,13 +1,10 @@
 """
 File Prep — convert a raw Excel file into a clean Niche Upload-ready Excel file.
-
-Column B = GMB URL (user-specified, 1-indexed = 2)
-Column C = Name    (user-specified, 1-indexed = 3)
-Everything else is detected by pattern within each row.
+Pattern-based field detection — no column position assumptions except gmb_col / name_col.
 """
 import re
 import io
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, Callable
 
 import openpyxl
 from openpyxl import Workbook
@@ -18,22 +15,20 @@ from analyzers.website_email import get_best_contact_email
 
 # ── Patterns ──────────────────────────────────────────────────────────────────
 
-_GMB_RE     = re.compile(r'google\.com/maps', re.I)
-_RATING_RE  = re.compile(r'^[1-5]\.\d$')
-_REVIEWS_RE = re.compile(r'^-?\d+\.0$|^-?\d+$')
-_ADDRESS_RE = re.compile(r'^\d+\s+\w')
-_PHONE_RE   = re.compile(r'[\+\(]?[\d\s\-\(\)]{7,}')
+_GMB_RE          = re.compile(r'google\.com/maps', re.I)
+_RATING_RE       = re.compile(r'^[1-5]\.\d$')
+_REVIEWS_RE      = re.compile(r'^-?\d+\.0$|^-?\d+$')
+_ADDRESS_RE      = re.compile(r'^\d+\s+\w')
 _PHONE_DIGITS_RE = re.compile(r'\d')
-_LAT_RE     = re.compile(r'!3d(-?\d+\.\d+)')
-_LON_RE     = re.compile(r'!4d(-?\d+\.\d+)')
-_OWNER_KEYWORDS = re.compile(r'\b(owner|principal|contact|email|reach|manager)\b', re.I)
-_EMAIL_RE   = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-z]{2,}')
+_LAT_RE          = re.compile(r'!3d(-?\d+\.\d+)')
+_LON_RE          = re.compile(r'!4d(-?\d+\.\d+)')
+_OWNER_KEYWORDS  = re.compile(r'\b(owner|principal|contact|email|reach|manager)\b', re.I)
+_EMAIL_RE        = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-z]{2,}')
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _clean_phone(raw: str) -> str:
-    """Strip formula prefix and non-digit chars, return plain number."""
     raw = str(raw).strip()
     if raw.startswith('='):
         raw = raw.lstrip('=').strip()
@@ -44,9 +39,8 @@ def _clean_phone(raw: str) -> str:
 def _extract_lat_lon(gmb_url: str) -> Tuple[Optional[float], Optional[float]]:
     lat_m = _LAT_RE.search(gmb_url)
     lon_m = _LON_RE.search(gmb_url)
-    lat = float(lat_m.group(1)) if lat_m else None
-    lon = float(lon_m.group(1)) if lon_m else None
-    return lat, lon
+    return (float(lat_m.group(1)) if lat_m else None,
+            float(lon_m.group(1)) if lon_m else None)
 
 
 def _is_rating(val: str) -> bool:
@@ -58,7 +52,6 @@ def _is_reviews(val: str, already_has_rating: bool) -> bool:
     if not _REVIEWS_RE.match(val):
         return False
     num = abs(float(val))
-    # ratings are 1.0-5.0; review counts are usually much larger or whole numbers
     if already_has_rating and 1.0 <= num <= 5.0 and '.' in val:
         return False
     return True
@@ -73,24 +66,14 @@ def _is_phone(val: str) -> bool:
     if raw.startswith('='):
         raw = raw.lstrip('=').strip()
     digits = len(_PHONE_DIGITS_RE.findall(raw))
-    return digits >= 7 and digits <= 15
+    return 7 <= digits <= 15
 
 
 def _is_owner_info(val: str) -> bool:
     return len(val.split()) >= 10 and bool(_OWNER_KEYWORDS.search(val))
 
 
-def _is_reviews_text(val: str, owner_info: Optional[str]) -> bool:
-    # Long text that isn't owner_info
-    if len(val.split()) < 10:
-        return False
-    if owner_info and val == owner_info:
-        return False
-    return True
-
-
 def _ollama_extract(owner_info: str) -> Tuple[str, str]:
-    """Extract owner_name and email from owner_info text using Ollama."""
     prompt = f"""Extract the owner name and email address from this text.
 Reply in EXACTLY this format (two lines only):
 OWNER_NAME: [full name or blank]
@@ -112,10 +95,6 @@ Text: \"\"\"{owner_info[:800]}\"\"\""""
 # ── Row parser ────────────────────────────────────────────────────────────────
 
 def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, Any]:
-    """
-    Parse a single row into structured fields.
-    gmb_col and name_col are 0-indexed positions in row_vals.
-    """
     result: Dict[str, Any] = {
         "gmb_url": "", "name": "", "category": "", "address": "",
         "phone": "", "website": "", "rating": None, "reviews": None,
@@ -123,18 +102,16 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
         "state": "Alabama",
     }
 
-    # Fixed columns
-    gmb_val = str(row_vals[gmb_col] or "").strip()
+    gmb_val  = str(row_vals[gmb_col]  or "").strip()
     name_val = str(row_vals[name_col] or "").strip()
     result["gmb_url"] = gmb_val
-    result["name"] = name_val
+    result["name"]    = name_val
 
     if gmb_val:
         result["lat"], result["lon"] = _extract_lat_lon(gmb_val)
 
-    # Scan remaining cells by pattern
-    skip = {gmb_col, name_col}
-    texts = []  # collect long text candidates
+    skip  = {gmb_col, name_col}
+    texts = []
 
     for i, val in enumerate(row_vals):
         if i in skip or val is None:
@@ -143,57 +120,35 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
         if not val_str:
             continue
 
-        # Website
         if not result["website"] and val_str.startswith(("http://", "https://")) and "google.com" not in val_str:
-            result["website"] = val_str
-            skip.add(i)
-            continue
+            result["website"] = val_str; skip.add(i); continue
 
-        # GMB url catch (in case it's not in gmb_col)
         if not result["gmb_url"] and _GMB_RE.search(val_str):
             result["gmb_url"] = val_str
             result["lat"], result["lon"] = _extract_lat_lon(val_str)
-            skip.add(i)
-            continue
+            skip.add(i); continue
 
-        # Rating
         if result["rating"] is None and _is_rating(val_str):
-            result["rating"] = float(val_str)
-            skip.add(i)
-            continue
+            result["rating"] = float(val_str); skip.add(i); continue
 
-        # Reviews
         if result["reviews"] is None and _is_reviews(val_str, result["rating"] is not None):
-            result["reviews"] = abs(int(float(val_str)))
-            skip.add(i)
-            continue
+            result["reviews"] = abs(int(float(val_str))); skip.add(i); continue
 
-        # Address
         if not result["address"] and _is_address(val_str):
-            result["address"] = val_str
-            skip.add(i)
-            continue
+            result["address"] = val_str; skip.add(i); continue
 
-        # Phone
         if not result["phone"] and _is_phone(val_str):
-            result["phone"] = _clean_phone(val_str)
-            skip.add(i)
-            continue
+            result["phone"] = _clean_phone(val_str); skip.add(i); continue
 
-        # Long text — collect for owner_info / reviews_text disambiguation
         if len(val_str.split()) >= 10:
             texts.append((i, val_str))
 
-    # Disambiguate long texts
     for i, val_str in texts:
         if not result["owner_info"] and _is_owner_info(val_str):
-            result["owner_info"] = val_str
-            skip.add(i)
+            result["owner_info"] = val_str; skip.add(i)
         elif not result["reviews_text"]:
-            result["reviews_text"] = val_str
-            skip.add(i)
+            result["reviews_text"] = val_str; skip.add(i)
 
-    # Category — short text not yet assigned, likely category
     for i, val in enumerate(row_vals):
         if i in skip or val is None:
             continue
@@ -211,21 +166,21 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
 
 def process_file(
     file_bytes: bytes,
-    gmb_col: int,   # 1-indexed (column B = 2)
-    name_col: int,  # 1-indexed (column C = 3)
-    progress_callback=None,
+    gmb_col: int,
+    name_col: int,
+    progress_callback: Optional[Callable] = None,
 ) -> bytes:
     """
     Read raw Excel, process each row, return clean Excel bytes.
-    progress_callback(current, total, message) called per row if provided.
+    progress_callback(current, total, message, row_result) called per row.
+    row_result = {name, owner_name, email, email_source, rating, category, log_line}
     """
     wb_in = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
     ws_in = wb_in.active
 
-    gmb_idx  = gmb_col - 1   # convert to 0-indexed
+    gmb_idx  = gmb_col  - 1
     name_idx = name_col - 1
 
-    # Collect data rows (skip header row 1)
     rows = []
     for r in range(2, ws_in.max_row + 1):
         vals = [ws_in.cell(r, c).value for c in range(1, ws_in.max_column + 1)]
@@ -234,57 +189,75 @@ def process_file(
 
     total = len(rows)
 
-    # Build output workbook
     wb_out = Workbook()
     ws_out = wb_out.active
     ws_out.title = "Clean Data"
-
-    headers = [
+    ws_out.append([
         "name", "category", "address", "phone", "website",
         "rating", "reviews", "reviews_text", "owner_name", "email",
-        "lat", "lon", "state", "gmb_url", "owner_info"
-    ]
-    ws_out.append(headers)
+        "lat", "lon", "state", "gmb_url", "owner_info",
+    ])
 
     for idx, row_vals in enumerate(rows, 1):
-        if progress_callback:
-            progress_callback(idx, total, f"Processing row {idx}/{total}…")
-
         parsed = _parse_row(row_vals, gmb_idx, name_idx)
+        name = parsed["name"] or f"Row {idx}"
 
         # Clean reviews_text
         if parsed["reviews_text"]:
             cleaned, _ = clean_review_text(parsed["reviews_text"])
             parsed["reviews_text"] = cleaned
 
-        # Ollama: extract owner_name + email from owner_info
-        owner_name, email = "", ""
+        # Ollama extraction
+        owner_name, email, email_source = "", "", "not_found"
         if parsed["owner_info"]:
             owner_name, email = _ollama_extract(parsed["owner_info"])
+            if email:
+                email_source = "ollama"
 
-        # Fallback: scrape website for email
+        # Website fallback
         if not email and parsed["website"]:
             try:
                 email = get_best_contact_email(parsed["website"])
+                if email:
+                    email_source = "website"
             except Exception:
-                email = ""
+                pass
+
+        # Build log line
+        if email_source == "ollama":
+            log_line  = f"✅ {name} — {owner_name} — email via Ollama"
+            log_type  = "success"
+        elif email_source == "website":
+            log_line  = f"🌐 {name} — {owner_name or '—'} — email from website"
+            log_type  = "website"
+        else:
+            log_line  = f"⚠️ {name} — no email found"
+            log_type  = "warning"
+            if not owner_name:
+                log_line = f"❌ {name} — owner & email not found"
+                log_type = "error"
+
+        row_result = {
+            "name":         name,
+            "owner_name":   owner_name,
+            "email":        email,
+            "email_source": email_source,
+            "rating":       parsed["rating"],
+            "category":     parsed["category"],
+            "log_line":     log_line,
+            "log_type":     log_type,
+        }
+
+        if progress_callback:
+            progress_callback(idx, total, f"Processing {idx}/{total}: {name}", row_result)
 
         ws_out.append([
-            parsed["name"],
-            parsed["category"],
-            parsed["address"],
-            parsed["phone"],
-            parsed["website"],
-            parsed["rating"],
-            parsed["reviews"],
-            parsed["reviews_text"],
-            owner_name,
-            email,
-            parsed["lat"],
-            parsed["lon"],
-            parsed["state"],
-            parsed["gmb_url"],
-            parsed["owner_info"],
+            parsed["name"], parsed["category"], parsed["address"],
+            parsed["phone"], parsed["website"], parsed["rating"],
+            parsed["reviews"], parsed["reviews_text"],
+            owner_name, email,
+            parsed["lat"], parsed["lon"], parsed["state"],
+            parsed["gmb_url"], parsed["owner_info"],
         ])
 
     out = io.BytesIO()

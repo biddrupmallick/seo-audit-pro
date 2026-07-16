@@ -203,22 +203,49 @@ async def file_prep_start(
     job_id = str(uuid.uuid4())
     contents = await file.read()
     file_prep_jobs[job_id] = {
-        "status": "running",
-        "current": 0,
-        "total": 0,
-        "message": "Starting…",
-        "result": None,
+        "status":      "running",
+        "current":     0,
+        "total":       0,
+        "message":     "Starting…",
+        "result":      None,
+        "rows":        [],
+        "eta_seconds": None,
+        "stats": {
+            "processed":     0,
+            "email_ollama":  0,
+            "email_website": 0,
+            "no_email":      0,
+        },
     }
 
+    file_prep_jobs[job_id]["started_at"] = time.time()
+
     def run(jid, data, gc, nc):
-        def cb(current, total, msg):
-            file_prep_jobs[jid]["current"] = current
-            file_prep_jobs[jid]["total"] = total
-            file_prep_jobs[jid]["message"] = msg
+        def cb(current, total, msg, row_result=None):
+            job = file_prep_jobs[jid]
+            job["current"] = current
+            job["total"]   = total
+            job["message"] = msg
+            if row_result:
+                job["rows"].append(row_result)
+                src = row_result.get("email_source", "not_found")
+                if src == "ollama":
+                    job["stats"]["email_ollama"] += 1
+                elif src == "website":
+                    job["stats"]["email_website"] += 1
+                else:
+                    job["stats"]["no_email"] += 1
+                job["stats"]["processed"] += 1
+            # ETA
+            started = job.get("started_at")
+            if started and current > 1:
+                elapsed = time.time() - started
+                job["eta_seconds"] = int(elapsed / current * (total - current))
         try:
             result = prep_process_file(data, gc, nc, progress_callback=cb)
             file_prep_jobs[jid]["status"] = "complete"
             file_prep_jobs[jid]["result"] = result
+            file_prep_jobs[jid]["eta_seconds"] = 0
         except Exception as e:
             file_prep_jobs[jid]["status"] = "error"
             file_prep_jobs[jid]["message"] = str(e)
@@ -233,10 +260,13 @@ async def file_prep_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     job = file_prep_jobs[job_id]
     return {
-        "status": job["status"],
-        "current": job["current"],
-        "total": job["total"],
-        "message": job["message"],
+        "status":      job["status"],
+        "current":     job["current"],
+        "total":       job["total"],
+        "message":     job["message"],
+        "stats":       job["stats"],
+        "rows":        job["rows"],
+        "eta_seconds": job.get("eta_seconds"),
     }
 
 
