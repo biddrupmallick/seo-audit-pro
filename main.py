@@ -184,13 +184,46 @@ async def file_prep_preview(file: UploadFile = File(...)):
     contents = await file.read()
     wb = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
     ws = wb.active
-    headers = [ws.cell(1, c).value for c in range(1, ws.max_column + 1)]
-    rows = []
-    for r in range(2, min(7, ws.max_row + 1)):
-        row = [ws.cell(r, c).value for c in range(1, ws.max_column + 1)]
+    col_count = ws.max_column
+
+    # Collect first 5 data rows (skip row 1 — may be headers or data)
+    data_rows = []
+    for r in range(1, min(8, ws.max_row + 1)):
+        row = [ws.cell(r, c).value for c in range(1, col_count + 1)]
         if any(v for v in row):
-            rows.append([str(v)[:60] if v else "" for v in row])
-    return {"headers": [str(h) if h else "" for h in headers], "rows": rows}
+            data_rows.append(row)
+        if len(data_rows) >= 5:
+            break
+
+    # Build column labels: "B: Alabama Body & Wrecker..." using first non-empty data value
+    col_labels = []
+    gmb_col_detected = 2  # fallback
+    for c in range(1, col_count + 1):
+        letter = chr(ord('A') + c - 1) if c <= 26 else f"Col{c}"
+        preview_val = ""
+        for row in data_rows:
+            v = str(row[c - 1] or "").strip()
+            if v:
+                preview_val = v[:40]
+                break
+        col_labels.append(f"{letter}: {preview_val}" if preview_val else f"{letter}: —")
+
+        # Auto-detect GMB URL column
+        for row in data_rows:
+            v = str(row[c - 1] or "")
+            if "google.com/maps" in v:
+                gmb_col_detected = c
+                break
+
+    rows = []
+    for row in data_rows:
+        rows.append([str(v)[:60] if v else "" for v in row])
+
+    return {
+        "headers": col_labels,
+        "rows": rows,
+        "gmb_col_detected": gmb_col_detected,
+    }
 
 
 @app.post("/api/file-prep/start")

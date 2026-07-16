@@ -346,27 +346,27 @@ async function handleFile(file) {
   headers = data.headers;
   previewRows = data.rows;
 
-  buildSelectors(headers);
+  buildSelectors(headers, data.gmb_col_detected);
   renderPreview();
   document.getElementById('btn-start').disabled = false;
 }
 
 function colLetter(i) { return String.fromCharCode(65 + i); }
 
-function buildSelectors(headers) {
+function buildSelectors(headers, gmbDetected) {
   const gmb  = document.getElementById('gmb-col');
   const name = document.getElementById('name-col');
   gmb.innerHTML = name.innerHTML = '';
+  // headers already contain "B: Alabama Body & Wrecker..." format from backend
   headers.forEach((h, i) => {
-    const opt = `<option value="${i+1}">${colLetter(i)}: ${h || '(empty)'}</option>`;
+    const opt = `<option value="${i+1}">${h || colLetter(i) + ': —'}</option>`;
     gmb.innerHTML += opt;
     name.innerHTML += opt;
   });
-  // Smart defaults
-  const gi = headers.findIndex(h => h && /gmb|maps|url/i.test(h));
-  const ni = headers.findIndex(h => h && /^name$/i.test(h));
-  if (gi >= 0) gmb.value  = gi + 1;
-  if (ni >= 0) name.value = ni + 1;
+  // Auto-select GMB URL column detected from data
+  if (gmbDetected) gmb.value = gmbDetected;
+  // Default name column to the one after GMB
+  name.value = Math.min((gmbDetected || 2) + 1, headers.length);
 }
 
 function renderPreview() {
@@ -378,7 +378,7 @@ function renderPreview() {
   let html = '<thead><tr>';
   headers.forEach((h, i) => {
     const cls = (i === gmb || i === nm) ? 'col-hl' : '';
-    html += `<th class="${cls}">${colLetter(i)}: ${h||'—'}</th>`;
+    html += `<th class="${cls}">${h || colLetter(i) + ': —'}</th>`;
   });
   html += '</tr></thead><tbody>';
   previewRows.forEach(row => {
