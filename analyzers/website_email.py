@@ -1,8 +1,13 @@
 """
 Scrape a business website for contact email and social media profile URLs.
-Checks homepage + common contact pages. Fast — regex only, no AI.
+- Email: fast httpx fetch (emails are usually in static HTML)
+- Socials: Chrome headless --dump-dom for fully JS-rendered HTML
 """
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
 
@@ -19,34 +24,53 @@ IGNORE_DOMAINS = {
 }
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; SEOAuditBot/1.0)",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml",
 }
 
-# Social media platforms — pattern → column name
-# Order matters: more specific patterns first
 SOCIAL_PLATFORMS = [
-    ("facebook.com/",          "facebook"),
-    ("instagram.com/",         "instagram"),
-    ("twitter.com/",           "twitter"),
-    ("x.com/",                 "twitter"),   # X = Twitter, same column
-    ("linkedin.com/company/",  "linkedin"),
-    ("linkedin.com/in/",       "linkedin"),
-    ("youtube.com/",           "youtube"),
-    ("tiktok.com/",            "tiktok"),
-    ("pinterest.com/",         "pinterest"),
-    ("yelp.com/biz/",          "yelp"),
+    ("facebook.com/",         "facebook"),
+    ("instagram.com/",        "instagram"),
+    ("twitter.com/",          "twitter"),
+    ("x.com/",                "twitter"),
+    ("linkedin.com/company/", "linkedin"),
+    ("linkedin.com/in/",      "linkedin"),
+    ("youtube.com/",          "youtube"),
+    ("tiktok.com/",           "tiktok"),
+    ("pinterest.com/",        "pinterest"),
+    ("yelp.com/biz/",         "yelp"),
 ]
 
-# URL fragments to exclude (share buttons, login pages, etc.)
 SOCIAL_EXCLUDE_RE = re.compile(
-    r'(sharer|share\?|login|signup|intent/tweet|accounts\.google|'
-    r'youtube\.com/watch|youtube\.com/embed|pinterest\.com/pin)',
+    r'(sharer|share[/?]|login|signup|intent/tweet|accounts\.google|'
+    r'youtube\.com/watch|youtube\.com/embed|pinterest\.com/pin|'
+    r'facebook\.com/tr|facebook\.com/dialog|facebook\.com/plugins)',
     re.I,
 )
 
 SOCIAL_PLATFORMS_ALL = ["facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok", "pinterest", "yelp"]
 
+# Chrome binary locations
+_CHROME_PATHS = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+]
+
+
+def _find_chrome() -> Optional[str]:
+    for path in _CHROME_PATHS:
+        if os.path.exists(path):
+            return path
+    return shutil.which("google-chrome") or shutil.which("chromium")
+
+
+_CHROME = _find_chrome()
+
+
+# ── Email helpers ─────────────────────────────────────────────────────────────
 
 def _is_valid_email(email: str, site_domain: str) -> bool:
     local, _, domain = email.partition("@")
@@ -68,20 +92,87 @@ def _extract_emails_from_html(html: str, site_domain: str) -> List[str]:
     return result
 
 
+def _fetch_httpx(url: str) -> str:
+    """Fast static HTML fetch via httpx."""
+    try:
+        with httpx.Client(headers=HEADERS, verify=False, timeout=10, follow_redirects=True) as client:
+            r = client.get(url)
+            if r.status_code == 200 and "text/html" in r.headers.get("content-type", ""):
+                return r.text
+    except Exception:
+        pass
+    return ""
+
+
+# ── Social helpers ────────────────────────────────────────────────────────────
+
+def _fetch_rendered(url: str) -> str:
+    """
+    Use Chrome --dump-dom to get fully JS-rendered HTML.
+    Falls back to httpx if Chrome is unavailable.
+    """
+    if _CHROME:
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as tmp:
+                tmp_path = tmp.name
+
+            result = subprocess.run(
+                [
+                    _CHROME,
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-extensions",
+                    "--dump-dom",
+                    f"--user-agent={HEADERS['User-Agent']}",
+                    url,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            if result.returncode == 0 and result.stdout:
+                return result.stdout
+        except Exception as e:
+            print(f"[website_email] Chrome dump-dom failed for {url}: {e}")
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+    # Fallback to httpx
+    return _fetch_httpx(url)
+
+
 def _extract_socials_from_html(html: str, site_domain: str) -> Dict[str, str]:
-    """Extract social media profile URLs from HTML. Returns {platform: url}."""
+    """
+    Extract social media profile URLs from HTML.
+    Catches href attributes, protocol-relative URLs, and URLs in JS strings.
+    """
     found: Dict[str, str] = {}
 
-    # Find all href values
-    hrefs = re.findall(r'href=["\']([^"\']+)["\']', html, re.I)
+    # Collect all URLs from multiple sources
+    candidates = set()
 
-    for href in hrefs:
+    # 1. href attributes (http and protocol-relative)
+    for href in re.findall(r'href=["\']([^"\']+)["\']', html, re.I):
         href = href.strip()
-        if not href.startswith("http"):
-            continue
+        if href.startswith("//"):
+            href = "https:" + href
+        if href.startswith("http"):
+            candidates.add(href)
+
+    # 2. Any http/https URL anywhere in the HTML (catches JS strings, data attrs, etc.)
+    for url in re.findall(r'https?://[^\s"\'<>\\\)]+', html):
+        candidates.add(url.rstrip(".,;)>\"'"))
+
+    # 3. Protocol-relative URLs in JS or data attributes
+    for url in re.findall(r'["\']\/\/((?:www\.)?(?:facebook|instagram|twitter|x|linkedin|youtube|tiktok|pinterest|yelp)\.com\/[^\s"\'<>]+)', html, re.I):
+        candidates.add("https://" + url.rstrip(".,;)>\"'"))
+
+    for href in candidates:
         if SOCIAL_EXCLUDE_RE.search(href):
             continue
-        # Don't pick up links back to the same domain
         try:
             link_domain = urlparse(href).netloc.lower().replace("www.", "")
             if link_domain == site_domain:
@@ -99,19 +190,12 @@ def _extract_socials_from_html(html: str, site_domain: str) -> Dict[str, str]:
     return found
 
 
-def _fetch(client: httpx.Client, url: str) -> str:
-    try:
-        r = client.get(url, timeout=8, follow_redirects=True)
-        if r.status_code == 200 and "text/html" in r.headers.get("content-type", ""):
-            return r.text
-    except Exception:
-        pass
-    return ""
-
+# ── Main function ─────────────────────────────────────────────────────────────
 
 def scrape_website_contact_info(website_url: str) -> Dict:
     """
-    Fetch homepage + contact pages.
+    Scrape homepage + contact pages for email and social media links.
+    Email uses fast httpx; socials use Chrome headless for JS-rendered content.
     Returns {email, facebook, instagram, twitter, linkedin, youtube, tiktok, pinterest, yelp}
     """
     empty = {"email": "", **{p: "" for p in SOCIAL_PLATFORMS_ALL}}
@@ -127,30 +211,30 @@ def scrape_website_contact_info(website_url: str) -> Dict:
     socials: Dict[str, str] = {}
     seen_emails: set = set()
 
-    with httpx.Client(headers=HEADERS, verify=False) as client:
-        # Always scrape homepage
-        html = _fetch(client, website_url)
+    # Email — fast httpx pass over homepage + contact pages
+    for url in [website_url] + [urljoin(base, p) for p in CONTACT_PATHS]:
+        if emails:
+            break
+        html = _fetch_httpx(url)
         if html:
             for e in _extract_emails_from_html(html, site_domain):
                 if e not in seen_emails:
                     seen_emails.add(e)
                     emails.append(e)
-            socials.update(_extract_socials_from_html(html, site_domain))
 
-        # Contact/about pages — stop email search once found, but keep going for socials
-        for path in CONTACT_PATHS:
-            if emails and len(socials) >= len(SOCIAL_PLATFORMS_ALL):
+    # Socials — Chrome rendered pass over homepage (JS-rendered links)
+    rendered_html = _fetch_rendered(website_url)
+    if rendered_html:
+        socials.update(_extract_socials_from_html(rendered_html, site_domain))
+
+    # If still missing some socials, try contact/about pages too
+    if len(socials) < len(SOCIAL_PLATFORMS_ALL):
+        for path in ["/contact", "/about"]:
+            if len(socials) >= len(SOCIAL_PLATFORMS_ALL):
                 break
-            url = urljoin(base, path)
-            html = _fetch(client, url)
+            html = _fetch_rendered(urljoin(base, path))
             if html:
-                if not emails:
-                    for e in _extract_emails_from_html(html, site_domain):
-                        if e not in seen_emails:
-                            seen_emails.add(e)
-                            emails.append(e)
-                new_socials = _extract_socials_from_html(html, site_domain)
-                for k, v in new_socials.items():
+                for k, v in _extract_socials_from_html(html, site_domain).items():
                     if k not in socials:
                         socials[k] = v
 
@@ -168,13 +252,11 @@ def scrape_website_contact_info(website_url: str) -> Dict:
 
 
 def get_best_contact_email(website_url: str) -> str:
-    """Return the single best contact email found on the website, or empty string."""
     info = scrape_website_contact_info(website_url)
     return info["email"]
 
 
 def enrich_businesses_with_website_emails(businesses: list) -> list:
-    """Add website_email field to each business dict by scraping their website."""
     for biz in businesses:
         website = (biz.get("website") or "").strip()
         if not website:
