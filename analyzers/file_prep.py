@@ -194,15 +194,27 @@ def process_file(
     progress_callback(current, total, message, row_result) called per row.
     row_result = {name, owner_name, email, email_source, rating, category, log_line}
     """
-    wb_in = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
-    ws_in = wb_in.active
+    wb_in      = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+    wb_formula = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=False)
+    ws_in      = wb_in.active
+    ws_formula = wb_formula.active
 
     gmb_idx  = gmb_col  - 1
     name_idx = name_col - 1
 
+    def _cell_value(r, c):
+        val = ws_in.cell(r, c).value
+        # If cell is empty or an Excel error, try reading the raw formula
+        # e.g. =+12055551234 shows as #ERROR! with data_only=True
+        if val is None or (isinstance(val, str) and val.startswith("#")):
+            formula = ws_formula.cell(r, c).value
+            if formula and str(formula).startswith("="):
+                return str(formula)
+        return val
+
     rows = []
     for r in range(2, ws_in.max_row + 1):
-        vals = [ws_in.cell(r, c).value for c in range(1, ws_in.max_column + 1)]
+        vals = [_cell_value(r, c) for c in range(1, ws_in.max_column + 1)]
         if any(v for v in vals):
             rows.append(vals)
 
