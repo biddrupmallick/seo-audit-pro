@@ -54,6 +54,11 @@ _STATE_ABBR = {
 _STATE_FROM_ADDR_RE = re.compile(r',\s*([A-Z]{2})\s+\d{5}')
 
 
+_STATE_FROM_TEXT_RE = re.compile(
+    r'\b(' + '|'.join(re.escape(s) for s in _US_STATES) + r')\b'
+)
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _clean_phone(raw: str) -> str:
@@ -182,11 +187,21 @@ def _parse_row(row_vals: List[Any], gmb_col: int, name_col: int) -> Dict[str, An
         if len(val_str.split()) >= 10:
             texts.append((i, val_str))
 
-    # Extract state from address if not found as standalone cell
+    # Extract state from address abbreviation (e.g. ', AL 36203')
     if not result["state"] and result["address"]:
         m = _STATE_FROM_ADDR_RE.search(result["address"])
         if m:
             result["state"] = _STATE_ABBR.get(m.group(1), m.group(1))
+
+    # Extract state from owner info or reviews text as last resort
+    if not result["state"]:
+        for text in [result["owner_info"], result["reviews_text"]]:
+            if not text:
+                continue
+            m = _STATE_FROM_TEXT_RE.search(text)
+            if m:
+                result["state"] = m.group(1)
+                break
 
     # Owner info: first text with owner keywords
     # Reviews text: longest remaining text (big reviews block beats short quotes)
