@@ -193,11 +193,11 @@ def process_file(
     ws_out = wb_out.active
     ws_out.title = "Clean Data"
     ws_out.append([
-        "name", "category", "address", "phone", "website",
-        "rating", "reviews", "reviews_text", "owner_name", "email",
-        "facebook", "instagram", "twitter", "linkedin",
-        "youtube", "tiktok", "pinterest", "yelp",
-        "lat", "lon", "state", "gmb_url", "owner_info",
+        "Business Name", "Category", "Address", "Phone", "Website",
+        "Rating", "Review Count", "Customer Reviews", "Owner Name", "Email",
+        "Facebook", "Instagram", "Twitter", "LinkedIn",
+        "YouTube", "TikTok", "Pinterest", "Yelp",
+        "Latitude", "Longitude", "State", "GMB URL",
     ])
 
     for idx, row_vals in enumerate(rows, 1):
@@ -275,7 +275,7 @@ def process_file(
             site_info.get("pinterest", ""),
             site_info.get("yelp",      ""),
             parsed["lat"], parsed["lon"], parsed["state"],
-            parsed["gmb_url"], parsed["owner_info"],
+            parsed["gmb_url"],
         ])
 
     out = io.BytesIO()

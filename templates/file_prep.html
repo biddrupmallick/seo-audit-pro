@@ -222,7 +222,7 @@
           <table id="preview-table"></table>
         </div>
         <button class="btn-start" id="btn-start" onclick="startProcessing()" disabled>
-          🚀 Start Processing
+          Start Processing
         </button>
       </div>
     </div>
@@ -234,22 +234,18 @@
     <!-- Stat cards -->
     <div class="stats-row">
       <div class="stat-card blue">
-        <div class="stat-icon">⚙️</div>
         <div class="stat-num" id="s-processed">0</div>
         <div class="stat-lbl">Processed</div>
       </div>
       <div class="stat-card green">
-        <div class="stat-icon">🤖</div>
         <div class="stat-num" id="s-ollama">0</div>
         <div class="stat-lbl">Email via Ollama</div>
       </div>
       <div class="stat-card teal">
-        <div class="stat-icon">🌐</div>
         <div class="stat-num" id="s-website">0</div>
         <div class="stat-lbl">Email from Website</div>
       </div>
       <div class="stat-card amber">
-        <div class="stat-icon">⚠️</div>
         <div class="stat-num" id="s-missing">0</div>
         <div class="stat-lbl">No Email Found</div>
       </div>
@@ -312,10 +308,9 @@
 
     <!-- Done -->
     <div class="done-card" id="done-card">
-      <div class="done-icon">✅</div>
       <div class="done-title">File Ready</div>
       <div class="done-sub" id="done-sub"></div>
-      <a id="download-link" class="btn-download" href="#">⬇️ Download Clean Excel</a>
+      <a id="download-link" class="btn-download" href="#">Download Clean Excel</a>
     </div>
 
   </div>
@@ -486,8 +481,9 @@ function addTableRow(r) {
   const srcBadge = r.email_source === 'ollama'   ? '<span class="badge ollama">Ollama</span>'
                  : r.email_source === 'website'  ? '<span class="badge website">Website</span>'
                  : '<span class="badge none">Not found</span>';
-  const socialIcons = { facebook:'🔵', instagram:'📸', twitter:'🐦', linkedin:'💼', youtube:'▶️', tiktok:'🎵', pinterest:'📌', yelp:'⭐' };
-  const socialsHtml = (r.socials || []).map(s => `<span title="${s}" style="margin-right:3px;">${socialIcons[s]||s}</span>`).join('') || '<span style="color:#374151">—</span>';
+  const socialsHtml = (r.socials || []).length > 0
+    ? (r.socials || []).map(s => `<span style="font-size:10px;background:#0d2040;color:#60a5fa;padding:2px 6px;border-radius:4px;margin-right:3px;font-weight:600;">${s.charAt(0).toUpperCase()+s.slice(1)}</span>`).join('')
+    : '<span style="color:#374151;font-size:11px;">None</span>';
   tr.innerHTML = `
     <td style="color:#475569;font-size:11px;">${rowIndex + 1}</td>
     <td><div class="name-cell" title="${r.name}">${r.name}</div><div style="font-size:10px;color:#475569;">${r.category||''}</div></td>
