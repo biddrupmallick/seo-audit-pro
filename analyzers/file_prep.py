@@ -86,10 +86,10 @@ def _is_owner_info(val: str) -> bool:
 
 
 def _ollama_extract(owner_info: str) -> Tuple[str, str]:
-    prompt = f"""Extract the owner name and email address from this text.
+    prompt = f"""Extract the owner's full name and their personal/business email address from this text.
 Reply in EXACTLY this format (two lines only):
-OWNER_NAME: [full name or blank]
-EMAIL: [email address or blank]
+OWNER_NAME: [full first and last name, or blank if not found]
+EMAIL: [email address only if explicitly mentioned in the text, otherwise blank]
 
 Text: \"\"\"{owner_info[:800]}\"\"\""""
     raw = ask(prompt, max_tokens=60, temperature=0)
@@ -225,13 +225,11 @@ def process_file(
             parsed["reviews_text"] = cleaned
 
         # Ollama extraction
-        owner_name, email, email_source = "", "", "not_found"
+        owner_name, ollama_email = "", ""
         if parsed["owner_info"]:
-            owner_name, email = _ollama_extract(parsed["owner_info"])
-            if email:
-                email_source = "ollama"
+            owner_name, ollama_email = _ollama_extract(parsed["owner_info"])
 
-        # Scrape website for email fallback + social media profiles
+        # Always scrape website — ground truth for email + socials
         site_info: Dict[str, str] = {}
         if parsed["website"]:
             try:
@@ -239,9 +237,14 @@ def process_file(
             except Exception:
                 site_info = {}
 
-        if not email and site_info.get("email"):
+        # Website email takes priority over Ollama (Ollama can hallucinate)
+        email, email_source = "", "not_found"
+        if site_info.get("email"):
             email = site_info["email"]
             email_source = "website"
+        elif ollama_email:
+            email = ollama_email
+            email_source = "ollama"
 
         social_cols = ["facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok", "pinterest", "yelp"]
         socials_found = [p for p in social_cols if site_info.get(p)]
