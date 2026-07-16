@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Prep — SEO Audit Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+
+    .topbar { background: #0f172a; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-logo { color: #fff; font-size: 16px; font-weight: 800; }
+    .topbar-logo span { color: #3b82f6; }
+    .topbar-nav a { color: #94a3b8; font-size: 13px; text-decoration: none; margin-left: 20px; }
+    .topbar-nav a:hover { color: #fff; }
+    .topbar-nav a.active { color: #3b82f6; font-weight: 600; }
+
+    .page { max-width: 780px; margin: 36px auto; padding: 0 20px 60px; }
+    h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+    .card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 20px; }
+    .card-title { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+
+    .drop-zone {
+      border: 2px dashed #cbd5e1; border-radius: 10px; padding: 40px 20px;
+      text-align: center; cursor: pointer; transition: all 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #3b82f6; background: #eff6ff; }
+    .drop-zone-icon { font-size: 32px; margin-bottom: 8px; }
+    .drop-zone-text { font-size: 14px; font-weight: 600; color: #475569; }
+    .drop-zone-sub { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    input[type=file] { display: none; }
+
+    .col-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    label { font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 6px; }
+    select, input[type=number] {
+      width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+      font-size: 13px; color: #1e293b; background: #fff; outline: none;
+    }
+    select:focus, input[type=number]:focus { border-color: #3b82f6; }
+
+    .preview-box {
+      display: none; background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 8px; padding: 14px; margin-top: 16px;
+      font-size: 12px; overflow-x: auto;
+    }
+    .preview-box table { border-collapse: collapse; width: 100%; }
+    .preview-box th { background: #f1f5f9; padding: 6px 10px; text-align: left; font-size: 11px; color: #64748b; border: 1px solid #e2e8f0; white-space: nowrap; }
+    .preview-box td { padding: 6px 10px; border: 1px solid #e2e8f0; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+    .col-highlight { background: #dbeafe !important; font-weight: 700; }
+
+    .btn { border: none; border-radius: 8px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 8px; }
+    .btn-primary { background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-green:hover { opacity: 0.9; }
+
+    .progress-wrap { display: none; margin-top: 16px; }
+    .progress-track { background: #e2e8f0; border-radius: 99px; height: 8px; overflow: hidden; margin-bottom: 8px; }
+    .progress-fill { background: linear-gradient(90deg,#2563eb,#6366f1); height: 100%; border-radius: 99px; width: 0%; transition: width 0.4s; }
+    .progress-msg { font-size: 12px; color: #64748b; }
+    .progress-pct { font-size: 12px; font-weight: 700; color: #2563eb; float: right; }
+
+    .tip { font-size: 11px; color: #94a3b8; margin-top: 8px; }
+    .file-name { font-size: 13px; font-weight: 600; color: #2563eb; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">SEO Audit <span>Pro</span></div>
+  <div class="topbar-nav">
+    <a href="/">Single Audit</a>
+    <a href="/bulk">Bulk Audit</a>
+    <a href="/upload">📂 Niche Upload</a>
+    <a href="/file-prep" class="active">🗂️ File Prep</a>
+    <a href="/review-cleaner">🧹 Review Cleaner</a>
+    <a href="/settings">⚙️ Branding</a>
+  </div>
+</div>
+
+<div class="page">
+  <h1>File Prep</h1>
+  <p class="subtitle">Upload a raw Excel file → get a clean file ready for Niche Upload. Extracts lat/lon, cleans reviews, finds owner name & email automatically.</p>
+
+  <!-- Step 1: Upload -->
+  <div class="card">
+    <div class="card-title">Step 1 — Upload Raw Excel File</div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="drop-zone-icon">📂</div>
+      <div class="drop-zone-text">Click to upload or drag & drop</div>
+      <div class="drop-zone-sub">.xlsx files only</div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx" onchange="onFileSelected(this)">
+    <div class="file-name" id="file-name"></div>
+  </div>
+
+  <!-- Step 2: Column mapping + preview -->
+  <div class="card" id="step2" style="display:none;">
+    <div class="card-title">Step 2 — Identify GMB URL & Name Columns</div>
+    <p style="font-size:12px;color:#64748b;margin-bottom:14px;">Select which columns contain the GMB URL and Business Name. Everything else will be detected automatically.</p>
+
+    <div class="col-row">
+      <div>
+        <label>GMB URL Column</label>
+        <select id="gmb-col"></select>
+      </div>
+      <div>
+        <label>Business Name Column</label>
+        <select id="name-col"></select>
+      </div>
+    </div>
+
+    <div class="preview-box" id="preview-box"></div>
+    <p class="tip">Blue columns = your selected GMB URL and Name. Preview shows first 5 rows.</p>
+  </div>
+
+  <!-- Step 3: Process -->
+  <div class="card" id="step3" style="display:none;">
+    <div class="card-title">Step 3 — Process File</div>
+    <p style="font-size:12px;color:#64748b;margin-bottom:14px;">
+      The system will extract all fields by pattern, clean review text, extract lat/lon,
+      and use Ollama to find owner name & email. Takes ~1–2 min per 10 businesses.
+    </p>
+    <button class="btn btn-primary" id="btn-process" onclick="processFile()">🚀 Start Processing</button>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div style="overflow:hidden;">
+        <span class="progress-msg" id="progress-msg">Processing…</span>
+        <span class="progress-pct" id="progress-pct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- Download -->
+  <div class="card" id="step4" style="display:none;">
+    <div class="card-title">✅ Done — Download Clean File</div>
+    <p style="font-size:12px;color:#64748b;margin-bottom:14px;" id="done-msg"></p>
+    <a id="download-link" class="btn btn-green" style="display:inline-block;text-align:center;text-decoration:none;">⬇️ Download Clean Excel</a>
+  </div>
+</div>
+
+<script>
+let uploadedFile = null;
+let headers = [];
+let jobId = null;
+let pollInterval = null;
+
+// ── Drag & drop ──
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+function onFileSelected(input) {
+  if (input.files[0]) handleFile(input.files[0]);
+}
+
+async function handleFile(file) {
+  uploadedFile = file;
+  document.getElementById('file-name').textContent = '📄 ' + file.name;
+
+  const fd = new FormData();
+  fd.append('file', file);
+  const resp = await fetch('/api/file-prep/preview', { method: 'POST', body: fd });
+  const data = await resp.json();
+
+  headers = data.headers;
+  buildColumnSelectors(headers);
+  renderPreview(data.headers, data.rows);
+
+  document.getElementById('step2').style.display = 'block';
+  document.getElementById('step3').style.display = 'block';
+  document.getElementById('step4').style.display = 'none';
+}
+
+function buildColumnSelectors(headers) {
+  const gmb = document.getElementById('gmb-col');
+  const name = document.getElementById('name-col');
+  gmb.innerHTML = '';
+  name.innerHTML = '';
+
+  headers.forEach((h, i) => {
+    const label = `Column ${colLetter(i)} — ${h || '(empty)'}`;
+    gmb.innerHTML  += `<option value="${i+1}">${label}</option>`;
+    name.innerHTML += `<option value="${i+1}">${label}</option>`;
+  });
+
+  // Smart defaults — look for gmb/url and name keywords
+  const gmbIdx = headers.findIndex(h => h && /gmb|maps|url/i.test(h));
+  const nameIdx = headers.findIndex(h => h && /^name$/i.test(h));
+  if (gmbIdx >= 0) gmb.value = gmbIdx + 1;
+  if (nameIdx >= 0) name.value = nameIdx + 1;
+
+  gmb.onchange = () => renderPreviewHighlight();
+  name.onchange = () => renderPreviewHighlight();
+}
+
+function colLetter(i) {
+  return String.fromCharCode(65 + i);
+}
+
+function renderPreview(headers, rows) {
+  const box = document.getElementById('preview-box');
+  const gmb = parseInt(document.getElementById('gmb-col').value) - 1;
+  const nm  = parseInt(document.getElementById('name-col').value) - 1;
+
+  let html = '<table><tr>';
+  headers.forEach((h, i) => {
+    const cls = (i === gmb || i === nm) ? 'col-highlight' : '';
+    html += `<th class="${cls}">${colLetter(i)}: ${h || '—'}</th>`;
+  });
+  html += '</tr>';
+
+  rows.forEach(row => {
+    html += '<tr>';
+    row.forEach((cell, i) => {
+      const cls = (i === gmb || i === nm) ? 'col-highlight' : '';
+      const val = cell ? String(cell).substring(0, 40) : '';
+      html += `<td class="${cls}" title="${cell || ''}">${val}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</table>';
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+function renderPreviewHighlight() {
+  // Re-render with updated highlight
+  const box = document.getElementById('preview-box');
+  if (!box.style.display || box.style.display === 'none') return;
+  const table = box.querySelector('table');
+  if (!table) return;
+  const gmb = parseInt(document.getElementById('gmb-col').value) - 1;
+  const nm  = parseInt(document.getElementById('name-col').value) - 1;
+  table.querySelectorAll('th, td').forEach(el => el.classList.remove('col-highlight'));
+  table.querySelectorAll(`th:nth-child(${gmb+1}), td:nth-child(${gmb+1})`).forEach(el => el.classList.add('col-highlight'));
+  table.querySelectorAll(`th:nth-child(${nm+1}), td:nth-child(${nm+1})`).forEach(el => el.classList.add('col-highlight'));
+}
+
+async function processFile() {
+  const gmbCol  = parseInt(document.getElementById('gmb-col').value);
+  const nameCol = parseInt(document.getElementById('name-col').value);
+
+  document.getElementById('btn-process').disabled = true;
+  document.getElementById('progress-wrap').style.display = 'block';
+
+  const fd = new FormData();
+  fd.append('file', uploadedFile);
+  fd.append('gmb_col', gmbCol);
+  fd.append('name_col', nameCol);
+
+  const resp = await fetch('/api/file-prep/start', { method: 'POST', body: fd });
+  const data = await resp.json();
+  jobId = data.job_id;
+
+  pollInterval = setInterval(pollProgress, 2000);
+}
+
+async function pollProgress() {
+  const resp = await fetch(`/api/file-prep/status/${jobId}`);
+  const data = await resp.json();
+
+  const pct = data.total > 0 ? Math.round((data.current / data.total) * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-msg').textContent = data.message || 'Processing…';
+
+  if (data.status === 'complete') {
+    clearInterval(pollInterval);
+    document.getElementById('step4').style.display = 'block';
+    document.getElementById('done-msg').textContent =
+      `${data.total} businesses processed. Clean file is ready for Niche Upload.`;
+    document.getElementById('download-link').href = `/api/file-prep/download/${jobId}`;
+  } else if (data.status === 'error') {
+    clearInterval(pollInterval);
+    document.getElementById('progress-msg').textContent = '❌ Error: ' + data.message;
+  }
+}
+</script>
+</body>
+</html>

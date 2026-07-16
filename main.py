@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, List
 
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks, UploadFile, File, Form
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
@@ -50,6 +50,7 @@ from analyzers.website_email import enrich_businesses_with_website_emails
 from analyzers.niche_blog import generate_blog_posts
 from analyzers.ultra_email import generate_ultra_emails
 from analyzers.text_cleaner import clean_review_text
+from analyzers.file_prep import process_file as prep_process_file
 from report.branding import load_branding, save_branding
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path
@@ -166,6 +167,91 @@ KEY_INSIGHT: [single most actionable finding from these reviews, one sentence]""
             k, _, v = line.partition(":")
             parsed[k.strip()] = v.strip()
     return {"analysis": parsed}
+
+
+# ====== FILE PREP ======
+file_prep_jobs: Dict[str, Dict[str, Any]] = {}
+
+
+@app.get("/file-prep", response_class=HTMLResponse)
+async def file_prep_page(request: Request):
+    return templates.TemplateResponse(request, "file_prep.html", {})
+
+
+@app.post("/api/file-prep/preview")
+async def file_prep_preview(file: UploadFile = File(...)):
+    import openpyxl, io
+    contents = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
+    ws = wb.active
+    headers = [ws.cell(1, c).value for c in range(1, ws.max_column + 1)]
+    rows = []
+    for r in range(2, min(7, ws.max_row + 1)):
+        row = [ws.cell(r, c).value for c in range(1, ws.max_column + 1)]
+        if any(v for v in row):
+            rows.append([str(v)[:60] if v else "" for v in row])
+    return {"headers": [str(h) if h else "" for h in headers], "rows": rows}
+
+
+@app.post("/api/file-prep/start")
+async def file_prep_start(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    gmb_col: int = Form(2),
+    name_col: int = Form(3),
+):
+    job_id = str(uuid.uuid4())
+    contents = await file.read()
+    file_prep_jobs[job_id] = {
+        "status": "running",
+        "current": 0,
+        "total": 0,
+        "message": "Starting…",
+        "result": None,
+    }
+
+    def run(jid, data, gc, nc):
+        def cb(current, total, msg):
+            file_prep_jobs[jid]["current"] = current
+            file_prep_jobs[jid]["total"] = total
+            file_prep_jobs[jid]["message"] = msg
+        try:
+            result = prep_process_file(data, gc, nc, progress_callback=cb)
+            file_prep_jobs[jid]["status"] = "complete"
+            file_prep_jobs[jid]["result"] = result
+        except Exception as e:
+            file_prep_jobs[jid]["status"] = "error"
+            file_prep_jobs[jid]["message"] = str(e)
+
+    background_tasks.add_task(run, job_id, contents, gmb_col, name_col)
+    return {"job_id": job_id}
+
+
+@app.get("/api/file-prep/status/{job_id}")
+async def file_prep_status(job_id: str):
+    if job_id not in file_prep_jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = file_prep_jobs[job_id]
+    return {
+        "status": job["status"],
+        "current": job["current"],
+        "total": job["total"],
+        "message": job["message"],
+    }
+
+
+@app.get("/api/file-prep/download/{job_id}")
+async def file_prep_download(job_id: str):
+    if job_id not in file_prep_jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = file_prep_jobs[job_id]
+    if job["status"] != "complete" or not job["result"]:
+        raise HTTPException(status_code=400, detail="File not ready")
+    return Response(
+        content=job["result"],
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=clean_data.xlsx"},
+    )
 
 
 @app.post("/settings")
