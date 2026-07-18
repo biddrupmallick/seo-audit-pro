@@ -11,8 +11,9 @@ def _ask(prompt: str, max_tokens: int = 150) -> str:
 
 
 def _strip_markdown(text: str) -> str:
-    """Remove markdown bold/italic markers Ollama sometimes outputs."""
+    """Remove markdown formatting markers Ollama sometimes outputs."""
     import re
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)  # [text](url) → text
     text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
     text = re.sub(r'\*(.+?)\*', r'\1', text)
     return text.strip()
@@ -168,7 +169,7 @@ If behind — be encouraging and frame as opportunity to improve.
 
 Business: {business_name}
 Rating: {rating or '?'}★, {review_count or 0} reviews
-Nearest competitors: {comp_summary or 'data not available'}
+Nearest competitors: {comp_summary or 'no competitor data found nearby'}
 Position: {position} competitors
 
 2-3 sentences only:""")

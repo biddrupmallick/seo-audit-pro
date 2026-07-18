@@ -79,6 +79,18 @@ def generate_email_sequence(
         "body":    email_1_body,
     })
 
+    def _prev_body() -> str:
+        """Return the most recent successfully generated email body."""
+        return results[-1]["body"] if results else email_1_body
+
+    def _safe_email(prompt: str, meta: dict, max_sentences: int, max_tokens: int = 180) -> None:
+        """Generate one email and append it; on failure append a placeholder."""
+        try:
+            body = _clean(_ollama(prompt, max_tokens=max_tokens), max_sentences)
+        except Exception:
+            body = f"Following up on my previous email — would love to connect when the time is right."
+        results.append({**meta, "subject": re_subject, "body": body})
+
     # ── Email 2 (Day 3): quick check-in, different data point ────────────────
     if has_website:
         e2_prompt = f"""Write a 2-sentence cold email follow-up for a {category} owner named {owner}.
@@ -107,18 +119,14 @@ This follow-up should:
 
 2 sentences only. No subject line. No greeting. Start directly with the sentence."""
 
-    results.append({
-        **SEQUENCE_META[1],
-        "subject": re_subject,
-        "body":    _clean(_ollama(e2_prompt), 2),
-    })
+    _safe_email(e2_prompt, SEQUENCE_META[1], max_sentences=2)
 
     # ── Email 3 (Day 7): free value drop ─────────────────────────────────────
     if has_website:
         e3_prompt = f"""Write a 3-sentence cold email for a {category} owner named {owner} in {state}.
 
 This is email 3 in a sequence. They haven't replied yet.
-Previous email body: "{results[1]['body']}"
+Previous email body: "{_prev_body()}"
 
 This email should:
 - Give ONE specific, free, actionable tip they can use today to improve their Google ranking (pick from: adding schema markup, fixing title tags, or improving page speed)
@@ -132,7 +140,7 @@ This email should:
         e3_prompt = f"""Write a 3-sentence cold email for a {category} owner named {owner} in {state}.
 
 This is email 3 in a sequence. They haven't replied yet.
-Previous email body: "{results[1]['body']}"
+Previous email body: "{_prev_body()}"
 
 This email should:
 - Give ONE free tip: "Even without a website, you can claim your Google Business Profile for free to start showing up in local searches"
@@ -142,18 +150,14 @@ This email should:
 
 3 sentences only. No subject line. No greeting."""
 
-    results.append({
-        **SEQUENCE_META[2],
-        "subject": re_subject,
-        "body":    _clean(_ollama(e3_prompt, max_tokens=220), 3),
-    })
+    _safe_email(e3_prompt, SEQUENCE_META[2], max_sentences=3, max_tokens=220)
 
     # ── Email 4 (Day 14): PPC angle ───────────────────────────────────────────
     if has_website:
         e4_prompt = f"""Write a 2-sentence cold email for a {category} owner named {owner}.
 
 This is email 4. They still haven't replied.
-Previous email: "{results[2]['body']}"
+Previous email: "{_prev_body()}"
 
 This email should:
 - Introduce a new angle: while SEO takes 3-6 months to build, PPC (Google Ads) can bring new customers to {name} THIS WEEK
@@ -166,7 +170,7 @@ This email should:
         e4_prompt = f"""Write a 2-sentence cold email for a {category} owner named {owner}.
 
 This is email 4. They still haven't replied.
-Previous email: "{results[2]['body']}"
+Previous email: "{_prev_body()}"
 
 This email should:
 - Introduce the idea that Google Ads (PPC) can drive customers to {name} even before their new website is finished
@@ -176,17 +180,13 @@ This email should:
 
 2 sentences only. No subject line. No greeting."""
 
-    results.append({
-        **SEQUENCE_META[3],
-        "subject": re_subject,
-        "body":    _clean(_ollama(e4_prompt), 2),
-    })
+    _safe_email(e4_prompt, SEQUENCE_META[3], max_sentences=2)
 
     # ── Email 5 (Day 21): soft urgency ────────────────────────────────────────
     e5_prompt = f"""Write a 2-sentence cold email for a {category} owner named {owner}.
 
 This is email 5. They still haven't replied.
-Previous email: "{results[3]['body']}"
+Previous email: "{_prev_body()}"
 
 This email should:
 - Create soft urgency: mention that I'm starting work with another {category} business in {state} next week and wanted to give {owner} first right of refusal
@@ -196,17 +196,13 @@ This email should:
 
 2 sentences only. No subject line. No greeting."""
 
-    results.append({
-        **SEQUENCE_META[4],
-        "subject": re_subject,
-        "body":    _clean(_ollama(e5_prompt), 2),
-    })
+    _safe_email(e5_prompt, SEQUENCE_META[4], max_sentences=2)
 
     # ── Email 6 (Day 30): breakup email ──────────────────────────────────────
     e6_prompt = f"""Write a 2-sentence breakup cold email for a {category} owner named {owner}.
 
 This is the final email in a 6-email sequence. They never replied.
-Previous email: "{results[4]['body']}"
+Previous email: "{_prev_body()}"
 
 This email should:
 - Tell {owner} this is the last email I'll send so I don't fill up their inbox
@@ -215,10 +211,6 @@ This email should:
 
 2 sentences only. No subject line. No greeting."""
 
-    results.append({
-        **SEQUENCE_META[5],
-        "subject": re_subject,
-        "body":    _clean(_ollama(e6_prompt), 2),
-    })
+    _safe_email(e6_prompt, SEQUENCE_META[5], max_sentences=2)
 
     return results

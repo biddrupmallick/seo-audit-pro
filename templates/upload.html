@@ -205,7 +205,8 @@
         <div style="font-size:13px; font-weight:700; color:#1e293b;">📥 Reports Ready to Download</div>
         <div style="display:flex;align-items:center;gap:10px;">
           <div id="live-count" style="font-size:11px; color:#64748b;"></div>
-          <button id="btn-download-all" onclick="downloadAll()" style="display:none;padding:6px 14px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">⬇ Download All</button>
+          <button id="btn-live-emails" onclick="downloadLiveEmails()" style="display:none;padding:6px 14px;background:#1d6f42;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">📊 Download Emails Excel</button>
+          <button id="btn-download-all" onclick="downloadAll()" style="display:none;padding:6px 14px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">⬇ Download All PDFs</button>
         </div>
       </div>
       <div id="live-list"></div>
@@ -400,6 +401,11 @@ function renderPartialResults(results) {
     count.textContent = `${renderedJobIds.size} completed · ${ready} report${ready !== 1 ? 's' : ''} ready`;
     const btnAll = document.getElementById('btn-download-all');
     if (btnAll) btnAll.style.display = ready > 0 ? 'inline-block' : 'none';
+    const btnEmails = document.getElementById('btn-live-emails');
+    if (btnEmails) {
+      btnEmails.style.display = renderedJobIds.size > 0 ? 'inline-block' : 'none';
+      btnEmails.textContent = `📊 Download Emails (${renderedJobIds.size})`;
+    }
   }
 }
 
@@ -590,6 +596,19 @@ function exportExcel() {
   a.download = '';
   a.click();
   setTimeout(() => { btn.textContent = '📊 Export Excel'; btn.disabled = false; }, 3000);
+}
+
+function downloadLiveEmails() {
+  if (!uploadId) return;
+  const btn = document.getElementById('btn-live-emails');
+  const prev = btn.textContent;
+  btn.textContent = '⏳ Preparing…';
+  btn.disabled = true;
+  const a = document.createElement('a');
+  a.href = `/upload/export-excel/${uploadId}`;
+  a.download = '';
+  a.click();
+  setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 3000);
 }
 
 function buildEmailThread(r) {

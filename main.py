@@ -688,12 +688,17 @@ async def export_excel(upload_id: str):
     if upload_id not in upload_jobs:
         raise HTTPException(status_code=404, detail="Upload job not found")
     job = upload_jobs[upload_id]
-    if job["status"] != "complete":
-        raise HTTPException(status_code=400, detail="Pipeline not complete yet")
 
-    result = job["result"]
-    emails = result.get("emails", [])
-    audit_results = {r["website"]: r for r in result.get("audit_results", [])}
+    # Works mid-pipeline (partial) or after completion
+    if job["status"] == "complete":
+        emails = (job.get("result") or {}).get("emails", [])
+        audit_results = {r.get("website", ""): r for r in (job.get("result") or {}).get("audit_results", [])}
+    else:
+        emails = job.get("partial_emails", [])
+        audit_results = {r.get("website", ""): r for r in job.get("partial_results", [])}
+
+    if not emails:
+        raise HTTPException(status_code=400, detail="No emails generated yet")
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -993,6 +998,7 @@ async def run_upload_pipeline(upload_id: str):
         # Step 2: Per-business loop — email + PDF one at a time
         job["step_index"] = 2
         job["partial_results"] = []
+        job["partial_emails"] = []
         job["audit_progress"] = {"current": 0, "total": len(enriched), "current_name": ""}
         audit_results = []
         all_emails = []
@@ -1027,84 +1033,163 @@ async def run_upload_pipeline(upload_id: str):
                     ]})
                 continue
 
-            # Scrape website email (fast HTTP, no AI)
-            website = (biz.get("website") or "").strip()
-            if website:
-                if not website.startswith(("http://", "https://")):
-                    website = "https://" + website
-                try:
-                    biz["website_email"] = await asyncio.to_thread(get_best_contact_email, website)
-                except Exception:
+            try:
+                # Scrape website email (fast HTTP, no AI)
+                website = (biz.get("website") or "").strip()
+                if website:
+                    if not website.startswith(("http://", "https://")):
+                        website = "https://" + website
+                    try:
+                        biz["website_email"] = await asyncio.to_thread(get_best_contact_email, website)
+                    except Exception:
+                        biz["website_email"] = ""
+                else:
                     biz["website_email"] = ""
-            else:
-                biz["website_email"] = ""
 
-            owner_email = biz.get("owner_email", "")
-            website_email = biz.get("website_email", "")
-            comp = (biz.get("nearest_competitors") or [{}])[0]
+                owner_email = biz.get("owner_email", "")
+                website_email = biz.get("website_email", "")
+                comp = (biz.get("nearest_competitors") or [{}])[0]
 
-            # Cold email #1 + 5 follow-ups
-            email_result = await asyncio.to_thread(_generate_email_for_business, biz, {})
-            email_seq = await asyncio.to_thread(
-                generate_email_sequence,
-                biz,
-                email_result["subject"],
-                email_result["body"],
-                bool(website),
-            )
-            email_row = {
-                "name": biz_name,
-                "owner_name": biz.get("owner_name", ""),
-                "owner_email": owner_email,
-                "website_email": website_email,
-                "contact_email": owner_email or website_email,
-                "website": website,
-                "subject": email_result["subject"],
-                "body": email_result["body"],
-                "nearest_competitor": comp.get("name", ""),
-                "distance": comp.get("distance_miles", ""),
-                "email_sequence": email_seq,
-            }
-            all_emails.append(email_row)
-
-            # Accumulate niche data for blog posts
-            niche_key = f"{(biz.get('category') or '').strip()} | {(biz.get('state') or '').strip()}"
-            if niche_key not in niche_groups:
-                niche_groups[niche_key] = {
-                    "category": (biz.get("category") or "").strip(),
-                    "state": (biz.get("state") or "").strip(),
-                    "count": 0, "ratings": [], "reviews": [],
-                }
-            niche_groups[niche_key]["count"] += 1
-            if biz.get("rating"):
-                try: niche_groups[niche_key]["ratings"].append(float(biz["rating"]))
-                except Exception: pass
-            if biz.get("reviews"):
-                try: niche_groups[niche_key]["reviews"].append(int(biz["reviews"]))
-                except Exception: pass
-
-            # PDF: full website audit OR no-website pitch
-            audit_job_id = str(uuid.uuid4())
-
-            if website:
-                jobs[audit_job_id] = {
-                    "status": "pending", "url": website,
-                    "business_name": biz_name,
-                    "created_at": datetime.now().isoformat(),
-                    "progress": 0, "message": "Queued", "data": None, "error": None,
-                }
-                comp_websites = []
-                for c in biz.get("nearest_competitors") or []:
-                    cw = (c.get("website") or "").strip()
-                    if cw and cw != biz.get("website", "").strip():
-                        if not cw.startswith(("http://", "https://")):
-                            cw = "https://" + cw
-                        comp_websites.append(cw)
-
+                # Cold email #1 + 5 follow-ups
                 try:
-                    await run_analysis(audit_job_id, website, comp_websites[:3], biz_data=biz)
-                    aj = jobs[audit_job_id]
-                    if aj["status"] == "complete" and aj.get("data"):
+                    email_result = await asyncio.to_thread(_generate_email_for_business, biz, {})
+                except Exception:
+                    email_result = {"subject": f"Quick question about {biz_name}", "body": ""}
+                try:
+                    email_seq = await asyncio.to_thread(
+                        generate_email_sequence,
+                        biz,
+                        email_result["subject"],
+                        email_result["body"],
+                        bool(website),
+                    )
+                except Exception:
+                    email_seq = []
+                email_row = {
+                    "name": biz_name,
+                    "owner_name": biz.get("owner_name", ""),
+                    "owner_email": owner_email,
+                    "website_email": website_email,
+                    "contact_email": owner_email or website_email,
+                    "website": website,
+                    "subject": email_result["subject"],
+                    "body": email_result["body"],
+                    "nearest_competitor": comp.get("name", ""),
+                    "distance": comp.get("distance_miles", ""),
+                    "email_sequence": email_seq,
+                }
+                all_emails.append(email_row)
+                job["partial_emails"].append(email_row)
+
+                # Accumulate niche data for blog posts
+                niche_key = f"{(biz.get('category') or '').strip()} | {(biz.get('state') or '').strip()}"
+                if niche_key not in niche_groups:
+                    niche_groups[niche_key] = {
+                        "category": (biz.get("category") or "").strip(),
+                        "state": (biz.get("state") or "").strip(),
+                        "count": 0, "ratings": [], "reviews": [],
+                    }
+                niche_groups[niche_key]["count"] += 1
+                if biz.get("rating"):
+                    try: niche_groups[niche_key]["ratings"].append(float(biz["rating"]))
+                    except Exception: pass
+                if biz.get("reviews"):
+                    try: niche_groups[niche_key]["reviews"].append(int(biz["reviews"]))
+                    except Exception: pass
+
+                # PDF: full website audit OR no-website pitch
+                audit_job_id = str(uuid.uuid4())
+
+                if website:
+                    jobs[audit_job_id] = {
+                        "status": "pending", "url": website,
+                        "business_name": biz_name,
+                        "created_at": datetime.now().isoformat(),
+                        "progress": 0, "message": "Queued", "data": None, "error": None,
+                    }
+                    comp_websites = []
+                    for c in biz.get("nearest_competitors") or []:
+                        cw = (c.get("website") or "").strip()
+                        if cw and cw != biz.get("website", "").strip():
+                            if not cw.startswith(("http://", "https://")):
+                                cw = "https://" + cw
+                            comp_websites.append(cw)
+
+                    try:
+                        await run_analysis(audit_job_id, website, comp_websites[:3], biz_data=biz)
+                        aj = jobs[audit_job_id]
+                        if aj["status"] == "complete" and aj.get("data"):
+                            row = {
+                                "business_name": biz_name,
+                                "owner_name": biz.get("owner_name", ""),
+                                "owner_email": owner_email,
+                                "website_email": website_email,
+                                "contact_email": owner_email or website_email,
+                                "category": biz.get("category", ""),
+                                "website": website,
+                                "job_id": audit_job_id,
+                                "lead_score": aj["data"].get("lead_score", {}),
+                                "report_path": aj["data"].get("report_path", ""),
+                                "subject": email_result["subject"],
+                                "body": email_result["body"],
+                            }
+                        else:
+                            row = {
+                                "business_name": biz_name,
+                                "owner_name": biz.get("owner_name", ""),
+                                "owner_email": owner_email,
+                                "website_email": website_email,
+                                "contact_email": owner_email or website_email,
+                                "website": website,
+                                "job_id": audit_job_id,
+                                "error": aj.get("error", "Unknown error"),
+                                "subject": email_result["subject"],
+                                "body": email_result["body"],
+                            }
+                    except Exception as e:
+                        row = {
+                            "business_name": biz_name,
+                            "website": website,
+                            "job_id": audit_job_id,
+                            "error": str(e),
+                            "subject": email_result["subject"],
+                            "body": email_result["body"],
+                        }
+                else:
+                    # No website — generate niche pitch PDF
+                    _socials = {
+                        p: biz.get(p, "") or ""
+                        for p in ("facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok", "yelp")
+                    }
+                    _competitors = [
+                        {
+                            "name":           c.get("name", ""),
+                            "rating":         c.get("rating"),
+                            "reviews":        c.get("reviews") or c.get("review_count"),
+                            "distance_miles": c.get("distance_miles"),
+                            "website":        c.get("website", ""),
+                            "facebook":       c.get("facebook", ""),
+                            "instagram":      c.get("instagram", ""),
+                        }
+                        for c in (biz.get("nearest_competitors") or [])
+                    ]
+                    try:
+                        report_path = await asyncio.to_thread(
+                            generate_niche_report,
+                            job_id=audit_job_id,
+                            business_name=biz_name,
+                            owner_name=biz.get("owner_name", "") or "",
+                            rating=biz.get("rating"),
+                            review_count=biz.get("reviews"),
+                            reviews_text=biz.get("reviews_text", "") or "",
+                            website="",
+                            phone=biz.get("phone", "") or "",
+                            email=owner_email or website_email or biz.get("email", "") or "",
+                            address=biz.get("address", "") or "",
+                            socials=_socials,
+                            competitors=_competitors,
+                        )
+                        jobs[audit_job_id] = {"status": "complete", "url": "", "business_name": biz_name, "data": {"report_path": report_path}, "error": None}
                         row = {
                             "business_name": biz_name,
                             "owner_name": biz.get("owner_name", ""),
@@ -1112,101 +1197,40 @@ async def run_upload_pipeline(upload_id: str):
                             "website_email": website_email,
                             "contact_email": owner_email or website_email,
                             "category": biz.get("category", ""),
-                            "website": website,
+                            "website": "",
                             "job_id": audit_job_id,
-                            "lead_score": aj["data"].get("lead_score", {}),
-                            "report_path": aj["data"].get("report_path", ""),
+                            "lead_score": {},
+                            "report_path": report_path,
+                            "no_website": True,
                             "subject": email_result["subject"],
                             "body": email_result["body"],
                         }
-                    else:
+                    except Exception as e:
+                        jobs[audit_job_id] = {"status": "error", "url": "", "data": None, "error": str(e)}
                         row = {
                             "business_name": biz_name,
-                            "owner_name": biz.get("owner_name", ""),
-                            "owner_email": owner_email,
-                            "website_email": website_email,
-                            "contact_email": owner_email or website_email,
-                            "website": website,
+                            "website": "",
                             "job_id": audit_job_id,
-                            "error": aj.get("error", "Unknown error"),
+                            "error": str(e),
+                            "no_website": True,
                             "subject": email_result["subject"],
                             "body": email_result["body"],
                         }
-                except Exception as e:
-                    row = {
-                        "business_name": biz_name,
-                        "website": website,
-                        "job_id": audit_job_id,
-                        "error": str(e),
-                        "subject": email_result["subject"],
-                        "body": email_result["body"],
-                    }
-            else:
-                # No website — generate niche pitch PDF
-                _socials = {
-                    p: biz.get(p, "") or ""
-                    for p in ("facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok", "yelp")
-                }
-                _competitors = [
-                    {
-                        "name":           c.get("name", ""),
-                        "rating":         c.get("rating"),
-                        "reviews":        c.get("reviews") or c.get("review_count"),
-                        "distance_miles": c.get("distance_miles"),
-                        "website":        c.get("website", ""),
-                        "facebook":       c.get("facebook", ""),
-                        "instagram":      c.get("instagram", ""),
-                    }
-                    for c in (biz.get("nearest_competitors") or [])
-                ]
-                try:
-                    report_path = await asyncio.to_thread(
-                        generate_niche_report,
-                        job_id=audit_job_id,
-                        business_name=biz_name,
-                        owner_name=biz.get("owner_name", "") or "",
-                        rating=biz.get("rating"),
-                        review_count=biz.get("reviews"),
-                        reviews_text=biz.get("reviews_text", "") or "",
-                        website="",
-                        phone=biz.get("phone", "") or "",
-                        email=owner_email or website_email or biz.get("email", "") or "",
-                        address=biz.get("address", "") or "",
-                        socials=_socials,
-                        competitors=_competitors,
-                    )
-                    jobs[audit_job_id] = {"status": "complete", "url": "", "business_name": biz_name, "data": {"report_path": report_path}, "error": None}
-                    row = {
-                        "business_name": biz_name,
-                        "owner_name": biz.get("owner_name", ""),
-                        "owner_email": owner_email,
-                        "website_email": website_email,
-                        "contact_email": owner_email or website_email,
-                        "category": biz.get("category", ""),
-                        "website": "",
-                        "job_id": audit_job_id,
-                        "lead_score": {},
-                        "report_path": report_path,
-                        "no_website": True,
-                        "subject": email_result["subject"],
-                        "body": email_result["body"],
-                    }
-                except Exception as e:
-                    jobs[audit_job_id] = {"status": "error", "url": "", "data": None, "error": str(e)}
-                    row = {
-                        "business_name": biz_name,
-                        "website": "",
-                        "job_id": audit_job_id,
-                        "error": str(e),
-                        "no_website": True,
-                        "subject": email_result["subject"],
-                        "body": email_result["body"],
-                    }
 
-            cache[cache_key] = row
-            _save_cache()
-            audit_results.append(row)
-            job["partial_results"].append(row)
+                cache[cache_key] = row
+                _save_cache()
+                audit_results.append(row)
+                job["partial_results"].append(row)
+
+            except Exception as biz_err:
+                print(f"[Upload {upload_id}] Skipping {biz_name}: {traceback.format_exc()}")
+                error_row = {
+                    "business_name": biz_name,
+                    "website": (biz.get("website") or "").strip(),
+                    "error": str(biz_err),
+                }
+                audit_results.append(error_row)
+                job["partial_results"].append(error_row)
 
         audit_results.sort(
             key=lambda x: (x.get("lead_score") or {}).get("score", 0),
