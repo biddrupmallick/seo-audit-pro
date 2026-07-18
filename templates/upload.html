@@ -95,7 +95,8 @@
     .btn-export { background: #059669; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
 
     /* Audit result rows */
-    .audit-row { display:flex; align-items:center; gap:14px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; margin-bottom:8px; flex-wrap:wrap; }
+    .audit-row { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 16px; margin-bottom:8px; }
+    .audit-row-top { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
     .audit-rank { font-size:18px; font-weight:800; color:#cbd5e1; min-width:28px; text-align:center; }
     .audit-tier { font-size:22px; flex-shrink:0; }
     .audit-info { flex:1; min-width:140px; }
@@ -108,6 +109,15 @@
     .btn-report { background:#2563eb; color:#fff; border:none; border-radius:7px; padding:7px 14px; font-size:11px; font-weight:700; text-decoration:none; flex-shrink:0; }
     .btn-report:hover { background:#1d4ed8; }
     .audit-error { font-size:11px; color:#dc2626; flex:1; }
+    /* Email thread */
+    .thread-toggle { margin-top:10px; background:none; border:1px solid #e2e8f0; border-radius:6px; padding:5px 12px; font-size:11px; font-weight:600; color:#2563eb; cursor:pointer; width:100%; text-align:left; }
+    .thread-toggle:hover { background:#f0f7ff; }
+    .thread-body { margin-top:8px; border-left:3px solid #e2e8f0; padding-left:12px; }
+    .thread-email { margin-bottom:12px; padding-bottom:12px; border-bottom:1px dashed #e2e8f0; }
+    .thread-email:last-child { border-bottom:none; margin-bottom:0; }
+    .thread-day { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#94a3b8; margin-bottom:3px; }
+    .thread-subject { font-size:11px; font-weight:700; color:#1e293b; margin-bottom:4px; }
+    .thread-text { font-size:12px; color:#475569; line-height:1.5; white-space:pre-wrap; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
   </style>
 </head>
@@ -351,15 +361,16 @@ function renderPartialResults(results) {
     div.className = 'audit-row';
     div.style.animation = 'fadeIn 0.3s ease';
     if (r.error) {
-      div.innerHTML = `
+      div.innerHTML = `<div class="audit-row-top">
         <div class="audit-tier">⚠️</div>
         <div class="audit-info">
           <div class="audit-name">${escHtml(r.business_name || '—')}</div>
           <div class="audit-site">${escHtml(r.website || '')}</div>
         </div>
-        <div class="audit-error">${escHtml(r.error)}</div>`;
+        <div class="audit-error">${escHtml(r.error)}</div>
+      </div>`;
     } else {
-      div.innerHTML = `
+      div.innerHTML = `<div class="audit-row-top">
         <div class="audit-tier">${icon}</div>
         <div class="audit-info">
           <div class="audit-name">${escHtml(r.business_name || '—')}${r.owner_name ? ` <span style="font-size:10px;color:#64748b;">· ${escHtml(r.owner_name)}</span>` : ''}</div>
@@ -371,7 +382,15 @@ function renderPartialResults(results) {
           <div class="audit-score-lbl">Lead Score</div>
         </div>
         <div class="audit-tier-label" style="background:${color}22;color:${color};">${tier}</div>
-        ${r.report_path ? `<a class="btn-report" href="/report/${r.job_id}" download>📥 Download</a>` : '<span style="font-size:11px;color:#94a3b8;">No report</span>'}`;
+        ${r.report_path ? `<a class="btn-report" href="/report/${r.job_id}" download>📥 Download</a>` : '<span style="font-size:11px;color:#94a3b8;">No report</span>'}
+      </div>
+      ${buildEmailThread(r)}`;
+      div.querySelector('.thread-toggle')?.addEventListener('click', function() {
+        const body = div.querySelector('.thread-body');
+        const isOpen = body.style.display !== 'none';
+        body.style.display = isOpen ? 'none' : 'block';
+        this.textContent = isOpen ? '✉ View 6-Email Sequence ▾' : '✉ Hide Sequence ▴';
+      });
     }
     list.appendChild(div);
   });
@@ -571,6 +590,20 @@ function exportExcel() {
   a.download = '';
   a.click();
   setTimeout(() => { btn.textContent = '📊 Export Excel'; btn.disabled = false; }, 3000);
+}
+
+function buildEmailThread(r) {
+  const seq = r.email_sequence;
+  if (!seq || seq.length === 0) return '';
+  const items = seq.map((em, i) => `
+    <div class="thread-email">
+      <div class="thread-day">${escHtml(em.label || `Email ${em.index}`)} &nbsp;·&nbsp; Day ${em.day}</div>
+      <div class="thread-subject">${escHtml(em.subject || '')}</div>
+      <div class="thread-text">${escHtml(em.body || '')}</div>
+    </div>`).join('');
+  return `
+    <button class="thread-toggle">✉ View 6-Email Sequence ▾</button>
+    <div class="thread-body" style="display:none">${items}</div>`;
 }
 
 function downloadAll() {

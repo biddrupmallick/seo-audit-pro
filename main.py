@@ -709,12 +709,22 @@ async def export_excel(upload_id: str):
     )
     wrap = Alignment(wrap_text=True, vertical="top")
 
+    seq_labels = [
+        "Email 1 — Initial (Day 0)",
+        "Email 2 — Check-In (Day 3)",
+        "Email 3 — Free Value (Day 7)",
+        "Email 4 — PPC Angle (Day 14)",
+        "Email 5 — Urgency (Day 21)",
+        "Email 6 — Breakup (Day 30)",
+    ]
     headers = [
         "#", "Business Name", "Owner Name", "Contact Email", "Email Source",
-        "Website", "Subject Line", "Email Body (2 sentences)",
-        "Nearest Competitor", "Distance (mi)", "Lead Score", "Lead Tier",
+        "Website", "Lead Score", "Lead Tier",
     ]
-    col_widths = [4, 28, 20, 32, 12, 30, 40, 70, 28, 13, 11, 14]
+    col_widths = [4, 28, 20, 32, 12, 30, 11, 14]
+    for lbl in seq_labels:
+        headers += [f"{lbl} — Subject", f"{lbl} — Body"]
+        col_widths += [38, 72]
 
     for col, (h, w) in enumerate(zip(headers, col_widths), 1):
         cell = ws.cell(row=1, column=col, value=h)
@@ -740,13 +750,13 @@ async def export_excel(upload_id: str):
             e.get("contact_email", ""),
             src,
             e.get("website", ""),
-            e.get("subject", ""),
-            e.get("body", ""),
-            e.get("nearest_competitor", ""),
-            e.get("distance", ""),
             ls.get("score", ""),
             ls.get("tier", ""),
         ]
+        seq = e.get("email_sequence") or []
+        for em in seq:
+            values.append(em.get("subject", ""))
+            values.append(em.get("body", ""))
         for col, val in enumerate(values, 1):
             cell = ws.cell(row=row, column=col, value=val)
             cell.alignment = wrap
@@ -754,7 +764,7 @@ async def export_excel(upload_id: str):
             if fill:
                 cell.fill = fill
 
-        ws.row_dimensions[row].height = 55
+        ws.row_dimensions[row].height = 80
 
     # Auto-filter
     ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
@@ -990,6 +1000,7 @@ async def run_upload_pipeline(upload_id: str):
 
         from analyzers.ultra_email import _generate_email_for_business
         from analyzers.website_email import get_best_contact_email
+        from analyzers.email_sequence import generate_email_sequence
 
         for i, biz in enumerate(enriched):
             biz_name = biz.get("name", f"Business {i+1}")
@@ -1032,8 +1043,15 @@ async def run_upload_pipeline(upload_id: str):
             website_email = biz.get("website_email", "")
             comp = (biz.get("nearest_competitors") or [{}])[0]
 
-            # Cold email (uses competitor data already available — no extra Ollama call)
+            # Cold email #1 + 5 follow-ups
             email_result = await asyncio.to_thread(_generate_email_for_business, biz, {})
+            email_seq = await asyncio.to_thread(
+                generate_email_sequence,
+                biz,
+                email_result["subject"],
+                email_result["body"],
+                bool(website),
+            )
             email_row = {
                 "name": biz_name,
                 "owner_name": biz.get("owner_name", ""),
@@ -1045,6 +1063,7 @@ async def run_upload_pipeline(upload_id: str):
                 "body": email_result["body"],
                 "nearest_competitor": comp.get("name", ""),
                 "distance": comp.get("distance_miles", ""),
+                "email_sequence": email_seq,
             }
             all_emails.append(email_row)
 
