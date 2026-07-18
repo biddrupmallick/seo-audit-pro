@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --accent:   {{ branding.accent_color or '#2563eb' }};
+    --ink:      #0f172a;
+    --muted:    #64748b;
+    --light:    #f8fafc;
+    --border:   #e2e8f0;
+    --green:    #16a34a;
+    --red:      #dc2626;
+    --amber:    #d97706;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    background: #fff;
+  }
+
+  /* ── Page breaks ── */
+  .page {
+    width: 100%;
+    min-height: 270mm;
+    padding: 40px 48px;
+    page-break-after: always;
+    position: relative;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ── Cover page ── */
+  .cover {
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 270mm;
+    padding: 60px 56px;
+  }
+  .cover-agency    { font-size: 13px; font-weight: 600; opacity: 0.8; margin-bottom: 48px; letter-spacing: 1px; text-transform: uppercase; }
+  .cover-title     { font-size: 36px; font-weight: 800; line-height: 1.15; margin-bottom: 16px; }
+  .cover-business  { font-size: 20px; font-weight: 400; opacity: 0.9; margin-bottom: 8px; }
+  .cover-owner     { font-size: 15px; opacity: 0.75; margin-bottom: 48px; }
+  .cover-score-wrap { margin-bottom: 40px; }
+  .cover-score-label { font-size: 13px; opacity: 0.8; margin-bottom: 8px; letter-spacing: 0.5px; }
+  .cover-score-num  { font-size: 72px; font-weight: 900; line-height: 1; }
+  .cover-score-max  { font-size: 24px; font-weight: 400; opacity: 0.7; }
+  .cover-summary    { font-size: 15px; line-height: 1.6; opacity: 0.9; max-width: 480px; margin-bottom: 48px; }
+  .cover-date       { font-size: 12px; opacity: 0.6; margin-top: auto; }
+
+  /* ── Page header ── */
+  .page-header {
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 12px;
+    margin-bottom: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .page-title   { font-size: 22px; font-weight: 800; color: var(--ink); }
+  .page-biz     { font-size: 12px; color: var(--muted); }
+
+  /* ── Section intro text (Ollama-written) ── */
+  .intro {
+    background: var(--light);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 6px 6px 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #1e293b;
+    margin-bottom: 24px;
+  }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; margin-bottom: 24px; }
+  .checklist li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .check-yes { color: var(--green); font-size: 16px; font-weight: 700; }
+  .check-no  { color: var(--red);   font-size: 16px; font-weight: 700; }
+  .check-label { flex: 1; }
+  .check-val   { color: var(--muted); font-size: 12px; }
+
+  /* ── Stats row ── */
+  .stats-row { display: flex; gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    flex: 1;
+    background: var(--light);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    border: 1px solid var(--border);
+  }
+  .stat-num   { font-size: 32px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── Review themes ── */
+  .theme-row { display: flex; gap: 16px; margin-bottom: 24px; }
+  .theme-box {
+    flex: 1;
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid var(--border);
+  }
+  .theme-box.praise   { border-top: 3px solid var(--green); }
+  .theme-box.complaint { border-top: 3px solid var(--amber); }
+  .theme-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .theme-title.praise   { color: var(--green); }
+  .theme-title.complaint { color: var(--amber); }
+  .theme-text { font-size: 12px; line-height: 1.6; color: #334155; }
+
+  /* ── Competitor table ── */
+  .comp-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  .comp-table thead tr { background: var(--ink); color: #fff; }
+  .comp-table thead th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
+  .comp-table tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: middle; }
+  .comp-table tbody tr:last-child td { border-bottom: none; }
+  .comp-table tbody tr.you-row td { background: #eff6ff; font-weight: 600; }
+  .you-badge { background: var(--accent); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  .badge-green  { background: #dcfce7; color: #15803d; }
+  .badge-red    { background: #fee2e2; color: #b91c1c; }
+  .badge-amber  { background: #fef3c7; color: #92400e; }
+  .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+
+  /* ── Review bar ── */
+  .rev-bar-wrap { width: 70px; height: 4px; background: var(--border); border-radius: 2px; margin-top: 4px; }
+  .rev-bar { height: 4px; border-radius: 2px; }
+  .rev-bar.ahead { background: var(--green); }
+  .rev-bar.behind { background: var(--red); }
+
+  /* ── Contact grid ── */
+  .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .contact-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--light);
+  }
+  .contact-icon { font-size: 20px; }
+  .contact-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .contact-val   { font-size: 13px; font-weight: 600; }
+  .contact-val.found   { color: var(--green); }
+  .contact-val.missing { color: var(--red); }
+  .contact-link  { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 13px; }
+
+  /* ── Social media grid ── */
+  .social-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+  .social-item {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .social-item.found   { border-top: 3px solid var(--green); }
+  .social-item.missing { border-top: 3px solid var(--border); opacity: 0.5; }
+  .social-name  { font-size: 11px; font-weight: 700; color: var(--ink); margin-bottom: 6px; text-transform: capitalize; }
+  .social-link  { font-size: 11px; color: var(--accent); text-decoration: none; }
+  .social-missing-text { font-size: 11px; color: var(--muted); }
+
+  /* ── Social comparison table ── */
+  .social-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  .social-table thead tr { background: var(--ink); color: #fff; }
+  .social-table thead th { padding: 8px 12px; text-align: left; font-size: 11px; }
+  .social-table tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .social-table tbody tr.you-row td { background: #eff6ff; font-weight: 600; }
+
+  /* ── Website metrics ── */
+  .metric-row { display: flex; gap: 16px; margin-bottom: 24px; }
+  .metric-card {
+    flex: 1;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .metric-val   { font-size: 24px; font-weight: 800; }
+  .metric-val.good { color: var(--green); }
+  .metric-val.bad  { color: var(--red); }
+
+  /* ── Pain points ── */
+  .pain-list { list-style: none; margin-bottom: 24px; }
+  .pain-list li {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    background: #fff5f5;
+    border-left: 3px solid var(--red);
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #1e293b;
+  }
+  .pain-icon { color: var(--red); font-weight: 700; flex-shrink: 0; }
+
+  /* ── Action plan ── */
+  .action-list { list-style: none; margin-bottom: 32px; }
+  .action-list li {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
+    background: var(--light);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    align-items: flex-start;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .action-num {
+    background: var(--accent);
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  /* ── CTA box ── */
+  .cta-box {
+    background: var(--accent);
+    color: #fff;
+    padding: 32px;
+    border-radius: 12px;
+    text-align: center;
+  }
+  .cta-title   { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+  .cta-sub     { font-size: 14px; opacity: 0.9; margin-bottom: 24px; line-height: 1.5; }
+  .cta-contact { font-size: 13px; opacity: 0.85; line-height: 2; }
+
+  /* ── Footer ── */
+  .page-footer {
+    position: absolute;
+    bottom: 20px;
+    left: 48px;
+    right: 48px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 1: COVER                                                  -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page cover">
+  <div class="cover-agency">{{ branding.agency_name }}</div>
+
+  <div class="cover-title">Your Business<br>Health Report</div>
+  <div class="cover-business">{{ business_name }}</div>
+  {% if owner_name %}
+  <div class="cover-owner">Prepared for {{ owner_name }}</div>
+  {% endif %}
+
+  <div class="cover-score-wrap">
+    <div class="cover-score-label">ONLINE PRESENCE SCORE</div>
+    <div>
+      <span class="cover-score-num">{{ presence_score }}</span>
+      <span class="cover-score-max"> / 100</span>
+    </div>
+  </div>
+
+  {% if content.cover_summary %}
+  <div class="cover-summary">{{ content.cover_summary }}</div>
+  {% endif %}
+
+  <div class="cover-date">{{ report_date }} &nbsp;·&nbsp; Prepared by {{ branding.agency_name }}</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 2: ARE CUSTOMERS FINDING YOU?                            -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">Are Customers Finding You?</div>
+    <div class="page-biz">{{ business_name }}</div>
+  </div>
+
+  {% if content.visibility %}
+  <div class="intro">{{ content.visibility }}</div>
+  {% endif %}
+
+  <ul class="checklist">
+    <li>
+      <span class="{% if address %}check-yes{% else %}check-no{% endif %}">{% if address %}✓{% else %}✗{% endif %}</span>
+      <span class="check-label">Business address on Google</span>
+      <span class="check-val">{{ address or 'Not found' }}</span>
+    </li>
+    <li>
+      <span class="{% if phone %}check-yes{% else %}check-no{% endif %}">{% if phone %}✓{% else %}✗{% endif %}</span>
+      <span class="check-label">Phone number on Google</span>
+      <span class="check-val">{{ phone or 'Not found' }}</span>
+    </li>
+    <li>
+      <span class="{% if website %}check-yes{% else %}check-no{% endif %}">{% if website %}✓{% else %}✗{% endif %}</span>
+      <span class="check-label">Website linked to Google listing</span>
+      <span class="check-val">{% if website %}<a href="{{ website }}" style="color:var(--accent);">{{ website }}</a>{% else %}Not found{% endif %}</span>
+    </li>
+    <li>
+      <span class="{% if rating %}check-yes{% else %}check-no{% endif %}">{% if rating %}✓{% else %}✗{% endif %}</span>
+      <span class="check-label">Google star rating</span>
+      <span class="check-val">{% if rating %}{{ rating }}★{% else %}No rating yet{% endif %}</span>
+    </li>
+    <li>
+      <span class="{% if review_count and review_count > 0 %}check-yes{% else %}check-no{% endif %}">{% if review_count and review_count > 0 %}✓{% else %}✗{% endif %}</span>
+      <span class="check-label">Google reviews</span>
+      <span class="check-val">{% if review_count %}{{ review_count }} reviews{% else %}No reviews yet{% endif %}</span>
+    </li>
+  </ul>
+
+  <div class="page-footer">
+    <span>{{ branding.agency_name }}</span>
+    <span>{{ business_name }} · Business Health Report · {{ report_date }}</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 3: WHAT ARE YOUR CUSTOMERS SAYING?                       -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">What Are Your Customers Saying?</div>
+    <div class="page-biz">{{ business_name }}</div>
+  </div>
+
+  {% if content.reviews %}
+  <div class="intro">{{ content.reviews }}</div>
+  {% endif %}
+
+  {% if rating or review_count %}
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-num">{{ rating or '—' }}</div>
+      <div class="stat-label">Star Rating</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">{{ review_count or '0' }}</div>
+      <div class="stat-label">Total Reviews</div>
+    </div>
+    {% if gbp_review_gap and gbp_review_gap > 0 %}
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--red);">{{ gbp_review_gap }}</div>
+      <div class="stat-label">Reviews Behind Top Competitor</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if top_praise or top_complaints %}
+  <div class="theme-row">
+    {% if top_praise %}
+    <div class="theme-box praise">
+      <div class="theme-title praise">What Customers Love</div>
+      <div class="theme-text">{{ top_praise }}</div>
+    </div>
+    {% endif %}
+    {% if top_complaints %}
+    <div class="theme-box complaint">
+      <div class="theme-title complaint">What Needs Attention</div>
+      <div class="theme-text">{{ top_complaints }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="page-footer">
+    <span>{{ branding.agency_name }}</span>
+    <span>{{ business_name }} · Business Health Report · {{ report_date }}</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 4: HOW DO YOU COMPARE TO COMPETITORS?                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">How Do You Compare?</div>
+    <div class="page-biz">{{ business_name }}</div>
+  </div>
+
+  {% if content.competitors %}
+  <div class="intro">{{ content.competitors }}</div>
+  {% endif %}
+
+  {% if competitors %}
+  {% set ns = namespace(max_r = review_count or 1) %}
+  {% for c in competitors %}
+    {% if c.reviews and c.reviews | int > ns.max_r %}{% set ns.max_r = c.reviews | int %}{% endif %}
+  {% endfor %}
+
+  <!-- Rating + Reviews comparison -->
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>Business</th>
+        <th>Distance</th>
+        <th>Rating</th>
+        <th>Reviews</th>
+        <th>Standing</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="you-row">
+        <td>{{ business_name }}<span class="you-badge">YOU</span></td>
+        <td>—</td>
+        <td>{{ rating or '—' }}{% if rating %}★{% endif %}</td>
+        <td>
+          {{ review_count or '—' }}
+          {% if review_count %}
+          <div class="rev-bar-wrap"><div class="rev-bar ahead" style="width:{{ [(review_count | int / ns.max_r * 100), 100] | min | int }}%;"></div></div>
+          {% endif %}
+        </td>
+        <td>
+          {% if rating %}
+            {% if rating | float >= 4.5 and review_count | int >= 100 %}<span class="badge badge-green">Strong</span>
+            {% elif rating | float >= 4.0 or review_count | int >= 50 %}<span class="badge badge-amber">Moderate</span>
+            {% else %}<span class="badge badge-red">Developing</span>{% endif %}
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% for c in competitors[:5] %}
+      {% set cr = c.reviews | int if c.reviews else 0 %}
+      {% set crat = c.rating | float if c.rating else 0 %}
+      <tr>
+        <td>{{ c.name or '—' }}</td>
+        <td>{% if c.distance_miles %}{{ c.distance_miles }} mi{% else %}—{% endif %}</td>
+        <td>{{ c.rating or '—' }}{% if c.rating %}★{% endif %}</td>
+        <td>
+          {{ cr or '—' }}
+          {% if cr %}
+          <div class="rev-bar-wrap">
+            <div class="rev-bar {% if cr > (review_count or 0) | int %}behind{% else %}ahead{% endif %}" style="width:{{ [cr / ns.max_r * 100, 100] | min | int }}%;"></div>
+          </div>
+          {% endif %}
+        </td>
+        <td>
+          {% if crat >= 4.5 and cr >= 100 %}<span class="badge badge-red">Strong</span>
+          {% elif crat >= 4.0 or cr >= 50 %}<span class="badge badge-amber">Moderate</span>
+          {% else %}<span class="badge badge-green">Developing</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Social media comparison -->
+  {% set social_platforms = ['facebook','instagram','twitter','linkedin','youtube','tiktok','pinterest','yelp'] %}
+  {% set comp_list = competitors[:5] %}
+  {% if comp_list %}
+  <table class="social-table">
+    <thead>
+      <tr>
+        <th>Platform</th>
+        <th>You</th>
+        {% for c in comp_list %}<th>{{ c.name[:15] if c.name else '—' }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for platform in social_platforms %}
+      {% set your_url = socials.get(platform, '') %}
+      {% set any_has = your_url or comp_list | selectattr('socials') | list %}
+      <tr {% if loop.index == 1 %}class="you-row"{% endif %}>
+        <td style="font-weight:600; text-transform:capitalize;">{{ platform }}</td>
+        <td>
+          {% if your_url %}
+            <a href="{{ your_url }}" class="contact-link" style="font-size:11px;">[View]</a>
+          {% else %}
+            <span style="color:var(--red);">✗</span>
+          {% endif %}
+        </td>
+        {% for c in comp_list %}
+        {% set curl = (c.socials or {}).get(platform, '') %}
+        <td>
+          {% if curl %}
+            <a href="{{ curl }}" class="contact-link" style="font-size:11px;">[View]</a>
+          {% else %}
+            <span style="color:var(--muted);">—</span>
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% endif %}
+
+  <div class="page-footer">
+    <span>{{ branding.agency_name }}</span>
+    <span>{{ business_name }} · Business Health Report · {{ report_date }}</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 5: CAN CUSTOMERS REACH YOU?                              -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">Can Customers Reach You?</div>
+    <div class="page-biz">{{ business_name }}</div>
+  </div>
+
+  {% if content.reachability %}
+  <div class="intro">{{ content.reachability }}</div>
+  {% endif %}
+
+  <div class="contact-grid">
+    <div class="contact-item">
+      <span class="contact-icon">🌐</span>
+      <div>
+        <div class="contact-label">Website</div>
+        {% if website %}
+          <a href="{{ website }}" class="contact-link">[Visit Website]</a>
+        {% else %}
+          <div class="contact-val missing">Not found</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="contact-item">
+      <span class="contact-icon">📞</span>
+      <div>
+        <div class="contact-label">Phone</div>
+        <div class="contact-val {% if phone %}found{% else %}missing{% endif %}">{{ phone or 'Not found' }}</div>
+      </div>
+    </div>
+    <div class="contact-item">
+      <span class="contact-icon">✉️</span>
+      <div>
+        <div class="contact-label">Email</div>
+        {% if email %}
+          <a href="mailto:{{ email }}" class="contact-link">{{ email }}</a>
+        {% else %}
+          <div class="contact-val missing">Not found</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="contact-item">
+      <span class="contact-icon">📍</span>
+      <div>
+        <div class="contact-label">Address</div>
+        <div class="contact-val {% if address %}found{% else %}missing{% endif %}">{{ address or 'Not found' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Social media profiles -->
+  {% set social_platforms = ['facebook','instagram','twitter','linkedin','youtube','tiktok','pinterest','yelp'] %}
+  <div class="social-grid">
+    {% for platform in social_platforms %}
+    {% set url = socials.get(platform, '') %}
+    <div class="social-item {% if url %}found{% else %}missing{% endif %}">
+      <div class="social-name">{{ platform }}</div>
+      {% if url %}
+        <a href="{{ url }}" class="social-link">[View Profile]</a>
+      {% else %}
+        <div class="social-missing-text">Not found</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="page-footer">
+    <span>{{ branding.agency_name }}</span>
+    <span>{{ business_name }} · Business Health Report · {{ report_date }}</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 6: IS YOUR WEBSITE WORKING? (only if has website)        -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+{% if website %}
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">Is Your Website Working?</div>
+    <div class="page-biz">{{ business_name }}</div>
+  </div>
+
+  {% if content.website %}
+  <div class="intro">{{ content.website }}</div>
+  {% endif %}
+
+  <div class="metric-row">
+    <div class="metric-card">
+      <div class="metric-label">Load Speed</div>
+      <div class="metric-val {% if load_speed == 'fast' %}good{% elif load_speed == 'slow' %}bad{% endif %}">
+        {{ load_speed | capitalize if load_speed else 'Not measured' }}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Mobile Friendly</div>
+      <div class="metric-val {% if mobile_friendly %}good{% elif mobile_friendly == false %}bad{% endif %}">
+        {% if mobile_friendly == true %}Yes{% elif mobile_friendly == false %}No{% else %}Not measured{% endif %}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Website Score</div>
+      <div class="metric-val {% if website_score and website_score >= 70 %}good{% elif website_score %}bad{% endif %}">
+        {{ website_score or '—' }}{% if website_score %}/100{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>{{ branding.agency_name }}</span>
+    <span>{{ business_name }} · Business Health Report · {{ report_date }}</span>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 7: WHAT'S COSTING YOU CUSTOMERS RIGHT NOW?               -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">What's Costing You Customers Right Now</div>
+    <div class="page-biz">{{ business_name }}</div>
+  </div>
+
+  {% if content.pain_points %}
+  {% set lines = content.pain_points.split('\n') %}
+  <ul class="pain-list">
+    {% for line in lines %}
+    {% set clean = line.strip().lstrip('-').strip() %}
+    {% if clean %}
+    <li><span class="pain-icon">!</span>{{ clean }}</li>
+    {% endif %}
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <div class="page-footer">
+    <span>{{ branding.agency_name }}</span>
+    <span>{{ business_name }} · Business Health Report · {{ report_date }}</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PAGE 8: YOUR ACTION PLAN + CALL TO ACTION                     -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-title">Your Action Plan</div>
+    <div class="page-biz">{{ business_name }}</div>
+  </div>
+
+  {% if content.action_plan %}
+  {% set lines = content.action_plan.split('\n') %}
+  <ul class="action-list">
+    {% set ns = namespace(num=0) %}
+    {% for line in lines %}
+    {% set clean = line.strip().lstrip('123456789.').strip() %}
+    {% if clean %}
+    {% set ns.num = ns.num + 1 %}
+    <li>
+      <div class="action-num">{{ ns.num }}</div>
+      <div>{{ clean }}</div>
+    </li>
+    {% endif %}
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <div class="cta-box">
+    <div class="cta-title">We Can Handle All of This for You</div>
+    <div class="cta-sub">
+      You focus on running your business. We'll take care of your online presence,<br>
+      reviews, website, and social media — so more customers find you first.
+    </div>
+    <div class="cta-contact">
+      {{ branding.agency_name }}<br>
+      {{ branding.email }} &nbsp;·&nbsp; {{ branding.phone }}<br>
+      {{ branding.website }}
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>{{ branding.agency_name }}</span>
+    <span>{{ business_name }} · Business Health Report · {{ report_date }}</span>
+  </div>
+</div>
+
+</body>
+</html>

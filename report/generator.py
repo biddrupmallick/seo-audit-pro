@@ -201,3 +201,109 @@ def get_report_path(job_id: str) -> str | None:
     if os.path.exists(html_path):
         return html_path
     return None
+
+
+def generate_niche_report(
+    job_id: str,
+    business_name: str,
+    owner_name: str,
+    rating,
+    review_count,
+    reviews_text: str,
+    website: str,
+    phone: str,
+    email: str,
+    address: str,
+    socials: Dict[str, str],
+    competitors: List[Dict],
+    load_speed: str = None,
+    mobile_friendly: bool = None,
+) -> str:
+    """Generate an 8-page business-owner-friendly PDF using niche_report.html."""
+    from analyzers.report_writer import calculate_presence_score, generate_report_content
+
+    branding = load_branding()
+
+    # Parse praise/complaints from reviews_text using simple heuristics
+    top_praise = ""
+    top_complaints = ""
+    if reviews_text:
+        import re
+        praise_match = re.search(r'(?:praise|positive|customers love)[:\s]+([^\n.]{10,120})', reviews_text, re.I)
+        complaint_match = re.search(r'(?:complaint|negative|issue)[:\s]+([^\n.]{10,120})', reviews_text, re.I)
+        if praise_match:
+            top_praise = praise_match.group(1).strip()
+        if complaint_match:
+            top_complaints = complaint_match.group(1).strip()
+        if not top_praise and reviews_text:
+            top_praise = reviews_text[:200].strip()
+
+    presence_score = calculate_presence_score(
+        website=website,
+        rating=rating,
+        review_count=review_count,
+        email=email,
+        phone=phone,
+        socials=socials,
+    )
+
+    written = generate_report_content(
+        business_name=business_name,
+        owner_name=owner_name,
+        rating=rating,
+        review_count=review_count,
+        reviews_text=reviews_text,
+        top_praise=top_praise,
+        top_complaints=top_complaints,
+        website=website,
+        phone=phone,
+        email=email,
+        address=address,
+        socials=socials,
+        competitors=competitors,
+        presence_score=presence_score,
+        load_speed=load_speed,
+        mobile_friendly=mobile_friendly,
+    )
+
+    context = {
+        "business_name":   business_name,
+        "owner_name":      owner_name or "",
+        "rating":          rating,
+        "review_count":    review_count,
+        "reviews_text":    reviews_text,
+        "top_praise":      top_praise,
+        "top_complaints":  top_complaints,
+        "website":         website,
+        "phone":           phone,
+        "email":           email,
+        "address":         address,
+        "socials":         socials,
+        "competitors":     competitors,
+        "presence_score":  presence_score,
+        "load_speed":      load_speed,
+        "mobile_friendly": mobile_friendly,
+        "content":         written,
+        "branding":        branding,
+        "report_date":     datetime.now().strftime("%B %d, %Y"),
+    }
+
+    env = Environment(
+        loader=FileSystemLoader(str(TEMPLATE_DIR)),
+        autoescape=select_autoescape(["html"]),
+    )
+    env.globals["enumerate"] = enumerate
+    env.globals["len"] = len
+
+    template = env.get_template("niche_report.html")
+    html_content = template.render(**context)
+
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    html_path = os.path.join(REPORTS_DIR, f"{job_id}_niche.html")
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    pdf_path = os.path.join(REPORTS_DIR, f"{job_id}_niche.pdf")
+    if _html_to_pdf_weasyprint(html_path, pdf_path):
+        return pdf_path
+    return html_path

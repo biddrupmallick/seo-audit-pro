@@ -53,7 +53,7 @@ from analyzers.text_cleaner import clean_review_text
 from analyzers.file_prep import process_file as prep_process_file, build_excel
 from report.branding import load_branding, save_branding
 from scoring.scorer import calculate_scores
-from report.generator import generate_report, get_report_path
+from report.generator import generate_report, get_report_path, generate_niche_report
 
 # ====== APP SETUP ======
 @asynccontextmanager
@@ -1079,17 +1079,38 @@ async def run_upload_pipeline(upload_id: str):
                         "body": email_result["body"],
                     }
             else:
-                # No website — generate pitch PDF directly
-                gbp_data = await asyncio.to_thread(_gbp_from_excel, biz)
+                # No website — generate niche pitch PDF
+                _socials = {
+                    p: biz.get(p, "") or ""
+                    for p in ("facebook", "instagram", "twitter", "linkedin", "youtube", "tiktok", "yelp")
+                }
+                _competitors = [
+                    {
+                        "name":           c.get("name", ""),
+                        "rating":         c.get("rating"),
+                        "reviews":        c.get("reviews") or c.get("review_count"),
+                        "distance_miles": c.get("distance_miles"),
+                        "website":        c.get("website", ""),
+                        "facebook":       c.get("facebook", ""),
+                        "instagram":      c.get("instagram", ""),
+                    }
+                    for c in (biz.get("nearest_competitors") or [])
+                ]
                 try:
                     report_path = await asyncio.to_thread(
-                        generate_report,
+                        generate_niche_report,
                         job_id=audit_job_id,
-                        root_url="",
-                        total_pages=0,
-                        scores={}, technical={}, onpage={}, schema={},
-                        aeo={}, geo={}, performance={}, images={},
-                        gbp=gbp_data,
+                        business_name=biz_name,
+                        owner_name=biz.get("owner_name", "") or "",
+                        rating=biz.get("rating"),
+                        review_count=biz.get("reviews"),
+                        reviews_text=biz.get("reviews_text", "") or "",
+                        website="",
+                        phone=biz.get("phone", "") or "",
+                        email=owner_email or website_email or biz.get("email", "") or "",
+                        address=biz.get("address", "") or "",
+                        socials=_socials,
+                        competitors=_competitors,
                     )
                     jobs[audit_job_id] = {"status": "complete", "url": "", "data": {"report_path": report_path}, "error": None}
                     row = {
