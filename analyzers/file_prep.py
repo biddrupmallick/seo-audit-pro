@@ -98,7 +98,9 @@ def _is_address(val: str) -> bool:
     return bool(_ADDRESS_RE.match(val.strip()))
 
 
-_PLUS_CODE_RE = re.compile(r'^\d{4,6}\+[A-Z0-9]{2,4}$', re.I)
+# Matches "73530+10052", "8FRC+GJ" and also "2058545077+1" (number with trailing +country code)
+_PLUS_CODE_RE = re.compile(r'^\d{4,6}\+[A-Z0-9]{2,6}$', re.I)
+_PHONE_TRAILING_PLUS_RE = re.compile(r'\+\d{1,2}$')
 
 def _is_phone(val: str) -> bool:
     raw = str(val).strip()
@@ -106,6 +108,9 @@ def _is_phone(val: str) -> bool:
         raw = raw.lstrip('=').strip()
     # Exclude Google Plus Codes (e.g. "73530+10052", "8FRC+GJ")
     if _PLUS_CODE_RE.match(raw):
+        return False
+    # Exclude numbers with trailing +1 / +44 (data artifact, not a phone)
+    if _PHONE_TRAILING_PLUS_RE.search(raw):
         return False
     digits = len(_PHONE_DIGITS_RE.findall(raw))
     return 7 <= digits <= 15
@@ -148,7 +153,7 @@ _JUNK_CELLS = {"website", "phone", "email", "address", "name", "category",
                "closed", "open", "directions", "n/a"}
 
 _IMAGE_EXTS  = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
-_SKIP_HOSTS  = ("google.com", "gstatic.com", "googleapis.com")
+_SKIP_HOSTS  = ("google.com", "gstatic.com", "googleapis.com", "lomyu.me", "bit.ly", "goo.gl", "tinyurl.com")
 
 
 def _is_website(val: str) -> bool:
@@ -282,7 +287,7 @@ OUTPUT_HEADERS = [
     "Business Name", "Category", "Address", "Phone", "Website",
     "Rating", "Review Count", "Customer Reviews", "Owner Name", "Email",
     "Facebook", "Instagram", "Twitter", "LinkedIn",
-    "YouTube", "TikTok", "Pinterest", "Yelp",
+    "YouTube", "TikTok", "Yelp",
     "Latitude", "Longitude", "State", "GMB URL",
 ]
 
