@@ -193,7 +193,10 @@
     <div id="live-results-card" style="display:none; margin-top:20px;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
         <div style="font-size:13px; font-weight:700; color:#1e293b;">📥 Reports Ready to Download</div>
-        <div id="live-count" style="font-size:11px; color:#64748b;"></div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="live-count" style="font-size:11px; color:#64748b;"></div>
+          <button id="btn-download-all" onclick="downloadAll()" style="display:none;padding:6px 14px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">⬇ Download All</button>
+        </div>
       </div>
       <div id="live-list"></div>
     </div>
@@ -368,7 +371,7 @@ function renderPartialResults(results) {
           <div class="audit-score-lbl">Lead Score</div>
         </div>
         <div class="audit-tier-label" style="background:${color}22;color:${color};">${tier}</div>
-        ${r.report_path ? `<a class="btn-report" href="/report/${r.job_id}" target="_blank">📥 Download</a>` : '<span style="font-size:11px;color:#94a3b8;">No report</span>'}`;
+        ${r.report_path ? `<a class="btn-report" href="/report/${r.job_id}" download>📥 Download</a>` : '<span style="font-size:11px;color:#94a3b8;">No report</span>'}`;
     }
     list.appendChild(div);
   });
@@ -376,6 +379,8 @@ function renderPartialResults(results) {
   if (added) {
     const ready = results.filter(r => r.report_path).length;
     count.textContent = `${renderedJobIds.size} completed · ${ready} report${ready !== 1 ? 's' : ''} ready`;
+    const btnAll = document.getElementById('btn-download-all');
+    if (btnAll) btnAll.style.display = ready > 0 ? 'inline-block' : 'none';
   }
 }
 
@@ -566,6 +571,21 @@ function exportExcel() {
   a.download = '';
   a.click();
   setTimeout(() => { btn.textContent = '📊 Export Excel'; btn.disabled = false; }, 3000);
+}
+
+function downloadAll() {
+  if (!uploadId) return;
+  const btn = document.getElementById('btn-download-all');
+  if (btn) { btn.textContent = '⏳ Zipping…'; btn.disabled = true; }
+  const a = document.createElement('a');
+  a.href = `/upload/download-all/${uploadId}`;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => {
+    if (btn) { btn.textContent = '⬇ Download All'; btn.disabled = false; }
+  }, 4000);
 }
 
 function exportCSV() {

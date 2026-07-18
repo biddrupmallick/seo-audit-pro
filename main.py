@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import time
 import traceback
 import uuid
@@ -442,17 +443,20 @@ async def download_report(job_id: str):
     if not report_path:
         raise HTTPException(status_code=404, detail="Report file not found")
 
+    raw_name = job.get("business_name") or job.get("url") or job_id[:8]
+    safe_name = re.sub(r'[^\w\s-]', '', raw_name).strip().replace(' ', '_')[:60] or job_id[:8]
+
     if report_path.endswith(".pdf"):
         return FileResponse(
             report_path,
             media_type="application/pdf",
-            filename=f"seo-audit-{job_id[:8]}.pdf",
+            filename=f"{safe_name}.pdf",
         )
     else:
         return FileResponse(
             report_path,
             media_type="text/html",
-            filename=f"seo-audit-{job_id[:8]}.html",
+            filename=f"{safe_name}.html",
         )
 
 
@@ -766,6 +770,45 @@ async def export_excel(upload_id: str):
     )
 
 
+@app.get("/upload/download-all/{upload_id}")
+async def download_all_reports(upload_id: str):
+    """ZIP all completed PDF reports for this upload and return as a download."""
+    import io, zipfile
+    from fastapi.responses import StreamingResponse
+
+    if upload_id not in upload_jobs:
+        raise HTTPException(status_code=404, detail="Upload job not found")
+
+    job = upload_jobs[upload_id]
+    results = job.get("partial_results") or []
+
+    buf = io.BytesIO()
+    count = 0
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for row in results:
+            jid = row.get("job_id")
+            biz = row.get("business_name") or jid or "report"
+            if not jid:
+                continue
+            report_path = get_report_path(jid)
+            if not report_path or not os.path.exists(report_path):
+                continue
+            safe_name = re.sub(r'[^\w\s-]', '', biz).strip().replace(' ', '_')[:60] or jid[:8]
+            ext = ".pdf" if report_path.endswith(".pdf") else ".html"
+            zf.write(report_path, f"{safe_name}{ext}")
+            count += 1
+
+    if count == 0:
+        raise HTTPException(status_code=404, detail="No reports available yet")
+
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=reports_{upload_id[:8]}.zip"},
+    )
+
+
 def _estimate_dist(rating: float, count: int) -> dict:
     if not rating or not count:
         return {}
@@ -1027,6 +1070,7 @@ async def run_upload_pipeline(upload_id: str):
             if website:
                 jobs[audit_job_id] = {
                     "status": "pending", "url": website,
+                    "business_name": biz_name,
                     "created_at": datetime.now().isoformat(),
                     "progress": 0, "message": "Queued", "data": None, "error": None,
                 }
@@ -1112,7 +1156,7 @@ async def run_upload_pipeline(upload_id: str):
                         socials=_socials,
                         competitors=_competitors,
                     )
-                    jobs[audit_job_id] = {"status": "complete", "url": "", "data": {"report_path": report_path}, "error": None}
+                    jobs[audit_job_id] = {"status": "complete", "url": "", "business_name": biz_name, "data": {"report_path": report_path}, "error": None}
                     row = {
                         "business_name": biz_name,
                         "owner_name": biz.get("owner_name", ""),
