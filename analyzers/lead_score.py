@@ -84,21 +84,21 @@ def calculate_lead_score(
     gap_signals = []
 
     # Missing schema (easy win, high impact)
-    schema_score = cat.get("schema", {}).get("score", 100)
+    schema_score = (cat.get("schema") or {}).get("score", 100)
     if schema_score < 40:
         gap_pts += 5
         gap_signals.append("no schema markup")
         quick_wins.append("Add schema markup — takes 1 hour, boosts CTR by up to 25%")
 
     # Technical issues (broken links, no HTTPS, etc.)
-    tech_score = cat.get("technical", {}).get("score", 100)
+    tech_score = (cat.get("technical") or {}).get("score", 100)
     if tech_score < 50:
         gap_pts += 4
         gap_signals.append("major technical issues")
         quick_wins.append(f"Fix {len(technical.get('issues_4xx', []))} broken pages — hurting crawlability now")
 
     # No conversion optimization
-    conv_score = cat.get("conversion", {}).get("score", 100)
+    conv_score = (cat.get("conversion") or {}).get("score", 100)
     pages_no_cta = len(conversion.get("pages_missing_cta", []))
     if conv_score < 50 or pages_no_cta >= 5:
         gap_pts += 4
@@ -106,14 +106,14 @@ def calculate_lead_score(
         quick_wins.append(f"Add CTAs to {pages_no_cta} pages — direct revenue fix, no SEO needed")
 
     # Slow performance
-    perf_score = cat.get("performance", {}).get("score", 100)
+    perf_score = (cat.get("performance") or {}).get("score", 100)
     if perf_score < 50:
         gap_pts += 4
         gap_signals.append("slow page speed")
         quick_wins.append("Improve page speed — 53% of mobile users abandon pages that take 3+ seconds")
 
     # Local SEO missing
-    local_score = cat.get("local_seo", {}).get("score", 100)
+    local_score = (cat.get("local_seo") or {}).get("score", 100)
     if local_score < 50:
         gap_pts += 3
         gap_signals.append("weak local SEO")
