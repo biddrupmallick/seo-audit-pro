@@ -299,11 +299,11 @@ def generate_niche_report(
     html_content = template.render(**context)
 
     os.makedirs(REPORTS_DIR, exist_ok=True)
-    html_path = os.path.join(REPORTS_DIR, f"{job_id}_niche.html")
+    html_path = os.path.join(REPORTS_DIR, f"{job_id}.html")
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_content)
 
-    pdf_path = os.path.join(REPORTS_DIR, f"{job_id}_niche.pdf")
+    pdf_path = os.path.join(REPORTS_DIR, f"{job_id}.pdf")
     if _html_to_pdf_weasyprint(html_path, pdf_path):
         return pdf_path
     return html_path
