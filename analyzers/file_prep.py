@@ -98,10 +98,15 @@ def _is_address(val: str) -> bool:
     return bool(_ADDRESS_RE.match(val.strip()))
 
 
+_PLUS_CODE_RE = re.compile(r'^\d{4,6}\+[A-Z0-9]{2,4}$', re.I)
+
 def _is_phone(val: str) -> bool:
     raw = str(val).strip()
     if raw.startswith('='):
         raw = raw.lstrip('=').strip()
+    # Exclude Google Plus Codes (e.g. "73530+10052", "8FRC+GJ")
+    if _PLUS_CODE_RE.match(raw):
+        return False
     digits = len(_PHONE_DIGITS_RE.findall(raw))
     return 7 <= digits <= 15
 

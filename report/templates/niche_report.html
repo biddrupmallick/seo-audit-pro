@@ -89,8 +89,8 @@
     font-size: 13px;
   }
   .checklist li:last-child { border-bottom: none; }
-  .check-yes { color: var(--green); font-size: 16px; font-weight: 700; }
-  .check-no  { color: var(--red);   font-size: 16px; font-weight: 700; }
+  .check-yes { color: var(--green); font-size: 13px; font-weight: 700; }
+  .check-no  { color: var(--red);   font-size: 13px; font-weight: 700; }
   .check-label { flex: 1; }
   .check-val   { color: var(--muted); font-size: 12px; }
 
@@ -317,27 +317,27 @@
 
   <ul class="checklist">
     <li>
-      <span class="{% if address %}check-yes{% else %}check-no{% endif %}">{% if address %}✓{% else %}✗{% endif %}</span>
+      <span class="{% if address %}check-yes{% else %}check-no{% endif %}">{% if address %}YES{% else %}NO{% endif %}</span>
       <span class="check-label">Business address on Google</span>
       <span class="check-val">{{ address or 'Not found' }}</span>
     </li>
     <li>
-      <span class="{% if phone %}check-yes{% else %}check-no{% endif %}">{% if phone %}✓{% else %}✗{% endif %}</span>
+      <span class="{% if phone %}check-yes{% else %}check-no{% endif %}">{% if phone %}YES{% else %}NO{% endif %}</span>
       <span class="check-label">Phone number on Google</span>
       <span class="check-val">{{ phone or 'Not found' }}</span>
     </li>
     <li>
-      <span class="{% if website %}check-yes{% else %}check-no{% endif %}">{% if website %}✓{% else %}✗{% endif %}</span>
+      <span class="{% if website %}check-yes{% else %}check-no{% endif %}">{% if website %}YES{% else %}NO{% endif %}</span>
       <span class="check-label">Website linked to Google listing</span>
       <span class="check-val">{% if website %}<a href="{{ website }}" style="color:var(--accent);">{{ website }}</a>{% else %}Not found{% endif %}</span>
     </li>
     <li>
-      <span class="{% if rating %}check-yes{% else %}check-no{% endif %}">{% if rating %}✓{% else %}✗{% endif %}</span>
+      <span class="{% if rating %}check-yes{% else %}check-no{% endif %}">{% if rating %}YES{% else %}NO{% endif %}</span>
       <span class="check-label">Google star rating</span>
       <span class="check-val">{% if rating %}{{ rating }}★{% else %}No rating yet{% endif %}</span>
     </li>
     <li>
-      <span class="{% if review_count and review_count > 0 %}check-yes{% else %}check-no{% endif %}">{% if review_count and review_count > 0 %}✓{% else %}✗{% endif %}</span>
+      <span class="{% if review_count and review_count > 0 %}check-yes{% else %}check-no{% endif %}">{% if review_count and review_count > 0 %}YES{% else %}NO{% endif %}</span>
       <span class="check-label">Google reviews</span>
       <span class="check-val">{% if review_count %}{{ review_count }} reviews{% else %}No reviews yet{% endif %}</span>
     </li>
@@ -502,7 +502,7 @@
           {% if your_url %}
             <a href="{{ your_url }}" class="contact-link" style="font-size:11px;">[View]</a>
           {% else %}
-            <span style="color:var(--red);">✗</span>
+            <span style="color:var(--red);font-weight:700;font-size:11px;">NO</span>
           {% endif %}
         </td>
         {% for c in comp_list %}
@@ -544,7 +544,7 @@
 
   <div class="contact-grid">
     <div class="contact-item">
-      <span class="contact-icon">🌐</span>
+      <span class="contact-icon" style="font-size:13px;font-weight:700;color:var(--accent);">WEB</span>
       <div>
         <div class="contact-label">Website</div>
         {% if website %}
@@ -555,14 +555,14 @@
       </div>
     </div>
     <div class="contact-item">
-      <span class="contact-icon">📞</span>
+      <span class="contact-icon" style="font-size:13px;font-weight:700;color:var(--accent);">TEL</span>
       <div>
         <div class="contact-label">Phone</div>
         <div class="contact-val {% if phone %}found{% else %}missing{% endif %}">{{ phone or 'Not found' }}</div>
       </div>
     </div>
     <div class="contact-item">
-      <span class="contact-icon">✉️</span>
+      <span class="contact-icon" style="font-size:13px;font-weight:700;color:var(--accent);">EMAIL</span>
       <div>
         <div class="contact-label">Email</div>
         {% if email %}
@@ -573,7 +573,7 @@
       </div>
     </div>
     <div class="contact-item">
-      <span class="contact-icon">📍</span>
+      <span class="contact-icon" style="font-size:13px;font-weight:700;color:var(--accent);">ADDR</span>
       <div>
         <div class="contact-label">Address</div>
         <div class="contact-val {% if address %}found{% else %}missing{% endif %}">{{ address or 'Not found' }}</div>

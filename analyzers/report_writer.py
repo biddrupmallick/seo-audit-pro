@@ -6,8 +6,16 @@ from typing import Dict, List, Optional
 from analyzers.ollama_client import ask
 
 
-def _ask(prompt: str) -> str:
-    return ask(prompt.strip(), max_tokens=150, temperature=0.3)
+def _ask(prompt: str, max_tokens: int = 150) -> str:
+    return ask(prompt.strip(), max_tokens=max_tokens, temperature=0.3)
+
+
+def _strip_markdown(text: str) -> str:
+    """Remove markdown bold/italic markers Ollama sometimes outputs."""
+    import re
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    return text.strip()
 
 
 def calculate_presence_score(
@@ -192,31 +200,32 @@ Mobile friendly: {'yes' if mobile_friendly else 'no' if mobile_friendly is not N
 2 sentences only:""")
 
     # ── Page 7: Pain points ───────────────────────────────────────────────
-    content["pain_points"] = _ask(f"""
+    content["pain_points"] = _strip_markdown(_ask(f"""
 List 3-5 specific things that are costing this business customers right now.
 Each on its own line starting with a dash (-).
 Plain language. Business consequences only. No technical terms.
 Base this ONLY on the data below. Do not invent issues.
+Output ONLY the list items. No intro sentence.
 
 Business: {business_name}
 Known issues: {', '.join(issues) if issues else 'none major'}
 Missing social platforms: {', '.join(missing_socials[:4]) if missing_socials else 'none'}
 Competitors ahead: {'yes' if position == 'behind' else 'no'}
 
-List only (3-5 items, each starting with -):""")
+List only (3-5 items, each starting with -):""", max_tokens=220))
 
     # ── Page 8: Action plan ───────────────────────────────────────────────
-    content["action_plan"] = _ask(f"""
+    content["action_plan"] = _strip_markdown(_ask(f"""
 Write exactly 3 priority actions for this business owner to improve their online presence.
-Number them 1, 2, 3. Most impactful first.
-Plain language. Specific and actionable.
-Base this ONLY on the data below.
+Number them 1, 2, 3. Most impactful first. Each action on its own line.
+Plain language. Specific and actionable. Each item 1-2 sentences max.
+Output ONLY the 3 numbered items. No intro sentence. No extra text.
 
 Business: {business_name}
 Known issues: {', '.join(issues) if issues else 'none major'}
 Missing social platforms: {', '.join(missing_socials[:3]) if missing_socials else 'none'}
 Position vs competitors: {position}
 
-3 numbered actions only:""")
+3 numbered actions only:""", max_tokens=280))
 
     return content

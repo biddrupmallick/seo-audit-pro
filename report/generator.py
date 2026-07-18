@@ -224,19 +224,28 @@ def generate_niche_report(
 
     branding = load_branding()
 
-    # Parse praise/complaints from reviews_text using simple heuristics
+    # Extract praise/complaint themes via Ollama from reviews_text
     top_praise = ""
     top_complaints = ""
-    if reviews_text:
-        import re
-        praise_match = re.search(r'(?:praise|positive|customers love)[:\s]+([^\n.]{10,120})', reviews_text, re.I)
-        complaint_match = re.search(r'(?:complaint|negative|issue)[:\s]+([^\n.]{10,120})', reviews_text, re.I)
-        if praise_match:
-            top_praise = praise_match.group(1).strip()
-        if complaint_match:
-            top_complaints = complaint_match.group(1).strip()
-        if not top_praise and reviews_text:
-            top_praise = reviews_text[:200].strip()
+    if reviews_text and reviews_text.strip():
+        from analyzers.ollama_client import ask as _ollama_ask
+        import re as _re
+        _review_block = reviews_text[:1500]
+        _raw = _ollama_ask(
+            f"Read these customer reviews and extract two things:\n"
+            f"PRAISE: one short phrase (5-10 words) summarising what customers most love\n"
+            f"COMPLAINT: one short phrase (5-10 words) summarising the main complaint (write 'Nothing notable' if none)\n\n"
+            f"Reviews:\n{_review_block}\n\n"
+            f"Respond with exactly two lines:\nPRAISE: ...\nCOMPLAINT: ...",
+            max_tokens=80, temperature=0.2,
+        )
+        for _line in _raw.splitlines():
+            if _line.upper().startswith("PRAISE:"):
+                top_praise = _line[7:].strip()
+            elif _line.upper().startswith("COMPLAINT:"):
+                top_complaints = _line[10:].strip()
+        if top_complaints and top_complaints.lower() in ("nothing notable", "none", "n/a", ""):
+            top_complaints = ""
 
     presence_score = calculate_presence_score(
         website=website,
