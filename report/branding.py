@@ -13,7 +13,27 @@ DEFAULTS = {
     "accent_color": "#2563eb",
     "prepared_by": "Your Name",
     "footer_note": "This report is confidential and prepared exclusively for the recipient.",
+    "report_depth": "standard",  # concise (8 pages) | standard (12 pages) | full
 }
+
+# Sections included per depth tier
+REPORT_SECTIONS = {
+    "concise": {
+        "cover", "executive_summary", "gbp", "performance",
+        "competitors", "recommendations", "cold_email",
+    },
+    "standard": {
+        "cover", "executive_summary", "gbp", "performance",
+        "technical", "onpage", "local_seo", "competitors",
+        "recommendations", "roadmap", "cold_email",
+    },
+    "full": None,  # None = all sections included
+}
+
+
+def get_report_sections(branding: dict) -> set | None:
+    depth = branding.get("report_depth", "standard")
+    return REPORT_SECTIONS.get(depth, REPORT_SECTIONS["standard"])
 
 
 PLACEHOLDER_VALUES = {'Your Agency Name', 'Your Name', 'hello@youragency.com', '+1 (555) 000-0000', 'https://youragency.com', ''}

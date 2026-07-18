@@ -175,6 +175,17 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-title">Report Depth</div>
+      <div class="field">
+        <select name="report_depth" style="width:100%;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
+          <option value="concise"  {% if branding.report_depth == 'concise'  %}selected{% endif %}>Concise — 8 pages (Cover, Summary, GBP, Performance, Competitors, Recommendations, Cold Email)</option>
+          <option value="standard" {% if branding.report_depth == 'standard' or not branding.report_depth %}selected{% endif %}>Standard — 12 pages (+ Technical, On-Page, Local SEO, Roadmap)</option>
+          <option value="full"     {% if branding.report_depth == 'full'     %}selected{% endif %}>Full — All sections, no limit</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Live preview -->
     <div class="card">
       <div class="card-title">Preview</div>
