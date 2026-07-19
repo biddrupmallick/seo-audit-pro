@@ -46,6 +46,7 @@ from analyzers.competitor_gap import analyze_competitor_gap
 from analyzers.meta_rewrite import generate_meta_rewrites
 from analyzers.roadmap import generate_roadmap
 from analyzers.geo_match import find_nearest_competitors
+from analyzers.nearby_finder import parse_nearby_file, find_top_nearest, find_business_by_name
 from analyzers.review_analyzer import analyze_reviews_batch
 from analyzers.website_email import enrich_businesses_with_website_emails
 from analyzers.niche_blog import generate_blog_posts
@@ -92,6 +93,9 @@ bulk_jobs: Dict[str, Dict[str, Any]] = {}
 # Upload pipeline store
 upload_jobs: Dict[str, Dict[str, Any]] = {}
 
+# Nearby Finder uploads store
+nearby_uploads: Dict[str, Dict[str, Any]] = {}
+
 
 # ====== MODELS ======
 class AnalyzeRequest(BaseModel):
@@ -108,6 +112,14 @@ class BulkItem(BaseModel):
 
 class BulkRequest(BaseModel):
     items: List[BulkItem]
+
+
+class NearbySearchRequest(BaseModel):
+    upload_id: str
+    name: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    count: Optional[int] = 5
 
 
 # ====== ROUTES ======
@@ -316,6 +328,67 @@ async def file_prep_download(job_id: str):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=clean_data.xlsx"},
     )
+
+
+@app.get("/nearby", response_class=HTMLResponse)
+async def nearby_page(request: Request):
+    return templates.TemplateResponse(request, "nearby.html", {})
+
+
+@app.post("/api/nearby/upload")
+async def nearby_upload(file: UploadFile = File(...)):
+    contents = await file.read()
+    try:
+        businesses = parse_nearby_file(contents, file.filename or "")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse file: {e}")
+
+    if not businesses:
+        raise HTTPException(
+            status_code=400,
+            detail="No usable rows found. Make sure the file has Name, Lat and Lan (longitude) columns filled in.",
+        )
+
+    upload_id = str(uuid.uuid4())
+    nearby_uploads[upload_id] = {"businesses": businesses, "filename": file.filename}
+
+    return {
+        "upload_id": upload_id,
+        "count": len(businesses),
+        "names": [b["name"] for b in businesses],
+    }
+
+
+@app.post("/api/nearby/search")
+async def nearby_search(req: NearbySearchRequest):
+    if req.upload_id not in nearby_uploads:
+        raise HTTPException(status_code=404, detail="Upload not found — please upload the file again.")
+
+    businesses = nearby_uploads[req.upload_id]["businesses"]
+    count = max(1, min(req.count or 5, 20))
+
+    target = None
+    target_index = None
+
+    if req.name:
+        target_index = find_business_by_name(businesses, req.name)
+        if target_index is None:
+            raise HTTPException(status_code=404, detail=f'No business matching "{req.name}" found in the uploaded file.')
+        target = businesses[target_index]
+        lat, lon = target["lat"], target["lon"]
+    elif req.lat is not None and req.lon is not None:
+        lat, lon = req.lat, req.lon
+    else:
+        raise HTTPException(status_code=400, detail="Provide either a business name or lat/lon coordinates.")
+
+    results = find_top_nearest(businesses, lat, lon, n=count, exclude_index=target_index)
+
+    return {
+        "target": target,
+        "query_lat": lat,
+        "query_lon": lon,
+        "results": results,
+    }
 
 
 @app.post("/settings")

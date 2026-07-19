@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nearby Finder — SEO Audit Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0b1120; color: #e2e8f0; min-height: 100vh; }
+
+    .topbar { background: #0f172a; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1e293b; }
+    .topbar-logo { color: #fff; font-size: 16px; font-weight: 800; }
+    .topbar-logo span { color: #3b82f6; }
+    .topbar-nav a { color: #64748b; font-size: 13px; text-decoration: none; margin-left: 20px; transition: color 0.15s; }
+    .topbar-nav a:hover { color: #cbd5e1; }
+    .topbar-nav a.active { color: #3b82f6; font-weight: 600; }
+
+    .page { max-width: 1100px; margin: 36px auto; padding: 0 24px 80px; }
+
+    .hero { margin-bottom: 32px; }
+    .hero h1 { font-size: 26px; font-weight: 800; background: linear-gradient(135deg, #e2e8f0, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px; }
+    .hero p { font-size: 13px; color: #64748b; }
+    .hero code { background: #111827; border: 1px solid #1e293b; border-radius: 4px; padding: 1px 5px; color: #93c5fd; font-size: 12px; }
+
+    .card {
+      background: #111827; border: 1px solid #1e293b; border-radius: 16px;
+      padding: 24px; margin-bottom: 20px;
+    }
+    .card-label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; }
+
+    .drop-zone {
+      border: 2px dashed #1e3a5f; border-radius: 12px; padding: 36px 20px;
+      text-align: center; cursor: pointer; transition: all 0.2s;
+      background: #0d1929;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #3b82f6; background: #0d1f3a; }
+    .drop-zone-icon { font-size: 28px; margin-bottom: 10px; }
+    .drop-zone-text { font-size: 14px; font-weight: 600; color: #94a3b8; }
+    .drop-zone-sub { font-size: 12px; color: #475569; margin-top: 4px; }
+    input[type=file] { display: none; }
+    .file-selected { font-size: 12px; color: #3b82f6; font-weight: 600; margin-top: 10px; text-align: center; }
+
+    .upload-status { display: none; font-size: 13px; color: #34d399; font-weight: 600; margin-top: 12px; text-align: center; }
+    .upload-error { display: none; font-size: 13px; color: #f87171; font-weight: 600; margin-top: 12px; text-align: center; }
+
+    #search-card { display: none; }
+
+    .mode-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .mode-tab {
+      flex: 1; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer;
+      font-size: 12px; font-weight: 700; color: #64748b; background: #0d1929; border: 1px solid #1e293b;
+      transition: all 0.15s;
+    }
+    .mode-tab.active { color: #fff; background: linear-gradient(135deg, #2563eb, #4f46e5); border-color: transparent; }
+
+    label { font-size: 11px; font-weight: 600; color: #64748b; display: block; margin-bottom: 6px; letter-spacing: 0.3px; }
+    input[type=text], input[type=number] {
+      width: 100%; padding: 11px 14px; border: 1px solid #1e293b; border-radius: 8px;
+      font-size: 13px; color: #e2e8f0; background: #0d1929; outline: none;
+    }
+    input[type=text]:focus, input[type=number]:focus { border-color: #3b82f6; }
+
+    .field-row { margin-bottom: 14px; }
+    .field-row-split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .btn-start {
+      width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
+      background: linear-gradient(135deg, #2563eb, #4f46e5); color: #fff;
+      cursor: pointer; margin-top: 10px; letter-spacing: 0.3px; transition: opacity 0.2s;
+    }
+    .btn-start:hover { opacity: 0.9; }
+    .btn-start:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .search-error { display: none; font-size: 12px; color: #f87171; margin-top: 10px; }
+
+    #results-card { display: none; }
+    .target-banner {
+      background: #0d2040; border: 1px solid #1e3a5f; border-radius: 10px;
+      padding: 14px 18px; margin-bottom: 18px; font-size: 13px; color: #93c5fd;
+    }
+    .target-banner strong { color: #fff; }
+
+    .results-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #1e293b; }
+    table.results-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .results-table th { padding: 10px 14px; text-align: left; font-size: 10px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; background: #0d1929; border-bottom: 1px solid #1e293b; white-space: nowrap; }
+    .results-table td { padding: 12px 14px; border-bottom: 1px solid #0f172a; color: #94a3b8; vertical-align: top; }
+    .results-table tr:last-child td { border-bottom: none; }
+    .results-table tr:hover { background: #0d1929; }
+    .rank-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%; background: #1e293b; color: #93c5fd;
+      font-weight: 700; font-size: 11px;
+    }
+    .biz-name { font-weight: 700; color: #e2e8f0; }
+    .biz-sub { font-size: 11px; color: #475569; margin-top: 2px; }
+    .distance-pill {
+      display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700;
+      background: #0d2535; color: #22d3ee;
+    }
+    .contact-link { color: #60a5fa; text-decoration: none; }
+    .contact-link:hover { text-decoration: underline; }
+    .muted { color: #374151; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">SEO Audit <span>Pro</span></div>
+  <div class="topbar-nav">
+    <a href="/">Single Audit</a>
+    <a href="/bulk">Bulk Audit</a>
+    <a href="/upload">📂 Niche Upload</a>
+    <a href="/file-prep">🗂️ File Prep</a>
+    <a href="/nearby" class="active">📍 Nearby Finder</a>
+    <a href="/review-cleaner">🧹 Review Cleaner</a>
+    <a href="/settings">⚙️ Branding</a>
+  </div>
+</div>
+
+<div class="page">
+  <div class="hero">
+    <h1>Nearby Finder</h1>
+    <p>Upload a business list, then find the top closest businesses to a location or an existing business.
+      Expected columns: <code>gmb url</code>, <code>name</code>, <code>details</code>, <code>rating</code>,
+      <code>reviews</code>, <code>category</code>, <code>address</code>, <code>phone</code>, <code>website</code>,
+      <code>lat</code>, <code>lan</code>, <code>Owner Name</code>, <code>Email</code>.</p>
+  </div>
+
+  <!-- Upload -->
+  <div class="card">
+    <div class="card-label">Step 1 — Upload Business List</div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="drop-zone-icon">📂</div>
+      <div class="drop-zone-text">Click to upload or drag & drop</div>
+      <div class="drop-zone-sub">.xlsx or .csv files</div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.csv" onchange="onFileSelected(this)">
+    <div class="file-selected" id="file-name"></div>
+    <div class="upload-status" id="upload-status"></div>
+    <div class="upload-error" id="upload-error"></div>
+  </div>
+
+  <!-- Search -->
+  <div class="card" id="search-card">
+    <div class="card-label">Step 2 — Find Closest Businesses</div>
+
+    <div class="mode-tabs">
+      <div class="mode-tab active" id="tab-name" onclick="setMode('name')">Search by Business Name</div>
+      <div class="mode-tab" id="tab-latlon" onclick="setMode('latlon')">Search by Lat / Lon</div>
+    </div>
+
+    <div id="mode-name">
+      <div class="field-row">
+        <label for="search-name">Business Name</label>
+        <input type="text" id="search-name" placeholder="Start typing a business name…" list="name-list" autocomplete="off">
+        <datalist id="name-list"></datalist>
+      </div>
+    </div>
+
+    <div id="mode-latlon" style="display:none;">
+      <div class="field-row field-row-split">
+        <div>
+          <label for="search-lat">Latitude</label>
+          <input type="text" id="search-lat" placeholder="33.5207">
+        </div>
+        <div>
+          <label for="search-lon">Longitude</label>
+          <input type="text" id="search-lon" placeholder="-86.8025">
+        </div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <label for="search-count">Number of Closest Businesses</label>
+      <input type="number" id="search-count" value="5" min="1" max="20">
+    </div>
+
+    <button class="btn-start" id="btn-search" onclick="runSearch()">Find Closest Businesses</button>
+    <div class="search-error" id="search-error"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="card" id="results-card">
+    <div class="card-label">Results</div>
+    <div class="target-banner" id="target-banner" style="display:none;"></div>
+    <div class="results-table-wrap">
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Business</th>
+            <th>Distance</th>
+            <th>Rating</th>
+            <th>Category</th>
+            <th>Address</th>
+            <th>Phone</th>
+            <th>Website</th>
+            <th>Owner</th>
+            <th>Email</th>
+          </tr>
+        </thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let uploadId = null;
+let mode = 'name';
+
+// ── Drag & drop ──
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+function onFileSelected(inp) { if (inp.files[0]) handleFile(inp.files[0]); }
+
+async function handleFile(file) {
+  document.getElementById('file-name').textContent = '📄 ' + file.name;
+  const statusEl = document.getElementById('upload-status');
+  const errorEl = document.getElementById('upload-error');
+  statusEl.style.display = 'none';
+  errorEl.style.display = 'none';
+  document.getElementById('search-card').style.display = 'none';
+  document.getElementById('results-card').style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const resp = await fetch('/api/nearby/upload', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data.detail || 'Upload failed');
+    }
+
+    uploadId = data.upload_id;
+    statusEl.textContent = `✓ Parsed ${data.count} businesses with valid coordinates`;
+    statusEl.style.display = 'block';
+
+    const nameList = document.getElementById('name-list');
+    nameList.innerHTML = '';
+    data.names.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n;
+      nameList.appendChild(opt);
+    });
+
+    document.getElementById('search-card').style.display = 'block';
+  } catch (e) {
+    errorEl.textContent = '✗ ' + e.message;
+    errorEl.style.display = 'block';
+  }
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('tab-name').classList.toggle('active', m === 'name');
+  document.getElementById('tab-latlon').classList.toggle('active', m === 'latlon');
+  document.getElementById('mode-name').style.display = m === 'name' ? 'block' : 'none';
+  document.getElementById('mode-latlon').style.display = m === 'latlon' ? 'block' : 'none';
+}
+
+async function runSearch() {
+  const errorEl = document.getElementById('search-error');
+  errorEl.style.display = 'none';
+
+  if (!uploadId) return;
+
+  const body = { upload_id: uploadId, count: parseInt(document.getElementById('search-count').value) || 5 };
+
+  if (mode === 'name') {
+    const name = document.getElementById('search-name').value.trim();
+    if (!name) {
+      errorEl.textContent = 'Enter a business name.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    body.name = name;
+  } else {
+    const lat = parseFloat(document.getElementById('search-lat').value);
+    const lon = parseFloat(document.getElementById('search-lon').value);
+    if (isNaN(lat) || isNaN(lon)) {
+      errorEl.textContent = 'Enter valid latitude and longitude values.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    body.lat = lat;
+    body.lon = lon;
+  }
+
+  const btn = document.getElementById('btn-search');
+  btn.disabled = true;
+  btn.textContent = 'Searching…';
+
+  try {
+    const resp = await fetch('/api/nearby/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data.detail || 'Search failed');
+    }
+    renderResults(data);
+  } catch (e) {
+    errorEl.textContent = '✗ ' + e.message;
+    errorEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Find Closest Businesses';
+  }
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+function renderResults(data) {
+  const card = document.getElementById('results-card');
+  const banner = document.getElementById('target-banner');
+  const tbody = document.getElementById('results-tbody');
+
+  if (data.target) {
+    banner.style.display = 'block';
+    banner.innerHTML = `📍 Closest businesses to <strong>${esc(data.target.name)}</strong> (${data.query_lat.toFixed(5)}, ${data.query_lon.toFixed(5)})`;
+  } else {
+    banner.style.display = 'block';
+    banner.innerHTML = `📍 Closest businesses to <strong>${data.query_lat.toFixed(5)}, ${data.query_lon.toFixed(5)}</strong>`;
+  }
+
+  tbody.innerHTML = '';
+  if (!data.results.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#475569;padding:20px;">No nearby businesses found.</td></tr>';
+  } else {
+    data.results.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="rank-badge">${i + 1}</span></td>
+        <td>
+          <div class="biz-name">${esc(r.name)}</div>
+          ${r.details ? `<div class="biz-sub">${esc(r.details).substring(0, 80)}</div>` : ''}
+        </td>
+        <td><span class="distance-pill">${r.distance_miles} mi</span></td>
+        <td>${r.rating != null ? '⭐ ' + r.rating + (r.reviews != null ? ' (' + r.reviews + ')' : '') : '<span class="muted">—</span>'}</td>
+        <td>${r.category ? esc(r.category) : '<span class="muted">—</span>'}</td>
+        <td>${r.address ? esc(r.address) : '<span class="muted">—</span>'}</td>
+        <td>${r.phone ? esc(r.phone) : '<span class="muted">—</span>'}</td>
+        <td>${r.website ? `<a class="contact-link" href="${esc(r.website)}" target="_blank" rel="noopener">Visit</a>` : '<span class="muted">—</span>'}</td>
+        <td>${r.owner_name ? esc(r.owner_name) : '<span class="muted">—</span>'}</td>
+        <td>${r.email ? `<a class="contact-link" href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : '<span class="muted">—</span>'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  card.style.display = 'block';
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+</body>
+</html>
