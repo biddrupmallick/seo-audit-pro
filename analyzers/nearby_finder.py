@@ -44,7 +44,19 @@ def _map_columns(headers: List[str]) -> Dict[str, int]:
     return mapping
 
 
-def _row_to_dict(row: List[Any], col_map: Dict[str, int]) -> Dict[str, Any]:
+def _extra_headers(headers: List[Any], known_indices: set) -> List[str]:
+    """Original header text for columns not mapped to a known field, in file order."""
+    result = []
+    for i, h in enumerate(headers):
+        if i in known_indices:
+            continue
+        h_clean = str(h).strip() if h is not None else ""
+        if h_clean:
+            result.append(h_clean)
+    return result
+
+
+def _row_to_dict(row: List[Any], col_map: Dict[str, int], headers: List[Any], known_indices: set) -> Dict[str, Any]:
     def get(key):
         idx = col_map.get(key)
         if idx is None or idx >= len(row):
@@ -63,6 +75,16 @@ def _row_to_dict(row: List[Any], col_map: Dict[str, int]) -> Dict[str, Any]:
     reviews = get_float("reviews")
     reviews = int(reviews) if reviews is not None else None
 
+    extra = {}
+    for i, h in enumerate(headers):
+        if i in known_indices:
+            continue
+        h_clean = str(h).strip() if h is not None else ""
+        if not h_clean:
+            continue
+        val = row[i] if i < len(row) else None
+        extra[h_clean] = str(val).strip() if val is not None else ""
+
     return {
         "gmb_url": get("gmb_url"),
         "name": get("name"),
@@ -77,31 +99,39 @@ def _row_to_dict(row: List[Any], col_map: Dict[str, int]) -> Dict[str, Any]:
         "lon": get_float("lon"),
         "owner_name": get("owner_name"),
         "email": get("email"),
+        "extra": extra,
     }
 
 
-def parse_nearby_file(file_bytes: bytes, filename: str) -> List[Dict[str, Any]]:
-    """Parse uploaded Excel/CSV into business dicts with lat/lon. Skips rows without valid coords."""
+def parse_nearby_file(file_bytes: bytes, filename: str) -> Dict[str, Any]:
+    """Parse uploaded Excel/CSV into business dicts with lat/lon. Skips rows without valid coords.
+
+    Any column not recognized as a known field (e.g. Facebook, LinkedIn, Instagram, X, YouTube)
+    is kept under each business's "extra" dict and reported in "extra_headers", so new list
+    formats work without code changes.
+    """
     if filename.lower().endswith(".csv"):
         rows = _read_csv_rows(file_bytes)
     else:
         rows = _read_xlsx_rows(file_bytes)
 
     if not rows:
-        return []
+        return {"businesses": [], "extra_headers": []}
 
     headers = rows[0]
     col_map = _map_columns(headers)
+    known_indices = set(col_map.values())
+    extra_headers = _extra_headers(headers, known_indices)
 
     businesses = []
     for row in rows[1:]:
-        biz = _row_to_dict(list(row), col_map)
+        biz = _row_to_dict(list(row), col_map, headers, known_indices)
         if not biz["name"]:
             continue
         if biz["lat"] is None or biz["lon"] is None:
             continue
         businesses.append(biz)
-    return businesses
+    return {"businesses": businesses, "extra_headers": extra_headers}
 
 
 def _read_xlsx_rows(file_bytes: bytes) -> List[List[Any]]:
@@ -141,31 +171,36 @@ EXPORT_HEADERS = [
 ]
 
 
-def build_export_excel(results: List[Dict[str, Any]], target: Optional[Dict[str, Any]] = None) -> bytes:
+def _export_row(entry: Dict[str, Any], rank: Any, distance: Any, extra_headers: List[str]) -> List[Any]:
+    base = [
+        rank, entry.get("name", ""), distance, entry.get("rating"),
+        entry.get("reviews"), entry.get("category", ""), entry.get("address", ""),
+        entry.get("phone", ""), entry.get("website", ""), entry.get("owner_name", ""),
+        entry.get("email", ""), entry.get("details", ""), entry.get("lat"), entry.get("lon"),
+        entry.get("gmb_url", ""),
+    ]
+    extra = entry.get("extra") or {}
+    return base + [extra.get(h, "") for h in extra_headers]
+
+
+def build_export_excel(
+    results: List[Dict[str, Any]],
+    target: Optional[Dict[str, Any]] = None,
+    extra_headers: Optional[List[str]] = None,
+) -> bytes:
     """Build a downloadable Excel of nearest-business results. Target (if any) is pinned as the first row."""
+    extra_headers = extra_headers or []
     wb = Workbook()
     ws = wb.active
     ws.title = "Nearby Results"
 
-    ws.append(EXPORT_HEADERS)
+    ws.append(EXPORT_HEADERS + extra_headers)
 
     if target:
-        ws.append([
-            "Search Center", target.get("name", ""), 0, target.get("rating"),
-            target.get("reviews"), target.get("category", ""), target.get("address", ""),
-            target.get("phone", ""), target.get("website", ""), target.get("owner_name", ""),
-            target.get("email", ""), target.get("details", ""), target.get("lat"), target.get("lon"),
-            target.get("gmb_url", ""),
-        ])
+        ws.append(_export_row(target, "Search Center", 0, extra_headers))
 
     for i, r in enumerate(results, 1):
-        ws.append([
-            i, r.get("name", ""), r.get("distance_miles"), r.get("rating"),
-            r.get("reviews"), r.get("category", ""), r.get("address", ""),
-            r.get("phone", ""), r.get("website", ""), r.get("owner_name", ""),
-            r.get("email", ""), r.get("details", ""), r.get("lat"), r.get("lon"),
-            r.get("gmb_url", ""),
-        ])
+        ws.append(_export_row(r, i, r.get("distance_miles"), extra_headers))
 
     out = io.BytesIO()
     wb.save(out)

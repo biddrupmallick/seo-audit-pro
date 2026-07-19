@@ -339,9 +339,12 @@ async def nearby_page(request: Request):
 async def nearby_upload(file: UploadFile = File(...)):
     contents = await file.read()
     try:
-        businesses = parse_nearby_file(contents, file.filename or "")
+        parsed = parse_nearby_file(contents, file.filename or "")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not parse file: {e}")
+
+    businesses = parsed["businesses"]
+    extra_headers = parsed["extra_headers"]
 
     if not businesses:
         raise HTTPException(
@@ -350,12 +353,17 @@ async def nearby_upload(file: UploadFile = File(...)):
         )
 
     upload_id = str(uuid.uuid4())
-    nearby_uploads[upload_id] = {"businesses": businesses, "filename": file.filename}
+    nearby_uploads[upload_id] = {
+        "businesses": businesses,
+        "filename": file.filename,
+        "extra_headers": extra_headers,
+    }
 
     return {
         "upload_id": upload_id,
         "count": len(businesses),
         "names": [b["name"] for b in businesses],
+        "extra_headers": extra_headers,
     }
 
 
@@ -392,13 +400,15 @@ async def nearby_search(req: NearbySearchRequest):
         "query_lat": lat,
         "query_lon": lon,
         "results": results,
+        "extra_headers": nearby_uploads[req.upload_id]["extra_headers"],
     }
 
 
 @app.post("/api/nearby/export")
 async def nearby_export(req: NearbySearchRequest):
     target, lat, lon, results = _resolve_nearby_search(req)
-    excel_bytes = build_export_excel(results, target)
+    extra_headers = nearby_uploads[req.upload_id]["extra_headers"]
+    excel_bytes = build_export_excel(results, target, extra_headers)
 
     safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", (target["name"] if target else f"{lat}_{lon}")).strip("_") or "results"
     return Response(

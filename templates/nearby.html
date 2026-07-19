@@ -202,7 +202,7 @@
     <div class="results-table-wrap">
       <table class="results-table">
         <thead>
-          <tr>
+          <tr id="results-thead-row">
             <th>#</th>
             <th>Business</th>
             <th>Distance</th>
@@ -375,10 +375,10 @@ function esc(s) {
   return d.innerHTML;
 }
 
-function buildResultRow(r, rankHtml, isTarget) {
+function buildResultRow(r, rankHtml, isTarget, extraHeaders) {
   const tr = document.createElement('tr');
   if (isTarget) tr.className = 'target-row';
-  tr.innerHTML = `
+  let html = `
     <td>${rankHtml}</td>
     <td>
       <div class="biz-name">${esc(r.name)}</div>
@@ -393,13 +393,36 @@ function buildResultRow(r, rankHtml, isTarget) {
     <td>${r.owner_name ? esc(r.owner_name) : '<span class="muted">—</span>'}</td>
     <td>${r.email ? `<a class="contact-link" href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : '<span class="muted">—</span>'}</td>
   `;
+  (extraHeaders || []).forEach(h => {
+    const val = (r.extra && r.extra[h]) || '';
+    if (val && /^https?:\/\//i.test(val)) {
+      html += `<td><a class="contact-link" href="${esc(val)}" target="_blank" rel="noopener">${esc(h)}</a></td>`;
+    } else {
+      html += `<td>${val ? esc(val) : '<span class="muted">—</span>'}</td>`;
+    }
+  });
+  tr.innerHTML = html;
   return tr;
+}
+
+function renderExtraHeaders(extraHeaders) {
+  const theadRow = document.getElementById('results-thead-row');
+  theadRow.querySelectorAll('th.extra-col').forEach(el => el.remove());
+  extraHeaders.forEach(h => {
+    const th = document.createElement('th');
+    th.className = 'extra-col';
+    th.textContent = h;
+    theadRow.appendChild(th);
+  });
 }
 
 function renderResults(data) {
   const card = document.getElementById('results-card');
   const banner = document.getElementById('target-banner');
   const tbody = document.getElementById('results-tbody');
+  const extraHeaders = data.extra_headers || [];
+
+  renderExtraHeaders(extraHeaders);
 
   const count = document.getElementById('search-count').value || 5;
   if (data.target) {
@@ -412,13 +435,13 @@ function renderResults(data) {
 
   tbody.innerHTML = '';
   if (data.target) {
-    tbody.appendChild(buildResultRow(data.target, '<span class="rank-badge target-badge">📍</span>', true));
+    tbody.appendChild(buildResultRow(data.target, '<span class="rank-badge target-badge">📍</span>', true, extraHeaders));
   }
   if (!data.results.length) {
-    tbody.innerHTML += '<tr><td colspan="10" style="text-align:center;color:#475569;padding:20px;">No nearby businesses found.</td></tr>';
+    tbody.innerHTML += `<tr><td colspan="${10 + extraHeaders.length}" style="text-align:center;color:#475569;padding:20px;">No nearby businesses found.</td></tr>`;
   } else {
     data.results.forEach((r, i) => {
-      tbody.appendChild(buildResultRow(r, `<span class="rank-badge">${i + 1}</span>`, false));
+      tbody.appendChild(buildResultRow(r, `<span class="rank-badge">${i + 1}</span>`, false, extraHeaders));
     });
   }
 
