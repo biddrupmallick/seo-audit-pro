@@ -46,7 +46,7 @@ from analyzers.competitor_gap import analyze_competitor_gap
 from analyzers.meta_rewrite import generate_meta_rewrites
 from analyzers.roadmap import generate_roadmap
 from analyzers.geo_match import find_nearest_competitors
-from analyzers.nearby_finder import parse_nearby_file, find_top_nearest, find_business_by_name
+from analyzers.nearby_finder import parse_nearby_file, find_top_nearest, find_business_by_name, build_export_excel
 from analyzers.review_analyzer import analyze_reviews_batch
 from analyzers.website_email import enrich_businesses_with_website_emails
 from analyzers.niche_blog import generate_blog_posts
@@ -359,8 +359,7 @@ async def nearby_upload(file: UploadFile = File(...)):
     }
 
 
-@app.post("/api/nearby/search")
-async def nearby_search(req: NearbySearchRequest):
+def _resolve_nearby_search(req: NearbySearchRequest):
     if req.upload_id not in nearby_uploads:
         raise HTTPException(status_code=404, detail="Upload not found — please upload the file again.")
 
@@ -382,13 +381,31 @@ async def nearby_search(req: NearbySearchRequest):
         raise HTTPException(status_code=400, detail="Provide either a business name or lat/lon coordinates.")
 
     results = find_top_nearest(businesses, lat, lon, n=count, exclude_index=target_index)
+    return target, lat, lon, results
 
+
+@app.post("/api/nearby/search")
+async def nearby_search(req: NearbySearchRequest):
+    target, lat, lon, results = _resolve_nearby_search(req)
     return {
         "target": target,
         "query_lat": lat,
         "query_lon": lon,
         "results": results,
     }
+
+
+@app.post("/api/nearby/export")
+async def nearby_export(req: NearbySearchRequest):
+    target, lat, lon, results = _resolve_nearby_search(req)
+    excel_bytes = build_export_excel(results, target)
+
+    safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", (target["name"] if target else f"{lat}_{lon}")).strip("_") or "results"
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=nearby_{safe_name}.xlsx"},
+    )
 
 
 @app.post("/settings")

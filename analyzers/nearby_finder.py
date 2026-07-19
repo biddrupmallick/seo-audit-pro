@@ -7,6 +7,7 @@ import io
 from typing import List, Dict, Any, Optional
 
 import openpyxl
+from openpyxl import Workbook
 
 from analyzers.geo_match import haversine_miles
 
@@ -131,6 +132,38 @@ def find_top_nearest(
 
     results.sort(key=lambda b: b["distance_miles"])
     return results[:n]
+
+
+EXPORT_HEADERS = [
+    "Rank", "Business Name", "Distance (mi)", "Rating", "Reviews", "Category",
+    "Address", "Phone", "Website", "Owner Name", "Email", "Details",
+    "Latitude", "Longitude", "GMB URL",
+]
+
+
+def build_export_excel(results: List[Dict[str, Any]], target: Optional[Dict[str, Any]] = None) -> bytes:
+    """Build a downloadable Excel of nearest-business results."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Nearby Results"
+
+    if target:
+        ws.append([f"Search center: {target.get('name', '')}"])
+        ws.append([])
+
+    ws.append(EXPORT_HEADERS)
+    for i, r in enumerate(results, 1):
+        ws.append([
+            i, r.get("name", ""), r.get("distance_miles"), r.get("rating"),
+            r.get("reviews"), r.get("category", ""), r.get("address", ""),
+            r.get("phone", ""), r.get("website", ""), r.get("owner_name", ""),
+            r.get("email", ""), r.get("details", ""), r.get("lat"), r.get("lon"),
+            r.get("gmb_url", ""),
+        ])
+
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
 
 
 def find_business_by_name(businesses: List[Dict[str, Any]], name: str) -> Optional[int]:

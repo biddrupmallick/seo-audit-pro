@@ -100,6 +100,14 @@
     .contact-link { color: #60a5fa; text-decoration: none; }
     .contact-link:hover { text-decoration: underline; }
     .muted { color: #374151; }
+
+    .btn-download {
+      padding: 9px 16px; border: none; border-radius: 8px; font-size: 12px; font-weight: 700;
+      background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+      cursor: pointer; letter-spacing: 0.2px; transition: opacity 0.2s;
+    }
+    .btn-download:hover { opacity: 0.9; }
+    .btn-download:disabled { opacity: 0.4; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -181,7 +189,10 @@
 
   <!-- Results -->
   <div class="card" id="results-card">
-    <div class="card-label">Results</div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+      <div class="card-label" style="margin-bottom:0;">Results</div>
+      <button class="btn-download" id="btn-download" onclick="downloadResults()">⬇ Download Excel</button>
+    </div>
     <div class="target-banner" id="target-banner" style="display:none;"></div>
     <div class="results-table-wrap">
       <table class="results-table">
@@ -208,6 +219,7 @@
 <script>
 let uploadId = null;
 let mode = 'name';
+let lastSearchBody = null;
 
 // ── Drag & drop ──
 const dz = document.getElementById('drop-zone');
@@ -304,6 +316,7 @@ async function runSearch() {
     if (!resp.ok) {
       throw new Error(data.detail || 'Search failed');
     }
+    lastSearchBody = body;
     renderResults(data);
   } catch (e) {
     errorEl.textContent = '✗ ' + e.message;
@@ -311,6 +324,43 @@ async function runSearch() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Find Closest Businesses';
+  }
+}
+
+async function downloadResults() {
+  if (!lastSearchBody) return;
+  const btn = document.getElementById('btn-download');
+  btn.disabled = true;
+  btn.textContent = 'Preparing…';
+
+  try {
+    const resp = await fetch('/api/nearby/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lastSearchBody),
+    });
+    if (!resp.ok) {
+      const data = await resp.json();
+      throw new Error(data.detail || 'Export failed');
+    }
+    const blob = await resp.blob();
+    const disposition = resp.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename=([^;]+)/);
+    const filename = match ? match[1].trim() : 'nearby_results.xlsx';
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Download failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⬇ Download Excel';
   }
 }
 
