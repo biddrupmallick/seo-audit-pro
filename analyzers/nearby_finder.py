@@ -142,16 +142,22 @@ EXPORT_HEADERS = [
 
 
 def build_export_excel(results: List[Dict[str, Any]], target: Optional[Dict[str, Any]] = None) -> bytes:
-    """Build a downloadable Excel of nearest-business results."""
+    """Build a downloadable Excel of nearest-business results. Target (if any) is pinned as the first row."""
     wb = Workbook()
     ws = wb.active
     ws.title = "Nearby Results"
 
-    if target:
-        ws.append([f"Search center: {target.get('name', '')}"])
-        ws.append([])
-
     ws.append(EXPORT_HEADERS)
+
+    if target:
+        ws.append([
+            "Search Center", target.get("name", ""), 0, target.get("rating"),
+            target.get("reviews"), target.get("category", ""), target.get("address", ""),
+            target.get("phone", ""), target.get("website", ""), target.get("owner_name", ""),
+            target.get("email", ""), target.get("details", ""), target.get("lat"), target.get("lon"),
+            target.get("gmb_url", ""),
+        ])
+
     for i, r in enumerate(results, 1):
         ws.append([
             i, r.get("name", ""), r.get("distance_miles"), r.get("rating"),

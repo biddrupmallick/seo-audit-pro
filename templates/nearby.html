@@ -97,6 +97,11 @@
       display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700;
       background: #0d2535; color: #22d3ee;
     }
+    .distance-pill.target-pill { background: #1a2e1a; color: #34d399; }
+    tr.target-row { background: #0d1929; }
+    tr.target-row:hover { background: #0d1f3a; }
+    tr.target-row .biz-name::after { content: ' (you searched this)'; font-weight: 400; font-size: 10px; color: #475569; }
+    .rank-badge.target-badge { background: #1a2e1a; color: #34d399; }
     .contact-link { color: #60a5fa; text-decoration: none; }
     .contact-link:hover { text-decoration: underline; }
     .muted { color: #374151; }
@@ -370,41 +375,50 @@ function esc(s) {
   return d.innerHTML;
 }
 
+function buildResultRow(r, rankHtml, isTarget) {
+  const tr = document.createElement('tr');
+  if (isTarget) tr.className = 'target-row';
+  tr.innerHTML = `
+    <td>${rankHtml}</td>
+    <td>
+      <div class="biz-name">${esc(r.name)}</div>
+      ${r.details ? `<div class="biz-sub">${esc(r.details).substring(0, 80)}</div>` : ''}
+    </td>
+    <td>${isTarget ? '<span class="distance-pill target-pill">Search Center</span>' : `<span class="distance-pill">${r.distance_miles} mi</span>`}</td>
+    <td>${r.rating != null ? '⭐ ' + r.rating + (r.reviews != null ? ' (' + r.reviews + ')' : '') : '<span class="muted">—</span>'}</td>
+    <td>${r.category ? esc(r.category) : '<span class="muted">—</span>'}</td>
+    <td>${r.address ? esc(r.address) : '<span class="muted">—</span>'}</td>
+    <td>${r.phone ? esc(r.phone) : '<span class="muted">—</span>'}</td>
+    <td>${r.website ? `<a class="contact-link" href="${esc(r.website)}" target="_blank" rel="noopener">Visit</a>` : '<span class="muted">—</span>'}</td>
+    <td>${r.owner_name ? esc(r.owner_name) : '<span class="muted">—</span>'}</td>
+    <td>${r.email ? `<a class="contact-link" href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : '<span class="muted">—</span>'}</td>
+  `;
+  return tr;
+}
+
 function renderResults(data) {
   const card = document.getElementById('results-card');
   const banner = document.getElementById('target-banner');
   const tbody = document.getElementById('results-tbody');
 
+  const count = document.getElementById('search-count').value || 5;
   if (data.target) {
     banner.style.display = 'block';
-    banner.innerHTML = `📍 Closest businesses to <strong>${esc(data.target.name)}</strong> (${data.query_lat.toFixed(5)}, ${data.query_lon.toFixed(5)})`;
+    banner.innerHTML = `📍 Showing the ${count} closest businesses to <strong>${esc(data.target.name)}</strong> — the search-center business is pinned as the first row below.`;
   } else {
     banner.style.display = 'block';
-    banner.innerHTML = `📍 Closest businesses to <strong>${data.query_lat.toFixed(5)}, ${data.query_lon.toFixed(5)}</strong>`;
+    banner.innerHTML = `📍 Showing the ${count} closest businesses to <strong>${data.query_lat.toFixed(5)}, ${data.query_lon.toFixed(5)}</strong>`;
   }
 
   tbody.innerHTML = '';
+  if (data.target) {
+    tbody.appendChild(buildResultRow(data.target, '<span class="rank-badge target-badge">📍</span>', true));
+  }
   if (!data.results.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#475569;padding:20px;">No nearby businesses found.</td></tr>';
+    tbody.innerHTML += '<tr><td colspan="10" style="text-align:center;color:#475569;padding:20px;">No nearby businesses found.</td></tr>';
   } else {
     data.results.forEach((r, i) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><span class="rank-badge">${i + 1}</span></td>
-        <td>
-          <div class="biz-name">${esc(r.name)}</div>
-          ${r.details ? `<div class="biz-sub">${esc(r.details).substring(0, 80)}</div>` : ''}
-        </td>
-        <td><span class="distance-pill">${r.distance_miles} mi</span></td>
-        <td>${r.rating != null ? '⭐ ' + r.rating + (r.reviews != null ? ' (' + r.reviews + ')' : '') : '<span class="muted">—</span>'}</td>
-        <td>${r.category ? esc(r.category) : '<span class="muted">—</span>'}</td>
-        <td>${r.address ? esc(r.address) : '<span class="muted">—</span>'}</td>
-        <td>${r.phone ? esc(r.phone) : '<span class="muted">—</span>'}</td>
-        <td>${r.website ? `<a class="contact-link" href="${esc(r.website)}" target="_blank" rel="noopener">Visit</a>` : '<span class="muted">—</span>'}</td>
-        <td>${r.owner_name ? esc(r.owner_name) : '<span class="muted">—</span>'}</td>
-        <td>${r.email ? `<a class="contact-link" href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : '<span class="muted">—</span>'}</td>
-      `;
-      tbody.appendChild(tr);
+      tbody.appendChild(buildResultRow(r, `<span class="rank-badge">${i + 1}</span>`, false));
     });
   }
 
