@@ -9,15 +9,38 @@ _NOISE_RE = re.compile(
     r'^(Like|Share|More|Sort|All)$'
     r'|^Local Guide\s*·.*'
     r'|^\d+\s+(review|photo|year|month|week|day)s?(\s+ago)?$'
-    r'|^(a\s+year|a\s+month|a\s+week)\s+ago$'
+    r'|^\d+\s+reviews?(\s*·\s*\d+\s+photos?)?$'
+    r'|^(a|an)\s+(year|month|week|day|hour|minute)\s+ago$'
     r'|^Edited\s+.*ago$'
     r'|^\d+$',
     re.IGNORECASE,
 )
 
+_OWNER_HEADER_RE = re.compile(r'^Response from the owner\b.*\bago$', re.IGNORECASE)
+
 
 def _is_noise(line: str) -> bool:
     return bool(_NOISE_RE.match(line.strip()))
+
+
+def _is_owner_header(line: str) -> bool:
+    return bool(_OWNER_HEADER_RE.match(line.strip()))
+
+
+def _ends_sentence(line: str) -> bool:
+    return line.rstrip()[-1:] in '.!?…”’"'
+
+
+def _merge_wrapped_lines(lines: list) -> list:
+    """Rejoin a review that got line-wrapped mid-sentence (no trailing
+    punctuation followed by a lowercase continuation)."""
+    merged: list = []
+    for line in lines:
+        if merged and not _ends_sentence(merged[-1]) and line[:1].islower():
+            merged[-1] = merged[-1] + ' ' + line
+        else:
+            merged.append(line)
+    return merged
 
 
 def _has_content(line: str) -> bool:
@@ -52,15 +75,24 @@ def clean_review_text(raw: str) -> Tuple[str, Dict[str, Any]]:
     topics, start = _extract_topics(lines)
 
     review_lines = []
+    skip_next_as_owner_reply = False
     for line in lines[start:]:
         line = line.strip()
         if not line:
+            continue
+        if _is_owner_header(line):
+            skip_next_as_owner_reply = True
+            continue
+        if skip_next_as_owner_reply:
+            skip_next_as_owner_reply = False
             continue
         if _is_noise(line):
             continue
         if not _has_content(line):
             continue
         review_lines.append(line)
+
+    review_lines = _merge_wrapped_lines(review_lines)
 
     # Deduplicate by first 60 chars
     seen: set = set()
