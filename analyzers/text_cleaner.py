@@ -108,7 +108,7 @@ def clean_review_text(raw: str) -> Tuple[str, Dict[str, Any]]:
         parts.append(f"Common topics: {', '.join(topics)}")
     parts.extend(unique)
 
-    cleaned = "\n---\n".join(parts)
+    cleaned = " --- ".join(parts)
 
     return cleaned, {
         "original_chars": original_chars,
