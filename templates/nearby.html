@@ -253,7 +253,11 @@ async function handleFile(file) {
     }
 
     uploadId = data.upload_id;
-    statusEl.textContent = `✓ Parsed ${data.count} businesses with valid coordinates`;
+    let statusText = `✓ Parsed ${data.count} businesses with valid coordinates`;
+    if (data.duplicates_removed > 0) {
+      statusText += ` (${data.duplicates_removed} duplicate rows skipped)`;
+    }
+    statusEl.textContent = statusText;
     statusEl.style.display = 'block';
 
     const nameList = document.getElementById('name-list');

@@ -362,6 +362,7 @@ async def nearby_upload(file: UploadFile = File(...)):
     return {
         "upload_id": upload_id,
         "count": len(businesses),
+        "duplicates_removed": parsed.get("duplicates_removed", 0),
         "names": [b["name"] for b in businesses],
         "extra_headers": extra_headers,
     }

@@ -109,6 +109,9 @@ def parse_nearby_file(file_bytes: bytes, filename: str) -> Dict[str, Any]:
     Any column not recognized as a known field (e.g. Facebook, LinkedIn, Instagram, X, YouTube)
     is kept under each business's "extra" dict and reported in "extra_headers", so new list
     formats work without code changes.
+
+    Rows that exactly repeat an earlier business (same name + coordinates) are dropped —
+    exports that concatenate the same sheet multiple times are common in practice.
     """
     if filename.lower().endswith(".csv"):
         rows = _read_csv_rows(file_bytes)
@@ -116,7 +119,7 @@ def parse_nearby_file(file_bytes: bytes, filename: str) -> Dict[str, Any]:
         rows = _read_xlsx_rows(file_bytes)
 
     if not rows:
-        return {"businesses": [], "extra_headers": []}
+        return {"businesses": [], "extra_headers": [], "duplicates_removed": 0}
 
     headers = rows[0]
     col_map = _map_columns(headers)
@@ -124,14 +127,21 @@ def parse_nearby_file(file_bytes: bytes, filename: str) -> Dict[str, Any]:
     extra_headers = _extra_headers(headers, known_indices)
 
     businesses = []
+    seen = set()
+    duplicates_removed = 0
     for row in rows[1:]:
         biz = _row_to_dict(list(row), col_map, headers, known_indices)
         if not biz["name"]:
             continue
         if biz["lat"] is None or biz["lon"] is None:
             continue
+        key = (biz["name"].strip().lower(), round(biz["lat"], 6), round(biz["lon"], 6))
+        if key in seen:
+            duplicates_removed += 1
+            continue
+        seen.add(key)
         businesses.append(biz)
-    return {"businesses": businesses, "extra_headers": extra_headers}
+    return {"businesses": businesses, "extra_headers": extra_headers, "duplicates_removed": duplicates_removed}
 
 
 def _read_xlsx_rows(file_bytes: bytes) -> List[List[Any]]:
