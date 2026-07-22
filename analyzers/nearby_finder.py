@@ -151,11 +151,20 @@ def find_top_nearest(
     lon: float,
     n: int = 5,
     exclude_index: Optional[int] = None,
+    exclude_name: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Return the n closest businesses to (lat, lon), each annotated with distance_miles."""
+    """Return the n closest businesses to (lat, lon), each annotated with distance_miles.
+
+    Excludes the row at exclude_index plus any other row sharing exclude_name
+    (case-insensitive) — uploaded lists sometimes contain duplicate rows for the
+    search-target business, which would otherwise crowd out real nearby competitors.
+    """
+    exclude_name_n = exclude_name.strip().lower() if exclude_name else None
     results = []
     for i, biz in enumerate(businesses):
         if i == exclude_index:
+            continue
+        if exclude_name_n and biz["name"].strip().lower() == exclude_name_n:
             continue
         dist = haversine_miles(lat, lon, biz["lat"], biz["lon"])
         results.append({**biz, "distance_miles": round(dist, 2)})

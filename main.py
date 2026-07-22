@@ -388,7 +388,8 @@ def _resolve_nearby_search(req: NearbySearchRequest):
     else:
         raise HTTPException(status_code=400, detail="Provide either a business name or lat/lon coordinates.")
 
-    results = find_top_nearest(businesses, lat, lon, n=count, exclude_index=target_index)
+    exclude_name = target["name"] if target else None
+    results = find_top_nearest(businesses, lat, lon, n=count, exclude_index=target_index, exclude_name=exclude_name)
     return target, lat, lon, results
 
 
