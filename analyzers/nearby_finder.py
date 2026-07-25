@@ -65,7 +65,7 @@ def _row_to_dict(row: List[Any], col_map: Dict[str, int], headers: List[Any], kn
         return str(val).strip() if val is not None else ""
 
     def get_float(key):
-        raw = get(key)
+        raw = get(key).replace(",", "")
         try:
             return float(raw)
         except (TypeError, ValueError):
