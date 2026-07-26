@@ -84,9 +84,27 @@ def _read_csv_rows(file_bytes: bytes) -> List[List[Any]]:
 
 
 def _read_xlsx_rows(file_bytes: bytes) -> List[List[Any]]:
-    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
-    ws = wb.active
-    return list(ws.iter_rows(values_only=True))
+    """Unlike CSV, xlsx retains each cell's underlying formula alongside its
+    computed value. A phone cell entered as "=+18025551234" evaluates to
+    #ERROR! in Google Sheets but the formula text survives in the xlsx export —
+    fall back to it wherever the computed value is missing or an error."""
+    wb_val = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+    wb_formula = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=False)
+    ws_val = wb_val.active
+    ws_formula = wb_formula.active
+
+    rows = []
+    for r in range(1, ws_val.max_row + 1):
+        row = []
+        for c in range(1, ws_val.max_column + 1):
+            val = ws_val.cell(r, c).value
+            if val is None or (isinstance(val, str) and val.strip().startswith("#")):
+                formula = ws_formula.cell(r, c).value
+                if formula and str(formula).startswith("="):
+                    val = str(formula)
+            row.append(val)
+        rows.append(row)
+    return rows
 
 
 def _parse_row(row: List[Any]) -> Optional[Dict[str, Any]]:
