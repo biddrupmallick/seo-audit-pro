@@ -2,15 +2,16 @@
 GMB Cleaner — turn a raw Google Maps scrape (CSV or Excel) into a clean file with
 gmb_url, name, rating, reviews, category, address, phone, website, lat, lon.
 
-The first 5 columns (gmb url, name, rating, reviews, category) are already labelled
-correctly by the scraper. Everything after that is untitled DOM class names
-(W4Efsd, doJOZc, ah5Ghc...) whose column position shifts row to row depending on
-which optional fields Google rendered for that listing, so address/phone/website
-are found by pattern instead of position — reusing the same detectors as File Prep.
+Only gmb_url (col 0) and name (col 1) are reliably positioned. Everything after
+that — including rating/reviews/category, despite the header claiming fixed
+columns — shifts right whenever Google renders an extra element for that listing
+(a duplicated name badge, a price-tier badge like "$20-30"), so every field from
+rating onward is found by pattern instead of position, same as address/phone/website.
 """
 import csv
 import io
-from typing import List, Dict, Any, Optional
+import re
+from typing import List, Dict, Any, Optional, Tuple
 
 import openpyxl
 from openpyxl import Workbook
@@ -18,23 +19,63 @@ from openpyxl import Workbook
 from analyzers.file_prep import _extract_lat_lon, _is_address, _is_phone, _is_website, _clean_phone
 
 _CATEGORY_JUNK = {"·", "-", "—", "n/a", "website", "directions", "closed", "open"}
+_RATING_RE = re.compile(r'^[1-5](\.\d{1,2})?$')
+_REVIEWS_RE = re.compile(r'^-?[\d,]+$')
+_PRICE_TIER_RE = re.compile(r'^\$[\d,]*(–|-)?[\d,]*$|^\${1,4}$')
+_STREET_SUFFIX_RE = re.compile(
+    r'\b(Rd|St|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Dr|Drive|Wy|Way|Hwy|Highway|'
+    r'Pl|Place|Ct|Court|Cir|Circle|Pkwy|Parkway|Route|Rte|Terrace|Ter|Trail|Loop)\.?$',
+    re.I,
+)
 
 
 def _is_usable_category(s: str) -> bool:
     s = s.strip()
-    if not s or s.lower() in _CATEGORY_JUNK:
+    if not s or s.lower() in _CATEGORY_JUNK or _PRICE_TIER_RE.match(s):
         return False
     return any(c.isalpha() for c in s)
 
 
-def _to_float(raw: str) -> Optional[float]:
-    raw = (raw or "").strip().replace(",", "")
-    if not raw:
-        return None
-    try:
-        return float(raw)
-    except ValueError:
-        return None
+def _looks_like_address(s: str) -> bool:
+    """File Prep's _is_address requires a leading house number, which misses
+    rural roads like "Marlboro Rd" that have none, and addresses prefixed with
+    the business name or a highway name before the actual street ("Willow
+    Crossing Farm, 2780 VT-15") — catch those by street suffix instead."""
+    if _is_address(s):
+        return True
+    for part in s.split(","):
+        part = part.strip()
+        if _is_address(part):
+            return True
+    words = s.split()
+    return 2 <= len(words) <= 12 and bool(_STREET_SUFFIX_RE.search(s))
+
+
+def _extract_rating_reviews_category(cells: List[str], name: str) -> Tuple[Optional[float], Optional[int], str]:
+    """cells = row[2:], as trimmed strings. Scans by pattern rather than trusting a
+    fixed column, since a duplicated name cell or a price-tier badge ("$20-30") each
+    shift every field after it one column to the right."""
+    rating, rating_idx = None, -1
+    for i, s in enumerate(cells):
+        if s and s != name and _RATING_RE.match(s):
+            rating, rating_idx = float(s), i
+            break
+
+    reviews, reviews_idx = None, rating_idx
+    for i in range(rating_idx + 1, len(cells)):
+        s = cells[i]
+        if s and _REVIEWS_RE.match(s):
+            reviews, reviews_idx = abs(int(s.replace(",", ""))), i
+            break
+
+    category = ""
+    for i in range(reviews_idx + 1, len(cells)):
+        s = cells[i]
+        if s and s != name and _is_usable_category(s):
+            category = s
+            break
+
+    return rating, reviews, category
 
 
 def _read_csv_rows(file_bytes: bytes) -> List[List[Any]]:
@@ -57,24 +98,16 @@ def _parse_row(row: List[Any]) -> Optional[Dict[str, Any]]:
     if not gmb_url or not name:
         return None
 
-    rating = _to_float(cell(2))
-    reviews_raw = _to_float(cell(3))
-    reviews = abs(int(reviews_raw)) if reviews_raw is not None else None
-
-    category = cell(4)
-    if not _is_usable_category(category):
-        category = ""
+    rest = [cell(i) for i in range(2, len(row))]
+    rating, reviews, category = _extract_rating_reviews_category(rest, name)
 
     lat, lon = _extract_lat_lon(gmb_url)
 
     address = phone = website = ""
-    for raw_cell in row[5:]:
-        if raw_cell is None:
-            continue
-        s = str(raw_cell).strip()
+    for s in rest:
         if not s or s.startswith("#"):
             continue
-        if not address and _is_address(s):
+        if not address and _looks_like_address(s):
             address = s
         elif not phone and _is_phone(s):
             phone = _clean_phone(s)

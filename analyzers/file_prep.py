@@ -153,7 +153,8 @@ _JUNK_CELLS = {"website", "phone", "email", "address", "name", "category",
                "closed", "open", "directions", "n/a"}
 
 _IMAGE_EXTS  = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg")
-_SKIP_HOSTS  = ("google.com", "gstatic.com", "googleapis.com", "lomyu.me", "bit.ly", "goo.gl", "tinyurl.com")
+_SKIP_HOSTS  = ("google.com", "gstatic.com", "googleapis.com", "googleusercontent.com",
+                "lomyu.me", "bit.ly", "goo.gl", "tinyurl.com")
 
 
 def _is_website(val: str) -> bool:
