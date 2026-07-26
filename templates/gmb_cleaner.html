@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GMB Cleaner — SEO Audit Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0b1120; color: #e2e8f0; min-height: 100vh; }
+
+    .topbar { background: #0f172a; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1e293b; }
+    .topbar-logo { color: #fff; font-size: 16px; font-weight: 800; }
+    .topbar-logo span { color: #3b82f6; }
+    .topbar-nav a { color: #64748b; font-size: 13px; text-decoration: none; margin-left: 20px; transition: color 0.15s; }
+    .topbar-nav a:hover { color: #cbd5e1; }
+    .topbar-nav a.active { color: #3b82f6; font-weight: 600; }
+
+    .page { max-width: 1000px; margin: 36px auto; padding: 0 24px 80px; }
+
+    .hero { margin-bottom: 32px; }
+    .hero h1 { font-size: 26px; font-weight: 800; background: linear-gradient(135deg, #e2e8f0, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px; }
+    .hero p { font-size: 13px; color: #64748b; }
+
+    .card { background: #111827; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+    .card-label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; }
+
+    .drop-zone {
+      border: 2px dashed #1e3a5f; border-radius: 12px; padding: 36px 20px;
+      text-align: center; cursor: pointer; transition: all 0.2s;
+      background: #0d1929;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #3b82f6; background: #0d1f3a; }
+    .drop-zone-icon { font-size: 28px; margin-bottom: 10px; }
+    .drop-zone-text { font-size: 14px; font-weight: 600; color: #94a3b8; }
+    .drop-zone-sub { font-size: 12px; color: #475569; margin-top: 4px; }
+    input[type=file] { display: none; }
+    .file-selected { font-size: 12px; color: #3b82f6; font-weight: 600; margin-top: 10px; text-align: center; }
+
+    #error-box { display: none; background: #2d1515; border: 1px solid #7f1d1d; color: #f87171; border-radius: 10px; padding: 14px 18px; font-size: 13px; margin-bottom: 20px; }
+
+    #loading { display: none; text-align: center; padding: 30px; color: #64748b; font-size: 13px; }
+    .spinner { width: 28px; height: 28px; border: 3px solid #1e293b; border-top-color: #3b82f6; border-radius: 50%; margin: 0 auto 14px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #result { display: none; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px; }
+    @media (max-width: 800px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+
+    .stat-card { background: #111827; border: 1px solid #1e293b; border-radius: 14px; padding: 16px 18px; position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 14px 14px 0 0; }
+    .stat-card.blue::before  { background: linear-gradient(90deg, #2563eb, #6366f1); }
+    .stat-card.red::before   { background: linear-gradient(90deg, #dc2626, #ef4444); }
+    .stat-card.amber::before { background: linear-gradient(90deg, #d97706, #f59e0b); }
+    .stat-card.green::before { background: linear-gradient(90deg, #10b981, #34d399); }
+    .stat-card.teal::before  { background: linear-gradient(90deg, #0891b2, #06b6d4); }
+    .stat-num { font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .stat-card.blue  .stat-num { color: #60a5fa; }
+    .stat-card.red   .stat-num { color: #f87171; }
+    .stat-card.amber .stat-num { color: #fbbf24; }
+    .stat-card.green .stat-num { color: #34d399; }
+    .stat-card.teal  .stat-num { color: #22d3ee; }
+    .stat-lbl { font-size: 10.5px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    .btn-download {
+      display: inline-block; padding: 14px 36px; border-radius: 12px;
+      background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+      font-size: 15px; font-weight: 700; text-decoration: none; transition: opacity 0.2s;
+    }
+    .btn-download:hover { opacity: 0.9; }
+    .btn-reset {
+      display: inline-block; padding: 14px 24px; border-radius: 12px; margin-left: 10px;
+      background: transparent; border: 1px solid #1e293b; color: #94a3b8;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-reset:hover { border-color: #334155; color: #cbd5e1; }
+
+    .preview-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #1e293b; }
+    .preview-wrap table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+    .preview-wrap th { background: #0d1929; padding: 8px 12px; text-align: left; color: #64748b; border-bottom: 1px solid #1e293b; white-space: nowrap; font-weight: 600; }
+    .preview-wrap td { padding: 7px 12px; border-bottom: 1px solid #111827; color: #94a3b8; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+    .preview-wrap tr:last-child td { border-bottom: none; }
+    .preview-note { font-size: 11px; color: #475569; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">SEO Audit <span>Pro</span></div>
+  <div class="topbar-nav">
+    <a href="/">Single Audit</a>
+    <a href="/bulk">Bulk Audit</a>
+    <a href="/upload">📂 Niche Upload</a>
+    <a href="/file-prep">🗂️ File Prep</a>
+    <a href="/nearby">📍 Nearby Finder</a>
+    <a href="/gmb-cleaner" class="active">🧼 GMB Cleaner</a>
+    <a href="/review-cleaner">🧹 Review Cleaner</a>
+    <a href="/settings">⚙️ Branding</a>
+  </div>
+</div>
+
+<div class="page">
+  <div class="hero">
+    <h1>GMB Cleaner</h1>
+    <p>Upload a raw Google Maps scrape (CSV or Excel) — get back one clean row per business: GMB URL, Name, Rating, Reviews, Category, Address, Phone, Website, Lat, Lon.</p>
+  </div>
+
+  <div id="error-box"></div>
+
+  <div class="card" id="upload-card">
+    <div class="card-label">Upload File</div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="drop-zone-icon">📂</div>
+      <div class="drop-zone-text">Click to upload or drag & drop</div>
+      <div class="drop-zone-sub">.csv or .xlsx</div>
+    </div>
+    <input type="file" id="file-input" accept=".csv,.xlsx" onchange="onFileSelected(this)">
+    <div class="file-selected" id="file-name"></div>
+  </div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    Cleaning file…
+  </div>
+
+  <div id="result">
+    <div class="stats-row">
+      <div class="stat-card blue">
+        <div class="stat-num" id="s-total">0</div>
+        <div class="stat-lbl">Rows in file</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-num" id="s-blank">0</div>
+        <div class="stat-lbl">Blank / no name</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-num" id="s-dupes">0</div>
+        <div class="stat-lbl">Duplicates removed</div>
+      </div>
+      <div class="stat-card teal">
+        <div class="stat-num" id="s-phone">0</div>
+        <div class="stat-lbl">Phones recovered</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-num" id="s-clean">0</div>
+        <div class="stat-lbl">Clean rows out</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Preview (first 20 rows)</div>
+      <div class="preview-wrap">
+        <table id="preview-table"></table>
+      </div>
+      <div class="preview-note">Download includes all clean rows, not just this preview.</div>
+    </div>
+
+    <div>
+      <a class="btn-download" id="download-link" href="#">Download Clean Excel</a>
+      <button class="btn-reset" onclick="resetForm()">Clean another file</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+function onFileSelected(inp) { if (inp.files[0]) handleFile(inp.files[0]); }
+
+async function handleFile(file) {
+  document.getElementById('file-name').textContent = '📄 ' + file.name;
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('upload-card').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const resp = await fetch('/api/gmb-cleaner/clean', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Could not clean file.');
+    showResult(data);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  box.textContent = msg;
+  box.style.display = 'block';
+  document.getElementById('upload-card').style.display = 'block';
+}
+
+function showResult(data) {
+  const s = data.stats;
+  document.getElementById('s-total').textContent = s.total_rows;
+  document.getElementById('s-blank').textContent = s.dropped_blank_or_noname;
+  document.getElementById('s-dupes').textContent = s.duplicates_removed;
+  document.getElementById('s-phone').textContent = s.phone_recovered;
+  document.getElementById('s-clean').textContent = s.clean_rows;
+
+  renderPreview(data.preview || []);
+  document.getElementById('download-link').href = `/api/gmb-cleaner/download/${data.token}`;
+  document.getElementById('result').style.display = 'block';
+}
+
+function renderPreview(rows) {
+  const headers = ['Name', 'Rating', 'Reviews', 'Category', 'Address', 'Phone', 'Website', 'Lat', 'Lon'];
+  let html = '<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+  rows.forEach(r => {
+    html += '<tr>' +
+      `<td title="${r.name||''}">${r.name||''}</td>` +
+      `<td>${r.rating ?? ''}</td>` +
+      `<td>${r.reviews ?? ''}</td>` +
+      `<td title="${r.category||''}">${r.category||''}</td>` +
+      `<td title="${r.address||''}">${r.address||''}</td>` +
+      `<td>${r.phone||''}</td>` +
+      `<td title="${r.website||''}">${r.website||''}</td>` +
+      `<td>${r.lat ?? ''}</td>` +
+      `<td>${r.lon ?? ''}</td>` +
+      '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('preview-table').innerHTML = html;
+}
+
+function resetForm() {
+  document.getElementById('file-input').value = '';
+  document.getElementById('file-name').textContent = '';
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('upload-card').style.display = 'block';
+}
+</script>
+</body>
+</html>

@@ -53,6 +53,7 @@ from analyzers.niche_blog import generate_blog_posts
 from analyzers.ultra_email import generate_ultra_emails
 from analyzers.text_cleaner import clean_review_text
 from analyzers.file_prep import process_file as prep_process_file, build_excel
+from analyzers.gmb_cleaner import clean_gmb_file, build_export_excel as build_gmb_export_excel
 from report.branding import load_branding, save_branding
 from scoring.scorer import calculate_scores
 from report.generator import generate_report, get_report_path, generate_niche_report
@@ -95,6 +96,9 @@ upload_jobs: Dict[str, Dict[str, Any]] = {}
 
 # Nearby Finder uploads store
 nearby_uploads: Dict[str, Dict[str, Any]] = {}
+
+# GMB Cleaner results store
+gmb_cleaner_results: Dict[str, Dict[str, Any]] = {}
 
 
 # ====== MODELS ======
@@ -417,6 +421,45 @@ async def nearby_export(req: NearbySearchRequest):
         content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename=nearby_{safe_name}.xlsx"},
+    )
+
+
+@app.get("/gmb-cleaner", response_class=HTMLResponse)
+async def gmb_cleaner_page(request: Request):
+    return templates.TemplateResponse(request, "gmb_cleaner.html", {})
+
+
+@app.post("/api/gmb-cleaner/clean")
+async def gmb_cleaner_clean(file: UploadFile = File(...)):
+    contents = await file.read()
+    try:
+        result = clean_gmb_file(contents, file.filename or "")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse file: {e}")
+
+    businesses = result["businesses"]
+    if not businesses:
+        raise HTTPException(
+            status_code=400,
+            detail="No usable rows found. Make sure the file has GMB URL and Name columns filled in.",
+        )
+
+    token = str(uuid.uuid4())
+    gmb_cleaner_results[token] = {"businesses": businesses, "filename": file.filename}
+
+    return {"token": token, "stats": result["stats"], "preview": businesses[:20]}
+
+
+@app.get("/api/gmb-cleaner/download/{token}")
+async def gmb_cleaner_download(token: str):
+    if token not in gmb_cleaner_results:
+        raise HTTPException(status_code=404, detail="Result not found — please upload the file again.")
+    businesses = gmb_cleaner_results[token]["businesses"]
+    excel_bytes = build_gmb_export_excel(businesses)
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=clean_gmb_data.xlsx"},
     )
 
 
