@@ -20,7 +20,7 @@ from analyzers.file_prep import _extract_lat_lon, _is_address, _is_phone, _is_we
 
 _CATEGORY_JUNK = {"·", "-", "—", "n/a", "website", "directions", "closed", "open"}
 _RATING_RE = re.compile(r'^[1-5](\.\d{1,2})?$')
-_REVIEWS_RE = re.compile(r'^-?[\d,]+$')
+_REVIEWS_RE = re.compile(r'^-?\d[\d,]*$')
 _PRICE_TIER_RE = re.compile(r'^\$[\d,]*(–|-)?[\d,]*$|^\${1,4}$')
 _STREET_SUFFIX_RE = re.compile(
     r'\b(Rd|St|Ave|Avenue|Blvd|Boulevard|Ln|Lane|Dr|Drive|Wy|Way|Hwy|Highway|'
@@ -65,7 +65,11 @@ def _extract_rating_reviews_category(cells: List[str], name: str) -> Tuple[Optio
     for i in range(rating_idx + 1, len(cells)):
         s = cells[i]
         if s and _REVIEWS_RE.match(s):
-            reviews, reviews_idx = abs(int(s.replace(",", ""))), i
+            try:
+                reviews = abs(int(s.replace(",", "")))
+            except ValueError:
+                continue
+            reviews_idx = i
             break
 
     category = ""
@@ -107,9 +111,20 @@ def _read_xlsx_rows(file_bytes: bytes) -> List[List[Any]]:
     return rows
 
 
+def _cell_str(val: Any) -> str:
+    """xlsx numeric cells come back as Python int/float (e.g. -69.0), not text.
+    str(-69.0) == "-69.0", which fails the reviews pattern (no decimals allowed,
+    to avoid matching a comma-only cell) — normalise whole-number floats first."""
+    if val is None:
+        return ""
+    if isinstance(val, float) and val.is_integer():
+        return str(int(val))
+    return str(val).strip()
+
+
 def _parse_row(row: List[Any]) -> Optional[Dict[str, Any]]:
     def cell(i: int) -> str:
-        return str(row[i]).strip() if i < len(row) and row[i] is not None else ""
+        return _cell_str(row[i]) if i < len(row) else ""
 
     gmb_url = cell(0)
     name = cell(1)
